@@ -1,0 +1,16 @@
+Turn on the lights in [room/zone]
+Turn off the lights in [room/zone]
+
+Dim the lights to [x]% in [room/zone]
+Turn up the lights to [x]% in [room/zone]
+    Set the lights to [x]% in [room/zone]
+
+Good bye
+    See you
+    Bye bye
+I'm home
+
+Turn on the TV
+Turn off the TV
+
+Set the mode to [mode]
