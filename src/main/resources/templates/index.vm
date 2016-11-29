@@ -12,6 +12,6 @@
 <nav class="navbar navbar-inverse navbar-static-top">
 </nav>
 Hello $hello! :-) 4
-
+Auth token: [$config.authToken]
 </body>
 </html>

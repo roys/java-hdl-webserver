@@ -38,9 +38,14 @@ public class HdlService {
                         }
                     }
                 } catch (SocketException e) {
-                        /* no-op */
+                    logger.error("Got SocketException while receiving packages...", e);
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e1) {
+                            /* no-op */
+                    }
                 } catch (IOException e) {
-                    //logger.error("Got IOException while receiving packages...");
+                    logger.error("Got IOException while receiving packages...", e);
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException e1) {
