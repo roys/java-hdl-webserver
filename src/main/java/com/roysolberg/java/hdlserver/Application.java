@@ -2,11 +2,13 @@ package com.roysolberg.java.hdlserver;
 
 import com.roysolberg.java.hdlserver.service.HdlService;
 import org.mapdb.DB;
+import org.mapdb.DBException;
 import org.mapdb.DBMaker;
 import spark.ModelAndView;
 import spark.template.velocity.VelocityTemplateEngine;
 
 import java.math.BigInteger;
+import java.net.InetAddress;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,30 +21,33 @@ public class Application {
 
     private static final String TAG = Application.class.getSimpleName();
 
-    protected static HdlService hdlService;
-    private static DB database;
-    private static ConcurrentMap configConcurrentMap;
+    protected HdlService hdlService;
+    protected DB database;
+    protected ConcurrentMap configConcurrentMap;
 
-    public static void main(String[] args) {
-        System.out.println("2");
-        if (true) {
-            staticFiles.location("/public");
-            staticFiles.expireTime(600);
-        } else {
-            staticFiles.externalLocation(System.getProperty("user.dir") + "/src/main/resources/public");
-            System.out.println("System.getProperty(\"user.dir\"):" + System.getProperty("user.dir"));
-        }
+    public Application() {
         setUpDatabase();
         setUpConfig();
         setUpHdlService();
+        setUpServer();
         setUpPaths();
     }
 
-    protected static void setUpDatabase() {
-        database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().make();
+    public static void main(String[] args) {
+        System.out.println("3");
+        new Application();
     }
 
-    protected static void setUpConfig() {
+    protected void setUpDatabase() {
+        try {
+            database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().make();
+        } catch (DBException e) {
+            e.printStackTrace();
+            database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().checksumHeaderBypass().make();
+        }
+    }
+
+    protected void setUpConfig() {
         configConcurrentMap = database.hashMap("config").createOrOpen();
         if (!configConcurrentMap.containsKey("authToken")) {
             configConcurrentMap.put("authToken", generateAuthToken());
@@ -50,17 +55,31 @@ public class Application {
         }
     }
 
-    private static String generateAuthToken() {
+    protected String generateAuthToken() {
         return new BigInteger(130, new SecureRandom()).toString(32).toUpperCase();
     }
 
-    protected static void setUpHdlService() {
-        hdlService = new HdlService();
+    protected void setUpHdlService() {
+        hdlService = new HdlService(database);
     }
 
-    protected static void setUpPaths() {
+    protected void setUpServer() {
+        if (false) {
+            staticFiles.location("/public");
+            staticFiles.expireTime(600);
+        } else {
+            staticFiles.externalLocation(System.getProperty("user.dir") + "/src/main/resources/public");
+            System.out.println("System.getProperty(\"user.dir\"):" + System.getProperty("user.dir"));
+        }
+    }
+
+    protected void setUpPaths() {
         get("/", (req, res) -> {
             System.out.println("IP:" + req.ip());
+            InetAddress remoteInetAddress = InetAddress.getByName(req.ip());
+            System.out.println("remoteInetAddress.isSiteLocalAddress():" + remoteInetAddress.isSiteLocalAddress());
+            System.out.println("remoteInetAddress.getHostAddress():" + remoteInetAddress.getHostAddress());
+            System.out.println("remoteInetAddress:" + remoteInetAddress);
             Map<String, Object> model = new HashMap<>();
             model.put("hello", "Velocity World");
             model.put("config", configConcurrentMap);

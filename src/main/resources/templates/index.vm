@@ -11,7 +11,8 @@
 <body>
 <nav class="navbar navbar-inverse navbar-static-top">
 </nav>
-Hello $hello! :-) 4
+#include('templates/header.vm')
+Hello $hello! :-) 6
 Auth token: [$config.authToken]
 </body>
 </html>
