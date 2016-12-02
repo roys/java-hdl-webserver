@@ -4,22 +4,27 @@ import com.roysolberg.java.hdlserver.service.HdlService;
 import org.mapdb.DB;
 import org.mapdb.DBException;
 import org.mapdb.DBMaker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import spark.ModelAndView;
+import spark.Request;
 import spark.template.velocity.VelocityTemplateEngine;
 
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
-import static spark.Spark.get;
-import static spark.Spark.staticFiles;
+import static spark.Spark.*;
 
 public class Application {
 
-    private static final String TAG = Application.class.getSimpleName();
+    private static Logger logger = LoggerFactory.getLogger(Application.class.getSimpleName());
+
+    protected final static boolean DEVEL_MODE = false;
 
     protected HdlService hdlService;
     protected DB database;
@@ -64,22 +69,22 @@ public class Application {
     }
 
     protected void setUpServer() {
-        if (false) {
-            staticFiles.location("/public");
-            staticFiles.expireTime(600);
-        } else {
+        if (DEVEL_MODE) {
+            logger.info("***");
+            logger.info("*** RUNNING IN DEVELOPMENT MODE");
+            logger.info("***");
             staticFiles.externalLocation(System.getProperty("user.dir") + "/src/main/resources/public");
             System.out.println("System.getProperty(\"user.dir\"):" + System.getProperty("user.dir"));
+        } else {
+            staticFiles.location("/public");
+            staticFiles.expireTime(600);
         }
     }
 
     protected void setUpPaths() {
         get("/", (req, res) -> {
-            System.out.println("IP:" + req.ip());
-            InetAddress remoteInetAddress = InetAddress.getByName(req.ip());
-            System.out.println("remoteInetAddress.isSiteLocalAddress():" + remoteInetAddress.isSiteLocalAddress());
-            System.out.println("remoteInetAddress.getHostAddress():" + remoteInetAddress.getHostAddress());
-            System.out.println("remoteInetAddress:" + remoteInetAddress);
+            requireSiteLocalAddress(req);
+
             Map<String, Object> model = new HashMap<>();
             model.put("hello", "Velocity World");
             model.put("config", configConcurrentMap);
@@ -88,6 +93,23 @@ public class Application {
             return new ModelAndView(model, "templates/index.vm");
         }, new VelocityTemplateEngine());
         get("/hello", (req, res) -> "Hello World");
+    }
+
+    protected void requireSiteLocalAddress(Request request) {
+        try {
+            InetAddress remoteInetAddress = InetAddress.getByName(request.ip());
+            if (!remoteInetAddress.isSiteLocalAddress()) {
+                if (DEVEL_MODE) {
+                    logger.warn("Running in development mode - allowing request from non-local IP address [" + request.ip() + "].");
+                } else {
+                    logger.warn("Access denied for resource [" + request.url() + "] for IP address [" + request.ip() + "]. User agent is [" + request.userAgent() + "].");
+                    halt(401, "Access denied. Only allowing access from local addresses.");
+                }
+            }
+        } catch (UnknownHostException e) {
+            logger.error("Got UnknownHostException while trying to resolve address [" + request.ip() + "]. Halting request.");
+            halt(401, "Access denied. Unable to verify that request is coming from a local address.");
+        }
     }
 
 }
