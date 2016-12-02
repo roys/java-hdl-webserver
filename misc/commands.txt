@@ -14,3 +14,9 @@ Turn on the TV
 Turn off the TV
 
 Set the mode to [mode]
+
+Help
+
+Open the garage
+Close the garage
+

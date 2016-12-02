@@ -1,4 +1,4 @@
-Trigger command:
+Trigger command on component:
     --> POST /components/[subnet]/[deviceId]?auth=[authKey] with JSON
     <-- 202/404
 Get status:
@@ -14,3 +14,18 @@ Trigger set of commands (e.g. Google Home)
 
 
 Allow/disallow remote IPs?
+
+
+
+************************
+* Open the garage
+************************
+URL: POST /commands/1?auth=[authKey]
+ID: 1
+Description: Open the garage
+Commands:
+    Command:
+        Subnet: 1, device id: 81, type: Touch panel, description: Garage, operation: OPERATE_CODE_PANEL_CONTROL, ON
+    Command:
+        Subnet: 1, device id: 81, type: Touch panel, description: Garage, operation: OPERATE_CODE_PANEL_CONTROL, OFF
+

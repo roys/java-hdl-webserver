@@ -1,8 +1,8 @@
 package com.roysolberg.java.hdlserver;
 
+import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
 import org.mapdb.DB;
-import org.mapdb.DBException;
 import org.mapdb.DBMaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +14,9 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,11 +26,13 @@ public class Application {
 
     private static Logger logger = LoggerFactory.getLogger(Application.class.getSimpleName());
 
-    protected final static boolean DEVEL_MODE = false;
+    protected final static boolean DEVEL_MODE = true;
 
     protected HdlService hdlService;
     protected DB database;
     protected ConcurrentMap configConcurrentMap;
+    protected ConcurrentMap componentsConcurrentMap;
+    protected List<HdlComponent> hdlComponents;
 
     public Application() {
         setUpDatabase();
@@ -44,12 +48,7 @@ public class Application {
     }
 
     protected void setUpDatabase() {
-        try {
-            database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().make();
-        } catch (DBException e) {
-            e.printStackTrace();
-            database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().checksumHeaderBypass().make();
-        }
+        database = DBMaker.fileDB("hdlserver.db").fileMmapEnable().checksumHeaderBypass().make();
     }
 
     protected void setUpConfig() {
@@ -58,6 +57,7 @@ public class Application {
             configConcurrentMap.put("authToken", generateAuthToken());
             database.commit();
         }
+        componentsConcurrentMap = database.hashMap("components").createOrOpen();
     }
 
     protected String generateAuthToken() {
@@ -84,15 +84,29 @@ public class Application {
     protected void setUpPaths() {
         get("/", (req, res) -> {
             requireSiteLocalAddress(req);
-
-            Map<String, Object> model = new HashMap<>();
-            model.put("hello", "Velocity World");
-            model.put("config", configConcurrentMap);
-
-            // The wm files are located under the resources directory
-            return new ModelAndView(model, "templates/index.vm");
+            return getModelAndView("index");
         }, new VelocityTemplateEngine());
-        get("/hello", (req, res) -> "Hello World");
+        get("/commands", (req, res) -> {
+            requireSiteLocalAddress(req);
+            return getModelAndView("commands");
+        }, new VelocityTemplateEngine());
+        get("/security", (req, res) -> {
+            requireSiteLocalAddress(req);
+            return getModelAndView("security");
+        }, new VelocityTemplateEngine());
+    }
+
+    protected ModelAndView getModelAndView(String page) {
+        Map<String, Object> model = new HashMap<>();
+        model.put("page", page);
+        model.put("config", configConcurrentMap);
+        if (hdlComponents == null || componentsConcurrentMap.size() != hdlComponents.size()) {
+            hdlComponents = new ArrayList<>(componentsConcurrentMap.values());
+            hdlComponents.sort((left, right) -> left.getSubnet() != right.getSubnet() ? left.getSubnet() - right.getSubnet() : left.getDeviceId() - right.getDeviceId());
+        }
+        model.put("components", hdlComponents);
+
+        return new ModelAndView(model, "templates/" + page + ".vm");
     }
 
     protected void requireSiteLocalAddress(Request request) {

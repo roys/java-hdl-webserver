@@ -1,0 +1,6 @@
+#parse('templates/header.vm')
+
+Auth token: [$config.authToken]
+Page [$page]
+
+#parse('templates/footer.vm')

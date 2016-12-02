@@ -1,0 +1,7 @@
+#parse('templates/header.vm')
+
+<a href="https://plus.google.com/+RoySolberg/posts/gNt4paU7KEZ">https://plus.google.com/+RoySolberg/posts/gNt4paU7KEZ</a>
+Auth token: [$config.authToken]
+Page [$page]
+
+#parse('templates/footer.vm')
