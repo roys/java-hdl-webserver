@@ -1,14 +1,13 @@
 #parse('templates/header.vm')
 
 <div class="row">
-    <div class="col-md-2"></div>
-    <div class="col-md-8">
+    <div class="col-md-10 col-md-offset-1">
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
                 <tr>
-                    <th>Subnet ID</th>
-                    <th>Device ID</th>
+                    <th class="text-center">Subnet ID</th>
+                    <th class="text-center">Device ID</th>
                     <th>Remark</th>
                     <th>Type</th>
                 </tr>
@@ -16,8 +15,8 @@
                 <tbody>
                 #foreach ($component in $components)
                 <tr>
-                    <td>$component.subnet</td>
-                    <td>$component.deviceId</td>
+                    <td class="text-center">$component.subnet</td>
+                    <td class="text-center">$component.deviceId</td>
                     <th>$component.remark</th>
                     <td>$component.description</td>
                 </tr>
@@ -26,7 +25,6 @@
             </table>
         </div>
     </div>
-    <div class="col-md-2"></div>
 </div>
 
 #parse('templates/footer.vm')

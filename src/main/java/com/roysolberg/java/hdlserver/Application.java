@@ -1,5 +1,6 @@
 package com.roysolberg.java.hdlserver;
 
+import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
 import org.mapdb.DB;
@@ -32,6 +33,7 @@ public class Application {
     protected DB database;
     protected ConcurrentMap configConcurrentMap;
     protected ConcurrentMap componentsConcurrentMap;
+    protected ConcurrentMap actionsConcurrentMap;
     protected List<HdlComponent> hdlComponents;
 
     public Application() {
@@ -58,6 +60,7 @@ public class Application {
             database.commit();
         }
         componentsConcurrentMap = database.hashMap("components").createOrOpen();
+        actionsConcurrentMap = database.hashMap("actions").createOrOpen();
     }
 
     protected String generateAuthToken() {
@@ -84,19 +87,62 @@ public class Application {
     protected void setUpPaths() {
         get("/", (req, res) -> {
             requireSiteLocalAddress(req);
-            return getModelAndView("index");
+            return getModelAndView(req, "index");
         }, new VelocityTemplateEngine());
-        get("/commands", (req, res) -> {
+        get("/actions", (req, res) -> {
             requireSiteLocalAddress(req);
-            return getModelAndView("commands");
+            return getModelAndView(req, "actions");
         }, new VelocityTemplateEngine());
+        post("/create_action", (request, response) -> {
+            requireSiteLocalAddress(request);
+            // TODO: Error handling and success + error feedback
+            createAction(request.queryParams("description"), request.queryParamsValues("components[]"), request.queryParamsValues("operations[]"), request.queryParamsValues("parameters1[]"), request.queryParamsValues("parameters2[]"), request.queryParamsValues("parameters3[]"));
+            response.redirect("/actions");
+            return null;
+        });
         get("/security", (req, res) -> {
             requireSiteLocalAddress(req);
-            return getModelAndView("security");
+            return getModelAndView(req, "security");
         }, new VelocityTemplateEngine());
     }
 
-    protected ModelAndView getModelAndView(String page) {
+    private boolean createAction(String description, String[] componentIds, String[] operations, String[] parameters1, String[] parameters2, String[] parameters3) {
+        // TODO: Improve error handling, logging and user feedback
+        if (componentIds != null && componentIds.length > 0 && operations != null && operations.length == componentIds.length) { // At least one component + operation
+            // TODO: Improve action ID generation:
+            int actionId = actionsConcurrentMap.size() + 1;
+            while (actionsConcurrentMap.containsKey(actionId)) {
+                actionId++;
+            }
+            Action action = new Action(actionId, description);
+            for (int i = 0; i < componentIds.length; i++) {
+                String[] ids = componentIds[i].split(":");
+                if (ids.length == 2) {
+                    action.addCommand(new Action.Command(ids[0], ids[1], Integer.parseInt(operations[i]), getParameter(parameters1, i), getParameter(parameters2, i), getParameter(parameters3, i)));
+                } else {
+                    return false;
+                }
+            }
+            actionsConcurrentMap.put(action.getId(), action);
+            database.commit();
+            return true;
+        }
+        return false;
+    }
+
+    protected Integer getParameter(String[] parameters, int i) {
+        Integer parameter = null;
+        if (i < parameters.length && parameters[i] != null && !"".equals(parameters[i])) {
+            try {
+                parameter = Integer.parseInt(parameters[i].trim());
+            } catch (NumberFormatException e) {
+                logger.error("Got NumberFormatException while tyring to parse [" + parameters[i] + "] to an integer. Ignoring problem and not adding parameter to command.", e);
+            }
+        }
+        return parameter;
+    }
+
+    protected ModelAndView getModelAndView(Request request, String page) {
         Map<String, Object> model = new HashMap<>();
         model.put("page", page);
         model.put("config", configConcurrentMap);
@@ -105,6 +151,11 @@ public class Application {
             hdlComponents.sort((left, right) -> left.getSubnet() != right.getSubnet() ? left.getSubnet() - right.getSubnet() : left.getDeviceId() - right.getDeviceId());
         }
         model.put("components", hdlComponents);
+        model.put("actions", actionsConcurrentMap.values());
+        model.put("actionUrl", "POST http://" + request.host() + "/api/commands/");
+        model.put("curlCommandPart1", "curl --include --header 'Content-Type: application/json' --request POST --data \"{authToken:\'" + configConcurrentMap.get("authToken") + "'}\" http://" + request.host() + "/api/commands/");
+        //model.put("curlCommandPart2", " > /dev/null");
+        model.put("curlCommandPart2", "");
 
         return new ModelAndView(model, "templates/" + page + ".vm");
     }

@@ -8,7 +8,7 @@ Get status:
 
 Trigger set of commands (e.g. Google Home)
     --> "Dim the lights to [x]% in [room/zone]"
-        --> POST /commands/1?auth=[authKey]
+        --> POST /actions/1?auth=[authKey]
         <-- 202/404
     <-- "OK!"
 
@@ -20,7 +20,7 @@ Allow/disallow remote IPs?
 ************************
 * Open the garage
 ************************
-URL: POST /commands/1?auth=[authKey]
+URL: POST /actions/1?auth=[authKey]
 ID: 1
 Description: Open the garage
 Commands:
