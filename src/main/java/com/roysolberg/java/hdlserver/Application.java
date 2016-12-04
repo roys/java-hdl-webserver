@@ -29,7 +29,7 @@ public class Application {
 
     private static Logger logger = LoggerFactory.getLogger(Application.class.getSimpleName());
 
-    protected final static boolean DEVEL_MODE = true;
+    protected final static boolean DEVEL_MODE = false;
 
     protected HdlService hdlService;
     protected DB database;
@@ -86,6 +86,7 @@ public class Application {
         }
     }
 
+    // TODO: Add status page for HDL service, and settings page for changing auth token and somewhere to see the performed commands and other interesting events
     protected void setUpPaths() {
         get("/", (req, res) -> {
             requireSiteLocalAddress(req);
@@ -113,6 +114,7 @@ public class Application {
             String actionId = request.params(":actionId");
 
             Action action = null;
+            printRequestDebugInfo(request);
 
             try {
                 action = (Action) actionsConcurrentMap.get(Integer.parseInt(actionId));
@@ -124,6 +126,7 @@ public class Application {
                 halt(404, "Action not found.");
             }
 
+            // TODO: Log all performed actions
             hdlService.performAction(action);
 
             response.status(202);
@@ -132,7 +135,21 @@ public class Application {
         });
     }
 
-    private boolean createAction(String description, String[] componentIds, String[] operations, String[] parameters1, String[] parameters2, String[] parameters3) {
+    protected void printRequestDebugInfo(Request request) {
+        if (DEVEL_MODE) {
+            System.out.println("Host: " + request.host());
+            logger.info("Host: " + request.host());
+            System.out.println("IP: " + request.ip());
+            logger.info("IP: " + request.ip());
+            for (String headerKey : request.headers()) {
+                String log = headerKey + "=" + request.headers(headerKey);
+                System.out.println(log);
+                logger.info(log);
+            }
+        }
+    }
+
+    protected boolean createAction(String description, String[] componentIds, String[] operations, String[] parameters1, String[] parameters2, String[] parameters3) {
         // TODO: Improve error handling, logging and user feedback
         if (componentIds != null && componentIds.length > 0 && operations != null && operations.length == componentIds.length) { // At least one component + operation
             // TODO: Improve action ID generation:
