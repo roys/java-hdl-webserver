@@ -437,42 +437,44 @@ public class HdlService {
         }
     }
 
-    public void performAction(Action action) {
-        for (Action.Command command : action.getCommands()) {
-            byte[] bytesToSend = getDefaultPackage(getIpAddress());
-            int messageLength = 11;
+    public void performAction(final Action action) {
+        new Thread(() -> {
+            for (Action.Command command : action.getCommands()) {
+                byte[] bytesToSend = getDefaultPackage(getIpAddress());
+                int messageLength = 11;
 
-            // Content
-            if (command.getParameter1() != null) {
-                messageLength++;
-                bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
-            }
-            if (command.getParameter2() != null) {
-                messageLength++;
-                bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) command.getParameter2().intValue();
-            }
-            if (command.getParameter3() != null) {
-                messageLength++;
-                bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) command.getParameter3().intValue();
-            }
+                // Content
+                if (command.getParameter1() != null) {
+                    messageLength++;
+                    bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
+                }
+                if (command.getParameter2() != null) {
+                    messageLength++;
+                    bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) command.getParameter2().intValue();
+                }
+                if (command.getParameter3() != null) {
+                    messageLength++;
+                    bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) command.getParameter3().intValue();
+                }
 
-            // Length
-            bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
-            // Operate code
-            bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
-            bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
-            // Target subnet and device ids:
-            bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
-            bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
+                // Length
+                bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
+                // Operate code
+                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
+                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
+                // Target subnet and device ids:
+                bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
+                bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
 
-            generateCrc(bytesToSend);
-            sendBroadcastMessage(bytesToSend);
+                generateCrc(bytesToSend);
+                sendBroadcastMessage(bytesToSend);
 
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                /* no-op */
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+            /* no-op */
+                }
             }
-        }
+        }).start();
     }
 }
