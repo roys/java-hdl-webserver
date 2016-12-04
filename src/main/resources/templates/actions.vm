@@ -93,6 +93,7 @@
                     <td>$!command.parameter2</td>
                     <td>$!command.parameter3</td>
                 </tr>
+                #end
                 <tr>
                     <th>URL:</th>
                     <td colspan="4">$actionUrl$action.id</td>
@@ -103,7 +104,6 @@
                         $curlCommandPart1$action.id$curlCommandPart2
                     </td>
                 </tr>
-                #end
                 #end
                 </tbody>
             </table>

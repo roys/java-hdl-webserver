@@ -37,14 +37,14 @@ public class Action implements Serializable {
 
     public static class Command implements Serializable {
 
-        protected String subnetId;
-        protected String deviceId;
+        protected int subnetId;
+        protected int deviceId;
         protected int operation;
         protected Integer parameter1;
         protected Integer parameter2;
         protected Integer parameter3;
 
-        public Command(String subnetId, String deviceId, int operation, Integer parameter1, Integer parameter2, Integer parameter3) {
+        public Command(int subnetId, int deviceId, int operation, Integer parameter1, Integer parameter2, Integer parameter3) {
             this.subnetId = subnetId;
             this.deviceId = deviceId;
             this.operation = operation;
@@ -53,11 +53,11 @@ public class Action implements Serializable {
             this.parameter3 = parameter3;
         }
 
-        public String getSubnetId(){
+        public int getSubnetId() {
             return subnetId;
         }
 
-        public String getDeviceId() {
+        public int getDeviceId() {
             return deviceId;
         }
 

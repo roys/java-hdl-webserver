@@ -3,6 +3,8 @@ package com.roysolberg.java.hdlserver;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.slf4j.Logger;
@@ -104,6 +106,30 @@ public class Application {
             requireSiteLocalAddress(req);
             return getModelAndView(req, "security");
         }, new VelocityTemplateEngine());
+        post("/api/actions/:actionId", "application/json", (request, response) -> {
+            JSONObject jsonObject = (JSONObject) new JSONParser().parse(request.body());
+            requireValidAuthToken((String) jsonObject.get("auth"));
+
+            String actionId = request.params(":actionId");
+
+            Action action = null;
+
+            try {
+                action = (Action) actionsConcurrentMap.get(Integer.parseInt(actionId));
+            } catch (NumberFormatException e) {
+                logger.error("Got NumberFormatException while trying to parse action id [" + actionId + "]. Sending back HTTP 404.", e);
+            }
+
+            if (action == null) {
+                halt(404, "Action not found.");
+            }
+
+            hdlService.performAction(action);
+
+            response.status(202);
+            response.type("application/json");
+            return "{\"status\":\"ok\"}";
+        });
     }
 
     private boolean createAction(String description, String[] componentIds, String[] operations, String[] parameters1, String[] parameters2, String[] parameters3) {
@@ -118,7 +144,11 @@ public class Application {
             for (int i = 0; i < componentIds.length; i++) {
                 String[] ids = componentIds[i].split(":");
                 if (ids.length == 2) {
-                    action.addCommand(new Action.Command(ids[0], ids[1], Integer.parseInt(operations[i]), getParameter(parameters1, i), getParameter(parameters2, i), getParameter(parameters3, i)));
+                    try {
+                        action.addCommand(new Action.Command(Integer.parseInt(ids[0]), Integer.parseInt(ids[1]), Integer.parseInt(operations[i]), getParameter(parameters1, i), getParameter(parameters2, i), getParameter(parameters3, i)));
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
                 } else {
                     return false;
                 }
@@ -152,8 +182,8 @@ public class Application {
         }
         model.put("components", hdlComponents);
         model.put("actions", actionsConcurrentMap.values());
-        model.put("actionUrl", "POST http://" + request.host() + "/api/commands/");
-        model.put("curlCommandPart1", "curl --include --header 'Content-Type: application/json' --request POST --data \"{authToken:\'" + configConcurrentMap.get("authToken") + "'}\" http://" + request.host() + "/api/commands/");
+        model.put("actionUrl", "POST http://" + request.host() + "/api/actions/");
+        model.put("curlCommandPart1", "curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"" + configConcurrentMap.get("authToken") + "\"}' http://" + request.host() + "/api/actions/");
         //model.put("curlCommandPart2", " > /dev/null");
         model.put("curlCommandPart2", "");
 
@@ -174,6 +204,12 @@ public class Application {
         } catch (UnknownHostException e) {
             logger.error("Got UnknownHostException while trying to resolve address [" + request.ip() + "]. Halting request.");
             halt(401, "Access denied. Unable to verify that request is coming from a local address.");
+        }
+    }
+
+    protected void requireValidAuthToken(String incomingAuthToken) {
+        if (incomingAuthToken == null || incomingAuthToken.length() == 0 || !configConcurrentMap.get("authToken").equals(incomingAuthToken)) {
+            halt(401, "Invalid authentication token.");
         }
     }
 
