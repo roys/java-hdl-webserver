@@ -29,3 +29,15 @@ Commands:
     Command:
         Subnet: 1, device id: 81, type: Touch panel, description: Garage, operation: OPERATE_CODE_PANEL_CONTROL, OFF
 
+
+************************
+* Dim the lights to 20% in the kitchen
+************************
+URL: POST /actions/dimmer?auth=[authKey]
+ID: 1
+Description: Open the garage
+Commands:
+    Command:
+        Subnet: 1, device id: 81, type: Touch panel, description: Garage, operation: OPERATE_CODE_PANEL_CONTROL, ON
+    Command:
+        Subnet: 1, device id: 81, type: Touch panel, description: Garage, operation: OPERATE_CODE_PANEL_CONTROL, OFF

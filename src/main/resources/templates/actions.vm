@@ -2,8 +2,8 @@
 
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
-        <h4>Create new action</h4>
-        <form action="create_action" method="post">
+        <h3>Create new custom action</h3>
+        <form action="create_custom_action" method="post">
             <div class="form-group">
                 <label for="input_description">Description</label>
                 <input type="text" name="description" class="form-control" id="input_description"
@@ -28,6 +28,7 @@
                 <div class="form-group col-xs-2">
                     <label for="select_operation">Operation</label>
                     <select id="select_operation" name="operations[]" class="form-control">
+                        <option value="57372">UV switch control</option>
                         <option value="58328">Panel control</option>
                     </select>
                 </div>
@@ -64,7 +65,61 @@
 </div>
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
-        <h4>Existing actions</h4>
+        <hr/>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <h3>Create dimmer action</h3>
+        <form action="create_dimmer_action" method="post">
+            <div class="form-group">
+                <label for="input_area_name">Area name (to be used in action)</label>
+                <input type="text" name="description" class="form-control" id="input_area_name"
+                       placeholder="E.g. the kitchen">
+            </div>
+            <div class="row">
+                <div class="col-md-10">
+                    <label style="font-size:larger;">Commands</label>
+                </div>
+            </div>
+            <div id="row-dimmer_channel" class="row">
+                <div class="form-group col-xs-5">
+                    <label for="select_dimmer_channel">Dimmer channel</label>
+                    <select id="select_dimmer_channel" name="channels[]" class="form-control">
+                        #foreach ($component in $components)
+                        #if($component.class.name == "com.roysolberg.java.hdlserver.hdl.component.DimmerComponent")
+                        #foreach ($index in [1..$component.numOfChannels])
+                        <option value="$component.subnet:$component.deviceId:$index">$component.remark
+                            ($component.subnet/$component.deviceId) - channel $index
+                        </option>
+                        #end
+                        #end
+                        #end
+                    </select>
+                </div>
+            </div>
+            <div id="row-add_dimmer_channel" class="row">
+                <div class="form-group col-xs-6">
+                    <button type="button" class="btn btn-default"
+                            onclick="$('#row-dimmer_channel').clone().insertBefore('#row-add_dimmer_channel');">Add
+                        dimmer channel
+                    </button>
+                </div>
+            </div>
+            <div class="form-group col-xs-18">
+                <button type="submit" class="btn btn-primary">Create action</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <hr/>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <h3>Existing actions</h3>
     </div>
 </div>
 <div class="row">
@@ -96,13 +151,11 @@
                 #end
                 <tr>
                     <th>URL:</th>
-                    <td colspan="4">$actionUrl$action.id</td>
+                    <td colspan="4">$action.getUrl($host)</td>
                 </tr>
                 <tr>
                     <th>cURL:</th>
-                    <td style="font-family:monospace;font-size:smaller;" colspan="4">
-                        $curlCommandPart1$action.id$curlCommandPart2
-                    </td>
+                    <td style="font-family:monospace;font-size:smaller;" colspan="4">$action.getCurlCommand($host,$config.authToken)</td>
                 </tr>
                 #end
                 </tbody>
@@ -110,7 +163,5 @@
         </div>
     </div>
 </div>
-Auth token: [$config.authToken]
-Page [$page]
 
 #parse('templates/footer.vm')

@@ -56,7 +56,7 @@ public class HdlService {
 
     protected void run() {
         isRunning = true;
-        BlockingQueue<byte[]> blockingQueue = new ArrayBlockingQueue<>(50);
+        BlockingQueue<byte[]> blockingQueue = new ArrayBlockingQueue<>(200);
         new Thread(() -> {
             while (isRunning) {
                 try {
@@ -81,7 +81,7 @@ public class HdlService {
                             logger.warn("Received invalid package " + nicelyFormattedBytes);
                         }
                         try {
-                            Thread.sleep(250);
+                            Thread.sleep(50);
                         } catch (InterruptedException e) {
                     /* no-op */
                             // XXX: Comment out:
@@ -437,7 +437,7 @@ public class HdlService {
         }
     }
 
-    public void performAction(final Action action) {
+    public void performDimmerAction(final Action action) {
         new Thread(() -> {
             for (Action.Command command : action.getCommands()) {
                 byte[] bytesToSend = getDefaultPackage(getIpAddress());
@@ -459,6 +459,44 @@ public class HdlService {
 
                 // Length
                 bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
+                // Operate code
+                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
+                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
+                // Target subnet and device ids:
+                bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
+                bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
+
+                generateCrc(bytesToSend);
+                sendBroadcastMessage(bytesToSend);
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+            /* no-op */
+                }
+            }
+        }).start();
+    }
+
+    public void performDimmerAction(final Action action, final int valueInPercent) {
+        new Thread(() -> {
+            for (Action.Command command : action.getCommands()) {
+                byte[] bytesToSend = getDefaultPackage(getIpAddress());
+                // Channel
+                if (command.getParameter1() != null) {
+                    bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
+                }
+                // Percent
+                bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) valueInPercent;
+                // Running time (high)
+                bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) 0;
+                // Running time (low)
+                bytesToSend[BYTE_POSITION_CONTENT + 3] = (byte) 0;
+                // Not sure, but the DLP sends different values for a fifth field:
+                bytesToSend[BYTE_POSITION_CONTENT + 4] = (byte) 0x0F;
+
+                // Length
+                bytesToSend[BYTE_POSITION_LENGTH] = (byte) 16;
                 // Operate code
                 bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
                 bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();

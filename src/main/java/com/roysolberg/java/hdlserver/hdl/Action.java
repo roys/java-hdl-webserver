@@ -9,11 +9,13 @@ import java.util.List;
  */
 public class Action implements Serializable {
 
+    protected ActionType actionType;
     protected int id;
     protected String description;
     protected List<Command> commands;
 
-    public Action(int id, String description) {
+    public Action(ActionType actionType, int id, String description) {
+        this.actionType = actionType;
         this.id = id;
         this.description = description;
         commands = new ArrayList<>();
@@ -33,6 +35,10 @@ public class Action implements Serializable {
 
     public int getId() {
         return id;
+    }
+
+    public ActionType getActionType() {
+        return actionType;
     }
 
     public static class Command implements Serializable {
@@ -76,6 +82,26 @@ public class Action implements Serializable {
         public Integer getParameter3() {
             return parameter3;
         }
+    }
+
+    public String getUrl(String host) {
+        switch (actionType) {
+            case Dimmer:
+                return String.format("http://%s/api/actions/dimmer/%s", host, description.toLowerCase().replaceAll(" ", "%20")); // TODO: URL encode
+        }
+        return String.format("http://%s/api/actions/%d", host, id);
+    }
+
+    public String getCurlCommand(String host, String authToken) {
+        switch (actionType) {
+            case Dimmer:
+                return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, description.toLowerCase().replaceAll(" ", "%20"));
+        }
+        return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\"}' http://%s/api/actions/%d", authToken, host, id);
+    }
+
+    public enum ActionType implements Serializable {
+        Custom, Dimmer, Relay
     }
 
 }
