@@ -87,6 +87,9 @@ public class Application {
 
     // TODO: Add status page for HDL service, and settings page for changing auth token and somewhere to see the performed commands and other interesting events
     protected void setUpPaths() {
+        before((request, response) -> {
+            logger.info("Request: {} - \"{} {} {}\" - \"{}\"", request.ip(), request.requestMethod(), request.pathInfo(), request.protocol(), request.userAgent());
+        });
         get("/", (req, res) -> {
             requireSiteLocalAddress(req);
             return getModelAndView(req, "index");
