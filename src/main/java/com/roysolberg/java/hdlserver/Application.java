@@ -3,12 +3,12 @@ package com.roysolberg.java.hdlserver;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import spark.ModelAndView;
 import spark.Request;
 import spark.template.velocity.VelocityTemplateEngine;
@@ -27,7 +27,7 @@ import static spark.Spark.*;
 
 public class Application {
 
-    private static Logger logger = LoggerFactory.getLogger(Application.class.getSimpleName());
+    private static Logger logger = LogManager.getLogger(Application.class);
 
     protected final static boolean DEVEL_MODE = false;
 
@@ -47,7 +47,6 @@ public class Application {
     }
 
     public static void main(String[] args) {
-        System.out.println("3");
         new Application();
     }
 

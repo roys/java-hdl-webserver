@@ -1,8 +1,8 @@
 package com.roysolberg.java.hdlserver.util;
 
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Arrays;
 
@@ -11,7 +11,7 @@ import java.util.Arrays;
  */
 public class HdlUtil {
 
-    private static Logger logger = LoggerFactory.getLogger(HdlUtil.class);
+    private static Logger logger = LogManager.getLogger(HdlUtil.class);
 
     public final static int BYTE_POSITION_LENGTH = 16;
     public final static int BYTE_POSITION_SUBNET_ID = 17;

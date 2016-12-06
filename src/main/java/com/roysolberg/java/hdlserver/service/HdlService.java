@@ -6,9 +6,9 @@ import com.roysolberg.java.hdlserver.hdl.component.HdlComponentFactory;
 import com.roysolberg.java.hdlserver.hdl.component.UnsupportedComponent;
 import com.roysolberg.java.hdlserver.util.HdlUtil;
 import com.roysolberg.java.hdlserver.util.NetworkUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.mapdb.DB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -37,7 +37,7 @@ public class HdlService {
     protected static final byte TARGET_SUBNET_ID_ALL = (byte) 0xFF;
     protected static final byte TARGET_DEVICE_ID_ALL = (byte) 0xFF;
 
-    private static Logger logger = LoggerFactory.getLogger(HdlService.class.getSimpleName());
+    private static Logger logger = LogManager.getLogger("HDL");
     private final ConcurrentMap components;
     private final DB database;
 
