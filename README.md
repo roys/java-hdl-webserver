@@ -1,6 +1,6 @@
 # Web server for HDL Buspro
 **This is a web server for setting up and communicating with the smart home system *HDL Buspro*. It was mainly built for
-the purpose of integrating with *Google Assistant* (Google Home and Google Pixel).
+the purpose of integrating with *Google Assistant* (Google Home and Google Pixel).**
 
 ## Running the server
 
