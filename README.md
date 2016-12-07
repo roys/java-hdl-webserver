@@ -2,9 +2,14 @@
 **This is a web server for setting up and communicating with the smart home system *HDL Buspro*. It was mainly built for
 the purpose of integrating with *Google Assistant* (Google Home and Google Pixel).**
 
+## Demo
+[![YouTube proof of concept video](http://img.youtube.com/vi/P6BgsM8IiW8/0.jpg)](https://youtu.be/P6BgsM8IiW8)
+
 ## Running the server
+Give me a few days to write up the instructions. :)
 
 ## Setting up the commands
+Give me a few days to write up the instructions. :)
 
 ## Security
 I strongly recommend using HTTPS for the server. Setting that up is a bit out of scope for this document, but you should
