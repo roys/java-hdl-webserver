@@ -8,6 +8,12 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 ## Running the server
 Give me a few days to write up the instructions. :)
 
+## How it works
+Google have added some [triggers at IFTTT](https://ifttt.com/google_assistant) for Google Assistant (i.e. Google Home
+and Google Pixel). Combining them with the [Maker actions](https://ifttt.com/maker) a web request can be sent to the
+HDL Buspro server in this project. The server interprets the requests by using the actions you have set up and sends the
+belonging HDL commands to the IP gateway.
+
 ## Setting up the commands
 Give me a few days to write up the instructions. :)
 
@@ -30,3 +36,13 @@ IFTTT and Google Assistant. You have no guarantees. If you want to stay safe, yo
 
 If you want to learn a little more about security and HDL Buspro you read my Google+ post at
 https://plus.google.com/u/0/+RoySolberg/posts/gNt4paU7KEZ .
+
+## Links
+ - This repo: https://github.com/roys/java-hdl-webserver
+ - My Android app for controlling HDL Buspro: https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome
+ - YouTube demo: https://youtu.be/P6BgsM8IiW8
+ - HDL Buspro: http://www.hdlautomation.com
+ - Google Assistant: https://assistant.google.com
+ - Google Home: https://madeby.google.com/home/
+ - Google Assistant at IFTTT: https://ifttt.com/google_assistant
+ - Maker at IFTTT: https://ifttt.com/maker
