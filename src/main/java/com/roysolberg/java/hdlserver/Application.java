@@ -3,6 +3,7 @@ package com.roysolberg.java.hdlserver;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
@@ -13,8 +14,10 @@ import spark.ModelAndView;
 import spark.Request;
 import spark.template.velocity.VelocityTemplateEngine;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -29,13 +32,14 @@ public class Application {
 
     private static Logger logger = LogManager.getLogger(Application.class);
 
-    protected final static boolean DEVEL_MODE = false;
+    protected final static boolean DEVEL_MODE = true;
 
     protected HdlService hdlService;
     protected DB database;
     protected ConcurrentMap configConcurrentMap;
     protected ConcurrentMap componentsConcurrentMap;
     protected ConcurrentMap actionsConcurrentMap;
+    protected ConcurrentMap actionAliasesConcurrentMap;
     protected List<HdlComponent> hdlComponents;
 
     public Application() {
@@ -181,6 +185,35 @@ public class Application {
             response.status(202);
             return "{\"status\":\"ok\"}";
         });
+        post("/delete_action", (request, response) -> {
+            String successMessage = null;
+            String errorMessage = null;
+            String actionId = request.queryParams("actionId");
+            logger.info("Actions:" + actionsConcurrentMap.keySet());
+            logger.info("actionId:" + actionId);
+            try {
+                if (actionsConcurrentMap.remove(Integer.parseInt(actionId)) != null) {
+                    successMessage = "Action was successfully deleted.";
+                } else {
+                    errorMessage = "Unable to find action.";
+                }
+            } catch (NumberFormatException e) {
+                logger.error("Got NumberFormatException while trying to parse action id [" + actionId + "]. Sending back HTTP 404.", e);
+            }
+            response.redirect("/actions?" + getMessagesQueryParams(successMessage, errorMessage));
+            return null;
+        });
+    }
+
+    protected String getMessagesQueryParams(String successMessage, String errorMessage) throws UnsupportedEncodingException {
+        String query = "";
+        if (successMessage != null) {
+            query += "&success=" + URLEncoder.encode(successMessage, "UTF-8");
+        }
+        if (errorMessage != null) {
+            query += "&error=" + URLEncoder.encode(errorMessage, "UTF-8");
+        }
+        return query;
     }
 
     protected void printRequestDebugInfo(Request request) {
@@ -277,6 +310,8 @@ public class Application {
         model.put("components", hdlComponents);
         model.put("actions", actionsConcurrentMap.values());
         model.put("host", request.host());
+        model.put("successMessage", StringEscapeUtils.escapeHtml(request.queryParams("success")));
+        model.put("errorMessage", StringEscapeUtils.escapeHtml(request.queryParams("error")));
 
         return new ModelAndView(model, "templates/" + page + ".vm");
     }
