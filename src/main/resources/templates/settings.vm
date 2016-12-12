@@ -1,0 +1,5 @@
+#parse('templates/header.vm')
+
+Settings soon to come.
+
+#parse('templates/footer.vm')

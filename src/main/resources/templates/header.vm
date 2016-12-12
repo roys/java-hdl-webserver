@@ -21,6 +21,8 @@
         <li class="#if($page=='index')active#end"><a href="/">Components</a></li>
         <li class="#if($page=='actions')active#end"><a href="/actions">Actions</a></li>
         <li class="#if($page=='security')active#end"><a href="/security">Security</a></li>
+        <li class="#if($page=='settings')active#end"><a href="/settings">Settings</a></li>
+        <li class="#if($page=='demo')active#end"><a href="/demo">Demo</a></li>
     </ul>
 </nav>
 <div class="container-fluid">

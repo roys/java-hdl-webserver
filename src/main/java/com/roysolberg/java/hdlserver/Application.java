@@ -32,7 +32,7 @@ public class Application {
 
     private static Logger logger = LogManager.getLogger(Application.class);
 
-    protected final static boolean DEVEL_MODE = true;
+    protected final static boolean DEVEL_MODE = false;
 
     protected HdlService hdlService;
     protected DB database;
@@ -119,6 +119,14 @@ public class Application {
         get("/security", (req, res) -> {
             requireSiteLocalAddress(req);
             return getModelAndView(req, "security");
+        }, new VelocityTemplateEngine());
+        get("/demo", (req, res) -> {
+            requireSiteLocalAddress(req);
+            return getModelAndView(req, "demo");
+        }, new VelocityTemplateEngine());
+        get("/settings", (req, res) -> {
+            requireSiteLocalAddress(req);
+            return getModelAndView(req, "settings");
         }, new VelocityTemplateEngine());
         post("/api/actions/:actionId", "application/json", (request, response) -> {
             JSONObject jsonObject = (JSONObject) new JSONParser().parse(request.body());

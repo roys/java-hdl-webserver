@@ -1,0 +1,18 @@
+#parse('templates/header.vm')
+
+
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <h3>Video demo</h3>
+        Check out the YouTube video showing this server in action with Google Home and Google Pixel.
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-8 col-md-offset-1">
+        <div class="embed-responsive embed-responsive-16by9">
+            <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/P6BgsM8IiW8" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
+#parse('templates/footer.vm')

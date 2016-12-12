@@ -4,8 +4,7 @@
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <div class="alert alert-success" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span
-                    aria-hidden="true">&times;</span></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             $successMessage
         </div>
     </div>
@@ -15,8 +14,7 @@
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <div class="alert alert-danger" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span
-                    aria-hidden="true">&times;</span></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             $errorMessage
         </div>
     </div>
@@ -25,11 +23,11 @@
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Create new custom action</h3>
+        <h4><small>Can be used for custom commands like <i>"Activate the alarm system"</i>.</small></h4>
         <form action="create_custom_action" method="post">
             <div class="form-group">
                 <label for="input_description">Description</label>
-                <input type="text" name="description" class="form-control" id="input_description"
-                       placeholder="E.g. Open garage">
+                <input type="text" name="description" class="form-control" id="input_description" placeholder="E.g. Open garage">
             </div>
             <div class="row">
                 <div class="col-md-10">
@@ -98,6 +96,7 @@
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Create dimmer action</h3>
+        <h4><small>Can be used for commands like <i>"Dim the lights to <mark>20%</mark> in <mark>the living room</mark>"</i>.</small></h4>
         <form action="create_dimmer_action" method="post">
             <div class="form-group">
                 <label for="input_area_name">Area name (to be used in action)</label>
