@@ -13,6 +13,7 @@ public class Action implements Serializable {
     protected int id;
     protected String description;
     protected List<Command> commands;
+    protected List<String> aliases;
 
     public Action(ActionType actionType, int id, String description) {
         this.actionType = actionType;
@@ -25,12 +26,23 @@ public class Action implements Serializable {
         commands.add(command);
     }
 
+    public void addAlias(String alias) {
+        if (aliases == null) {
+            aliases = new ArrayList<>();
+        }
+        aliases.add(alias);
+    }
+
     public String getDescription() {
         return description;
     }
 
     public List<Command> getCommands() {
         return commands;
+    }
+
+    public List<String> getAliases() {
+        return aliases;
     }
 
     public int getId() {
@@ -98,6 +110,19 @@ public class Action implements Serializable {
                 return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, description.toLowerCase().replaceAll(" ", "%20"));
         }
         return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\"}' http://%s/api/actions/%d", authToken, host, id);
+    }
+
+    public String getIftttCommand(String host, String authToken) {
+        try {
+            switch (actionType) {
+                case Dimmer:
+                    return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://%s/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", host, authToken);
+            }
+            return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://%s/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", host, id, authToken);
+        } catch (Exception e) {
+            System.err.print(e);
+        }
+        return "OK";
     }
 
     public enum ActionType implements Serializable {

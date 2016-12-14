@@ -24,7 +24,7 @@
     <div class="col-md-10 col-md-offset-1">
         <h3>Create new custom action</h3>
         <h4>
-            <small>Can be used for custom commands like <i>"Activate the alarm system"</i>.</small>
+            <small>Can be used for custom commands like <i>"Open the garage"</i>.</small>
         </h4>
         <form action="create_custom_action" method="post">
             <div class="form-group">
@@ -56,7 +56,7 @@
                     <div class="form-group col-lg-9">
                         <label for="select_operation">Operation</label>
                         <select id="select_operation" name="operations[]" class="form-control">
-                            <option value="57372">UV switch control (0xE01C)</option>
+                            <!--option value="57372">UV switch control (0xE01C)</option-->
                             <option value="58328">Panel control (0xE3D8)</option>
                         </select>
                     </div>
@@ -102,43 +102,69 @@
             <small>Can be used for commands like <i>"Dim the lights to
                 <mark>20%</mark>
                 in
-                <mark>the living room</mark>
+                <mark>the kitchen</mark>
                 "</i>.
             </small>
         </h4>
         <form action="create_dimmer_action" method="post">
             <div class="form-group">
                 <label for="input_area_name">Area name (to be used in action)</label>
-                <input type="text" name="description" class="form-control" id="input_area_name"
-                       placeholder="E.g. the kitchen">
+                <input type="text" name="description" class="form-control" id="input_area_name" placeholder="E.g. the kitchen"/>
+            </div>
+            <div class="row">
+                <div class="col-md-10">
+                    <label style="font-size:larger;">Aliases</label>
+                </div>
+            </div>
+            <div id="panel-dimmer-alias" class="panel-dimmer-alias panel panel-default">
+                <span style="float:right;text-align:right;">
+                    <button type="button" class="btn btn-default btn-sm default" onclick="if($(this).parent().parent().siblings('.panel-dimmer-alias').length > 0){ $(this).parent().parent().remove();}">
+                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                    </button>
+                </span>
+                <div class="panel-body">
+                    <div class="form-group col-lg-5">
+                        <label for="select_dimmer_channel">Area alias</label>
+                        <input type="text" name="aliases[]" class="form-control" placeholder="E.g. kitchen (without the)"/>
+                    </div>
+                </div>
+            </div>
+            <div id="row-add_dimmer_alias" class="row">
+                <div class="form-group col-xs-6">
+                    <button type="button" class="btn btn-default" onclick="$('#panel-dimmer-alias').clone().insertBefore('#row-add_dimmer_alias');">Add area alias</button>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-10">
                     <label style="font-size:larger;">Commands</label>
                 </div>
             </div>
-            <div id="row-dimmer_channel" class="row">
-                <div class="form-group col-xs-5">
-                    <label for="select_dimmer_channel">Dimmer channel</label>
-                    <select id="select_dimmer_channel" name="channels[]" class="form-control">
-                        #foreach ($component in $components)
-                        #if($component.class.name == "com.roysolberg.java.hdlserver.hdl.component.DimmerComponent")
-                        #foreach ($index in [1..$component.numOfChannels])
-                        <option value="$component.subnet:$component.deviceId:$index">$component.remark
-                            ($component.subnet/$component.deviceId) - channel $index
-                        </option>
-                        #end
-                        #end
-                        #end
-                    </select>
+            <div id="panel-dimmer-channel" class="panel-dimmer-channel panel panel-default">
+                <span style="float:right;text-align:right;">
+                    <button type="button" class="btn btn-default btn-sm default" onclick="if($(this).parent().parent().siblings('.panel-dimmer-channel').length > 0){ $(this).parent().parent().remove();}">
+                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                    </button>
+                </span>
+                <div class="panel-body">
+                    <div class="form-group col-lg-5">
+                        <label for="select_dimmer_channel">Dimmer channel</label>
+                        <select id="select_dimmer_channel" name="channels[]" class="form-control">
+                            #foreach ($component in $components)
+                            #if($component.class.name == "com.roysolberg.java.hdlserver.hdl.component.DimmerComponent")
+                            #foreach ($index in [1..$component.numOfChannels])
+                            <option value="$component.subnet:$component.deviceId:$index">$component.remark
+                                ($component.subnet/$component.deviceId) - channel $index
+                            </option>
+                            #end
+                            #end
+                            #end
+                        </select>
+                    </div>
                 </div>
             </div>
             <div id="row-add_dimmer_channel" class="row">
                 <div class="form-group col-xs-6">
-                    <button type="button" class="btn btn-default"
-                            onclick="$('#row-dimmer_channel').clone().insertBefore('#row-add_dimmer_channel');">Add
-                        dimmer channel
-                    </button>
+                    <button type="button" class="btn btn-default" onclick="$('#panel-dimmer-channel').clone().insertBefore('#row-add_dimmer_channel');">Add another dimmer channel</button>
                 </div>
             </div>
             <div class="form-group col-xs-18">
@@ -183,7 +209,13 @@
                     </div>
                 </div>
                 <tr class="active">
-                    <th style="font-size:larger;" class="text-left" colspan="4">#if($action.description != '')$action.description#{else}Action $action.id#{end}:
+                    <th style="font-size:larger;" class="text-left" colspan="4">
+                        $action.actionType - #if($action.description != '')$action.description#{else}Action $action.id#{end}:
+                        <br/>
+                        #set ($first = true)
+                        <small>
+                            #foreach ($alias in $action.aliases)#if (!$first),#end $alias#set ($first = false)#end
+                        </small>
                     </th>
                     <th style="text-align:right;">
                         <button type="button" class="btn btn-default btn-sm default" data-toggle="modal" title="Delete action" data-target="#deleteActionModal">
@@ -215,6 +247,12 @@
                     <th>cURL:</th>
                     <td style="font-family:monospace;font-size:smaller;" colspan="4">
                         $action.getCurlCommand($host,$config.authToken)
+                    </td>
+                </tr>
+                <tr>
+                    <th>IFTTT:</th>
+                    <td style="font-family:monospace;font-size:smaller;" colspan="4">
+                        $action.getIftttCommand($host,$config.authToken)
                     </td>
                 </tr>
                 #end

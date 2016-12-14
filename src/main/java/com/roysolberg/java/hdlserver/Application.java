@@ -67,6 +67,7 @@ public class Application {
         }
         componentsConcurrentMap = database.hashMap("components").createOrOpen();
         actionsConcurrentMap = database.hashMap("actions").createOrOpen();
+        actionAliasesConcurrentMap = database.hashMap("actionAliases").createOrOpen();
     }
 
     protected String generateAuthToken() {
@@ -113,7 +114,7 @@ public class Application {
         post("/create_dimmer_action", (request, response) -> {
             requireSiteLocalAddress(request);
             // TODO: Error handling and success + error feedback
-            createDimmerAction(request.queryParams("description"), request.queryParamsValues("channels[]"));
+            createDimmerAction(request.queryParams("description"), request.queryParamsValues("aliases[]"), request.queryParamsValues("channels[]"));
             response.redirect("/actions");
             return null;
         });
@@ -158,27 +159,32 @@ public class Application {
             response.type("application/json");
             return "{\"status\":\"ok\"}";
         });
-        post("/api/actions/dimmer/:areaId", "application/json", (request, response) -> {
+        post("/api/actions/dimmer/:alias", "application/json", (request, response) -> {
             response.type("application/json");
             Action action = null;
             int valueInPercent = 0;
             try {
                 String rawJson = request.body();
                 logger.info("Actions:" + actionsConcurrentMap.keySet());
+                logger.info("Aliases:" + actionAliasesConcurrentMap.keySet());
                 logger.info("Raw json: [" + rawJson + "]");
                 JSONObject jsonObject = (JSONObject) new JSONParser().parse(rawJson);
                 requireValidAuthToken((String) jsonObject.get("auth"));
 
-                String areaId = request.params(":areaId");
-                logger.info("Area1: [" + areaId + "]");
-                areaId = areaId.trim().toLowerCase();
-                logger.info("Area2: [" + areaId + "]");
+                String areaAlias = request.params(":alias");
+                logger.info("Area1: [" + areaAlias + "]");
+                areaAlias = areaAlias.trim().toLowerCase();
+                logger.info("Area2: [" + areaAlias + "]");
 
                 valueInPercent = ((Long) jsonObject.get("value")).intValue();
 
                 printRequestDebugInfo(request);
 
-                action = (Action) actionsConcurrentMap.get("dimmer-" + areaId);
+                Object actionId = actionAliasesConcurrentMap.get(areaAlias);
+                if (actionId != null) {
+                    action = (Action) actionsConcurrentMap.get(actionId);
+                    logger.info("Found action [" + action + "].");
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 logger.error("Got exception while handling request.", e);
@@ -187,7 +193,6 @@ public class Application {
             if (action == null) {
                 halt(404, "Action not found.");
             }
-
             // TODO: Log all performed actions
             hdlService.performDimmerAction(action, valueInPercent);
 
@@ -201,7 +206,14 @@ public class Application {
             logger.info("Actions:" + actionsConcurrentMap.keySet());
             logger.info("actionId:" + actionId);
             try {
-                if (actionsConcurrentMap.remove(Integer.parseInt(actionId)) != null) {
+                Action deletedAction = (Action) actionsConcurrentMap.remove(Integer.parseInt(actionId));
+                if (deletedAction != null) {
+                    if (deletedAction.getAliases() != null) {
+                        actionAliasesConcurrentMap.remove(deletedAction.getDescription());
+                        for (String alias : deletedAction.getAliases()) {
+                            actionAliasesConcurrentMap.remove(alias);
+                        }
+                    }
                     successMessage = "Action was successfully deleted.";
                 } else {
                     errorMessage = "Unable to find action.";
@@ -252,7 +264,7 @@ public class Application {
                 String[] ids = componentIds[i].split(":");
                 if (ids.length == 2) {
                     try {
-                        action.addCommand(new Action.Command(Integer.parseInt(ids[0]), Integer.parseInt(ids[1]), Integer.parseInt(operations[i]), getParameter(parameters1, i), getParameter(parameters2, i), getParameter(parameters3, i)));
+                        action.addCommand(new Action.Command(Integer.parseInt(ids[0]), Integer.parseInt(ids[1]), Integer.parseInt(operations[i]), getCommandParameter(parameters1, i), getCommandParameter(parameters2, i), getCommandParameter(parameters3, i)));
                     } catch (NumberFormatException e) {
                         return false;
                     }
@@ -267,16 +279,25 @@ public class Application {
         return false;
     }
 
-    protected boolean createDimmerAction(String area, String[] idsAndChannel) {
+    protected boolean createDimmerAction(String description, String[] aliases, String[] idsAndChannel) {
         // TODO: Improve error handling, logging and user feedback
-        if (area != null && area.length() > 0 && idsAndChannel != null && idsAndChannel.length > 0) { // At least one dimmer channel
-            area = area.trim();
+        if (description != null && description.trim().length() > 0 && aliases != null && aliases.length > 0 && idsAndChannel != null && idsAndChannel.length > 0) {
             // TODO: Improve action ID generation:
             int actionId = actionsConcurrentMap.size() + 1;
             while (actionsConcurrentMap.containsKey(actionId)) {
                 actionId++;
             }
-            Action action = new Action(Action.ActionType.Dimmer, actionId, area);
+            description = description.trim();
+            Action action = new Action(Action.ActionType.Dimmer, actionId, description);
+
+            actionAliasesConcurrentMap.put(description.toLowerCase(), actionId);
+            for (int i = 0; i < aliases.length; i++) {
+                aliases[i] = aliases[i].trim();
+                if (aliases[i].length() > 0) {
+                    actionAliasesConcurrentMap.put(aliases[i].toLowerCase(), actionId);
+                    action.addAlias(aliases[i]);
+                }
+            }
             for (int i = 0; i < idsAndChannel.length; i++) {
                 String[] ids = idsAndChannel[i].split(":");
                 if (ids.length == 3) {
@@ -289,14 +310,15 @@ public class Application {
                     return false;
                 }
             }
-            actionsConcurrentMap.put("dimmer-" + area.toLowerCase(), action);
+            actionsConcurrentMap.put(actionId, action);
+
             database.commit();
             return true;
         }
         return false;
     }
 
-    protected Integer getParameter(String[] parameters, int i) {
+    protected Integer getCommandParameter(String[] parameters, int i) {
         Integer parameter = null;
         if (i < parameters.length && parameters[i] != null && !"".equals(parameters[i])) {
             try {
