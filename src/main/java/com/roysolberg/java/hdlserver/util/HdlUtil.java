@@ -47,8 +47,7 @@ public class HdlUtil {
         return false;
     }
 
-    public static String getNiceOperationCode(byte[] bytes) {
-        int operationCode = (bytes[BYTE_POSITION_OPERATION_CODE_BYTE_2] & 0xFF) | (bytes[BYTE_POSITION_OPERATION_CODE_BYTE_1] & 0xFF) << 8;
+    public static String getNiceOperationCode(int operationCode) {
         switch (operationCode) {
             case 14: // 0x000E
                 return "Search";
@@ -194,8 +193,14 @@ public class HdlUtil {
                 return "Read IP module config";
             case 0xF038:
                 return "Response read IP module config";
+            default:
+                return "Unknown operation";
         }
-        return "Unknown operation";
+    }
+
+    public static String getNiceOperationCode(byte[] bytes) {
+        int operationCode = (bytes[BYTE_POSITION_OPERATION_CODE_BYTE_2] & 0xFF) | (bytes[BYTE_POSITION_OPERATION_CODE_BYTE_1] & 0xFF) << 8;
+        return getNiceOperationCode(operationCode);
     }
 
     public static String getNicelyDescribedBytes(byte[] bytes, HdlComponent hdlComponent) {

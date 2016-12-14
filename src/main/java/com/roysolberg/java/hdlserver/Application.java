@@ -3,6 +3,7 @@ package com.roysolberg.java.hdlserver;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
+import com.roysolberg.java.hdlserver.util.HdlUtil;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -320,6 +321,7 @@ public class Application {
         model.put("host", request.host());
         model.put("successMessage", StringEscapeUtils.escapeHtml(request.queryParams("success")));
         model.put("errorMessage", StringEscapeUtils.escapeHtml(request.queryParams("error")));
+        model.put("HdlUtil", HdlUtil.class);
 
         return new ModelAndView(model, "templates/" + page + ".vm");
     }
