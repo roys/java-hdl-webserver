@@ -24,8 +24,8 @@ Dimmer actions let you say commands like *Dim the lights to 20% in the kitchen* 
 You can also add zero to many aliases for the area if you use different names for it. If using *"the"* in an area name you might want to repeat the name of the area without *"the"*. Then everything will work if you say *Dim the lights to 20% in kitchen*.
 3. Select the dimmer channel representing the area.  
 If you want the same area to control several areas or you have several channels for the same area you can add those as well.
-4. Select *Create action* and notice the info about the action at the bottom of the page.
-
+4. Select *Create action* and notice the info about the action at the bottom of the page.  
+  
 5. Go to https://ifttt.com/create to create a new "applet" (preferably in a new browser window/tab).
 6. Select the service *Google Assistant*.
 7. Select *Say a phrase with both a number and a text ingredient*.
