@@ -95,12 +95,12 @@ If you want the same command to do more commands you can add them.
 
 15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, open the garage*.
 
-**Unlike the dimmer actions you need to add both a new action and a new "applet" if you want to add another one.**
+**Unlike the dimmer actions you need to add both a new action and a new "applet" if you want to create another one.**
 
 ## Security
 I strongly recommend using HTTPS for the server. Setting that up is a bit out of scope for this document, but you should
 really look into it. If not using HTTPS someone on the Internet might pick up the commands you are sending. The commands
-can replayed and someone might guess other how to use other commands.
+can replayed and someone might guess how to use other commands.
 
 The reason there is no login for the frontend of the web server is simple: The moment someone has access to the network
 where there are HDL Buspro traffic they don't need this server. All communication is done in plain text with no
