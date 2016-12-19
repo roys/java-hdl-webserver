@@ -67,7 +67,35 @@ If you want the same area to control several areas or you have several channels 
 
 15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, dim the lights to 20% in the kitchen*.
 
-**You can repeat steps 1-4 to create more areas. You don't need to do steps 5 and on as the IFTTT command is completely generic when it comes to area names.**
+#### Create custom actions
+
+Custom actions let you give custom commands like *Open the garage* and let that press some panel button.
+
+1. Go to to the **Actions** page.
+2. Below **Create custom action**, type in the name/description of the command.  
+This command is just a description and doesn't have to be the same as the voice command.
+3. Select the component, operation, function and parameters.  
+**Panel control** in combination with **Control button** lets you specify the button number as parameters 2 and 1 for on and 0 for off.
+If you want the same command to do more commands you can add them.
+4. Select *Create action* and notice the info about the action at the bottom of the page.  
+  
+5. Go to https://ifttt.com/create to create a new "applet" (preferably in a new browser window/tab).
+6. Select the service *Google Assistant*.
+7. Select *Say a simple phrase*.
+8. Choose up to three commands you want to say to trigger the action, e.g. :
+ - *Open the garage*
+ - *Close the garage*
+ - *Open the garage, please*
+9. Choose a response from the Assistant.
+10. Create the trigger.
+11. Select the action service *Maker*.
+12. Select *Make a web request*.
+13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
+14. Create the action.
+
+15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, open the garage*.
+
+**Unlike the dimmer actions you need to add both a new action and a new "applet" if you want to add another one.**
 
 ## Security
 I strongly recommend using HTTPS for the server. Setting that up is a bit out of scope for this document, but you should
