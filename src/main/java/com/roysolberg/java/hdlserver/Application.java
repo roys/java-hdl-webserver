@@ -224,6 +224,13 @@ public class Application {
             response.redirect("/actions?" + getMessagesQueryParams(successMessage, errorMessage));
             return null;
         });
+        post("/search_for_components", (request, response) -> {
+            hdlService.doOneTimeQuickSearchForComponents();
+            String successMessage = "Performing search. Please refresh page to see any new components found.";
+            String errorMessage = null;
+            response.redirect("/?" + getMessagesQueryParams(successMessage, errorMessage));
+            return null;
+        });
     }
 
     protected String getMessagesQueryParams(String successMessage, String errorMessage) throws UnsupportedEncodingException {

@@ -2,11 +2,45 @@
 **This is a web server for setting up and communicating with the smart home system *HDL Buspro*. It was mainly built for
 the purpose of integrating with *Google Assistant* (Google Home and Google Pixel).**
 
-## Demo video
+## Video demo
 [![YouTube proof of concept video](http://img.youtube.com/vi/P6BgsM8IiW8/0.jpg)](https://youtu.be/P6BgsM8IiW8)
 
 ## Running the server
-Give me a few days to write up the instructions. :)
+
+### Part 1: Download and set up the server
+
+Give me a few days to finish up the instructions. :)
+
+### Part 2: Adding actions
+
+Prerequisites: An account at https://ifttt.com and a Google account.
+
+#### Create dimmer actions
+
+Dimmer actions let you say commands like *Dim the lights to 20% in the kitchen* and are meant for HDL dimmers.
+
+1. Go to to the **Actions** page.
+2. Below **Create dimmer action**, type in the name of the area. This will be the area you asked to be dimmed, e.g. *The kitchen*.
+You can also add zero to many aliases for the area if you use different names for it. If using *the* in an area name you might want to repeat the name of the area without *the*. Then everything will work if you say *Dim the lights to 20% in kitchen*.
+3. Select the dimmer channel representing the area.
+If you want the same area to control several areas or you have several channels for the same area you can add those as well.
+4. Select *Create action* and notice the info about the action at the bottom of the page.
+
+5. Go to https://ifttt.com/create to create a new "applet" (preferably in a new browser window/tab).
+6. Select the service *Google Assistant*.
+7. Select *Say a phrase with both a number and a text ingredient*.
+8. Choose up to three commands you want to say to trigger the action, e.g. :
+ - *Dim the lights to # % in $*
+ - *Turn up the lights to # % in $*
+ - *Set the lights to # % in $*
+9. Choose a response from the Assistant. It can be nice to include the input from your command, e.g. *OK, # % in $*.
+10. Create the trigger.
+11. Select the action service *Maker*.
+12. Select *Make a web request*.
+13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
+14. Create the action.
+
+15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. "OK Google, dim the lights to 20% in the kitchen".
 
 ## How it works
 Google have added some [triggers at IFTTT](https://ifttt.com/google_assistant) for Google Assistant (i.e. Google Home

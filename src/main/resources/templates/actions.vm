@@ -1,25 +1,5 @@
 #parse('templates/header.vm')
 
-#if($successMessage && $successMessage != '')
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <div class="alert alert-success" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            $successMessage
-        </div>
-    </div>
-</div>
-#end
-#if($errorMessage && $errorMessage != '')
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <div class="alert alert-danger" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            $errorMessage
-        </div>
-    </div>
-</div>
-#end
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Create new custom action</h3>

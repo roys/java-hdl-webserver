@@ -418,8 +418,8 @@ public class HdlService {
         }
     }
 
-    protected void doOneTimeQuickSearchForComponents() {
-//        logger.debug("doOneTimeQuickSearchForComponents()"); // XXX: Remove
+    public void doOneTimeQuickSearchForComponents() {
+        logger.info("doOneTimeQuickSearchForComponents()"); // XXX: Remove
         if (getIpAddress() != null) {
             byte[] bytesToSend = getDefaultPackage(getIpAddress());
             // Length
@@ -515,4 +515,5 @@ public class HdlService {
             }
         }).start();
     }
+
 }
