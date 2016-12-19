@@ -20,9 +20,9 @@ Prerequisites: An account at https://ifttt.com and a Google account.
 Dimmer actions let you say commands like *Dim the lights to 20% in the kitchen* and are meant for HDL dimmers.
 
 1. Go to to the **Actions** page.
-2. Below **Create dimmer action**, type in the name of the area. This will be the area you asked to be dimmed, e.g. *The kitchen*.
-You can also add zero to many aliases for the area if you use different names for it. If using *the* in an area name you might want to repeat the name of the area without *the*. Then everything will work if you say *Dim the lights to 20% in kitchen*.
-3. Select the dimmer channel representing the area.
+2. Below **Create dimmer action**, type in the name of the area. This will be the area you asked to be dimmed, e.g. *The kitchen*.  
+You can also add zero to many aliases for the area if you use different names for it. If using *"the"* in an area name you might want to repeat the name of the area without *"the"*. Then everything will work if you say *Dim the lights to 20% in kitchen*.
+3. Select the dimmer channel representing the area.  
 If you want the same area to control several areas or you have several channels for the same area you can add those as well.
 4. Select *Create action* and notice the info about the action at the bottom of the page.
 
@@ -40,7 +40,9 @@ If you want the same area to control several areas or you have several channels 
 13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
 14. Create the action.
 
-15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. "OK Google, dim the lights to 20% in the kitchen".
+15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, dim the lights to 20% in the kitchen*.
+
+**You can repeat steps 1-4 to create more areas. You don't need to do steps 5 and on as the IFTTT command is completely generic when it comes to area names.**
 
 ## How it works
 Google have added some [triggers at IFTTT](https://ifttt.com/google_assistant) for Google Assistant (i.e. Google Home
