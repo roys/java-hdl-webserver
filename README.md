@@ -6,7 +6,7 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 - [Video demo](#video-demo)
 - [How it works](#how-it-works)
 - [Example commands](#example-commands)
-- [Running the server](#running-the-sever)
+- [Running the server](#running-the-server)
 - [Security](#security)
 - [Links](#links)
 
