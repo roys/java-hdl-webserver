@@ -231,6 +231,27 @@ public class Application {
             response.redirect("/?" + getMessagesQueryParams(successMessage, errorMessage));
             return null;
         });
+        post("/update_settings", (request, response) -> {
+            String successMessage = null;
+            String errorMessage = null;
+            String authKey = request.queryParams("authKey");
+            if (authKey != null) {
+                authKey.trim();
+                if (authKey.length() >= 26) {
+                    configConcurrentMap.put("authToken", authKey);
+                    database.commit();
+                    successMessage = "Settings successfully updated";
+                } else {
+                    errorMessage = "Authorization key must be at least 26 characters.";
+                }
+            } else {
+                errorMessage = "Authorization key must be at least 26 characters.";
+            }
+
+            response.redirect("/settings?" + getMessagesQueryParams(successMessage, errorMessage));
+            return null;
+        });
+
     }
 
     protected String getMessagesQueryParams(String successMessage, String errorMessage) throws UnsupportedEncodingException {

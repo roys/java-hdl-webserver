@@ -28,7 +28,6 @@ belonging HDL commands to the IP gateway.
  - *Bye bye*
  - *Turn [on/off] the alarm*
  - *Send for help*
- - *Alarm [on/off]*
 
 ## Running the server
 
@@ -115,7 +114,7 @@ on, the built-in application server this runs on, the server you are running, yo
 IFTTT and Google Assistant. You have no guarantees. If you want to stay safe, you should stay offline.
 
 If you want to learn a little more about security and HDL Buspro you read my Google+ post at
-https://plus.google.com/u/0/+RoySolberg/posts/gNt4paU7KEZ .
+https://plus.google.com/+RoySolberg/posts/gNt4paU7KEZ .
 
 ## Links
  - This repo: https://github.com/roys/java-hdl-webserver

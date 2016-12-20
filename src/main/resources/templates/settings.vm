@@ -1,5 +1,19 @@
 #parse('templates/header.vm')
 
-Settings soon to come.
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <h3>Settings</h3>
+        <form action="update_settings" method="post">
+            <div class="form-group">
+                <label for="input_auth_key">Authorization key</label>
+                <input type="text" name="authKey" class="form-control" id="input_auth_key" placeholder="At least 26 characters" minlength="26" aria-describedby="help_block_auth_key" value="$config.authToken"/>
+                <span id="help_block_auth_key" class="help-block">Key used for the action calls. Remember to also update the keys on any scripts calling this server.</span>
+            </div>
+            <div class="form-group col-xs-18">
+                <button type="submit" class="btn btn-primary">Update settings</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 #parse('templates/footer.vm')

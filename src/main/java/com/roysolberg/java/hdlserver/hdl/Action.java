@@ -1,8 +1,12 @@
 package com.roysolberg.java.hdlserver.hdl;
 
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static spark.Spark.halt;
 
 /**
  * Describing an action that can be performed in this application.
@@ -116,9 +120,9 @@ public class Action implements Serializable {
         try {
             switch (actionType) {
                 case Dimmer:
-                    return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://%s/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", host, authToken);
+                    return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", authToken);
             }
-            return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://%s/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", host, id, authToken);
+            return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", id, authToken);
         } catch (Exception e) {
             System.err.print(e);
         }
