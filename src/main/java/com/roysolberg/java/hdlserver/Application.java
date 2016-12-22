@@ -237,7 +237,7 @@ public class Application {
             String authKey = request.queryParams("authKey");
             if (authKey != null) {
                 authKey.trim();
-                if (authKey.length() >= 26) {
+                if (authKey.length() >= 25) {
                     configConcurrentMap.put("authToken", authKey);
                     database.commit();
                     successMessage = "Settings successfully updated";
