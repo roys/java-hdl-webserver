@@ -43,9 +43,9 @@ The server will start logging to the `logs` directory. See that everything is ru
 `tail -f logs/hdl-server.log`
 
 ### Windows
-To start the server on Windows:
-`javaw -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
-Alternatively:
+To start the server on Windows:  
+`javaw -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`  
+Alternatively:  
 `start java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
 
 See that everything is fine by looking in the file `logs\hdl-server.log`.
