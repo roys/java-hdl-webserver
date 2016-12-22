@@ -29,7 +29,32 @@ belonging HDL commands to the IP gateway.
  - *Turn [on/off] the alarm*
  - *Send for help*
 
-## Running the server
+## Running the server - quick and dirty
+Prerequisites:
+ - [Java 8](https://java.com/en/download/)
+ - [The server JAR](raw/master/releases/hdlserver-LATEST.jar)
+
+ ### Un*x
+To start the server on Linux, Mac and other Unix-like systems:  
+`nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &`
+
+The server will start logging to the `logs` directory. See that everything is running fine:
+`tail -f logs/hdl-server.log`
+
+### Windows
+To start the server on Windows:
+`javaw -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
+Alternatively:
+`start java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
+
+See that everything is fine by looking in the file `logs\hdl-server.log`.
+
+### Un*x + Windows
+You should now be able to go to the server in a browser from a computer on the local network. The server is running on port 4567, so go to `http://<server ip address>:4567`.
+
+You should now be ready to [create some actions](#part-2-adding-commands-actions).
+
+## Running the server - complete setup
 
 ### Part 1: Download and set up the server
 
