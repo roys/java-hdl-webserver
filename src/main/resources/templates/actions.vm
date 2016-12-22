@@ -2,7 +2,7 @@
 
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
-        <h3>Create new custom action</h3>
+        <h3>Create custom action</h3>
         <h4>
             <small>Can be used for custom commands like <i>"Open the garage"</i>.</small>
         </h4>

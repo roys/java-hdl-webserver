@@ -15,7 +15,7 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 
 ## How it works
 Google have added some [triggers at IFTTT](https://ifttt.com/google_assistant) for Google Assistant (i.e. Google Home
-and Google Pixel). Combining them with the [Maker actions](https://ifttt.com/maker) a web request can be sent to the
+and Google Pixel). Combining them with the [Maker actions](https://ifttt.com/maker), a web request can be sent to the
 HDL Buspro server in this project. The server interprets the requests by using the actions you have set up and sends the
 belonging HDL commands to the IP gateway.
 
@@ -68,7 +68,7 @@ If you want the same area to control several areas or you have several channels 
 
 #### Create custom actions
 
-Custom actions let you give custom commands like *Open the garage* and let that press some panel button.
+Custom actions let you give custom commands like *Open the garage* which can trigger some panel button or set a universal switch.
 
 1. Go to to the **Actions** page.
 2. Below **Create custom action**, type in the name/description of the command.  
