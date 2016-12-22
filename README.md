@@ -33,7 +33,7 @@ belonging HDL commands to the IP gateway.
 ## Running the server - quick and dirty
 Prerequisites:
  - [Java 8](https://java.com/en/download/)
- - [The server JAR](raw/master/releases/hdlserver-LATEST.jar)
+ - [The server JAR](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar)
 
 ### Un*x
 To start the server on Linux, Mac and other Unix-like systems:  
