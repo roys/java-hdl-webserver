@@ -36,6 +36,7 @@
                     <div class="form-group col-lg-9">
                         <label for="select_operation">Operation</label>
                         <select id="select_operation" name="operations[]" class="form-control">
+                            <option value="49">Single channel control (0x0031)</option>
                             <option value="57372">UV switch control (0xE01C)</option>
                             <option value="58328">Panel control (0xE3D8)</option>
                         </select>
@@ -208,7 +209,7 @@
                     <th>Component</th>
                     <th>Operation</th>
                     <th>Parameter 1</th>
-                    <th>Parameter 2</th>a
+                    <th>Parameter 2</th>
                     <th>Parameter 3</th>
                 </tr>
                 #foreach ($command in $action.commands)
