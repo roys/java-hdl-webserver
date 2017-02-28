@@ -98,6 +98,7 @@ To kill/stop the script just enter the following command:
 `kill [process number]`  
 
 #### 3b. Running the server on startup
+
 The server can be run as a cron job that starts on reboot of the Raspberry Pi.
 
 To edit the cronjob:  
@@ -108,12 +109,20 @@ Add the following line at the end:
 
 Use `ctrl + x` to exit, press `Y` to save the cron setup and `enter` to confirm the filename.
 
-Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `network.log`. `launcher.log` will also contain output and any error messages running
-the script.
+Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `releases/logs/hdl-bus.log`. `releases/logs/hdl-server.log` and `releases/logs/nohup.out` will also contain output and any error messages running the server.  
 
+#### 4. Reading the logs
 
+You can easily tap in to what's going by running `tail`:  
+`tail -f hdl-bus.log`  
+`tail -f hdl-server.log`  
 
-... TO BE CONTINUED ...Give me a few days to finish up the instructions. :)
+This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
+
+#### Updating the server
+
+If you chose to do a `git clone` in the first step you can just run `git pull` inside the directory at `~/java-hdl-webserver`. If you run the script at boot
+time it is easiest to just reboot your Raspberry Pi using `sudo shutdown -r now` to ensure the latest version of the script is running.
 
 ### Part 2: Adding commands (actions)
 
