@@ -7,7 +7,7 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 - [How it works](#how-it-works)
 - [Example commands](#example-commands)
 - [Running the server - quick and dirty](#running-the-server---quick-and-dirty)
-- [Running the server - complete setup](#running-the-server---complete-setup)
+- [Running the server - complete setup on a Raspberry Pi](#running-the-server---complete-setup-on-a-raspberry-pi-running-raspbian-gnulinux)
 - [Security](#security)
 - [Links](#links)
 
@@ -55,13 +55,13 @@ You should now be able to go to the server in a browser from a computer on the l
 
 You should now be ready to [create some actions](#part-2-adding-commands-actions).
 
-## Running the server - complete setup on a Raspberry PI running Raspbian GNU/Linux
+## Running the server - complete setup on a Raspberry Pi running Raspbian GNU/Linux
 
 ### Part 1: Download and set up the server
 
 #### 1. Java setup
 
-First SSH into your Raspberry PI.
+First SSH into your Raspberry Pi.
 
 Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
 
@@ -118,6 +118,14 @@ You can easily tap in to what's going by running `tail`:
 `tail -f hdl-server.log`  
 
 This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
+
+#### 5. Remote access
+
+To be able to have IFTTT access (described later) the server and run the commands you set up you have to ensure that the server is accessible from the Internet. How to do this depends on your Internet router, but in general it will be like this:
+ - Give the computer running the server a static IP address in your router
+ - Forward a port (please use some other high number port than 4567) from Internet to port 4567 to the computer running the server
+ - Set up some kind of dynamic DNS (can often be done on the router itself, or you can use the computer running the server) to get a static hostname for IFTTT
+ - Use the hostname and external port number when setting up IFTTT (described later)
 
 #### Updating the server
 
