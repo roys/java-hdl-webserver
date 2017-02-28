@@ -55,11 +55,28 @@ You should now be able to go to the server in a browser from a computer on the l
 
 You should now be ready to [create some actions](#part-2-adding-commands-actions).
 
-## Running the server - complete setup
+## Running the server - complete setup on a Raspberry PI running Raspbian GNU/Linux
 
 ### Part 1: Download and set up the server
 
-Give me a few days to finish up the instructions. :)
+#### 1. Java setup
+
+First SSH into your Raspberry PI.
+
+Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
+
+If your Java version was less than 1.8, do the follows:  
+`sudo apt-get update`  
+`sudo apt-get upgrade`  
+`sudo apt-get install oracle-java8-jdk`  
+
+#### 2. Directory setup and getting the script
+
+First check out the code:  
+`cd ~`  
+`git clone https://github.com/roys/java-hdl-server.git`  
+
+... TO BE CONTINUED ...Give me a few days to finish up the instructions. :)
 
 ### Part 2: Adding commands (actions)
 
