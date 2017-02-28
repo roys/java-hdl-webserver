@@ -1,0 +1,10 @@
+Changelog for HDL Buspro server
+
+List of changes, newest changes first.
+('+' = new feature, '-' = removed feature, '*' = changed feature)
+
+Version 1.0.1
+ * Bugfix: Deletion of actions did not work properly.
+ * Authentication key only has to be 25 characters long.
+Version 1.0.0
+ + Initial release.

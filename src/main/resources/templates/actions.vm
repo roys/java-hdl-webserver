@@ -170,7 +170,7 @@
             <table class="table table-hover">
                 <tbody>
                 #foreach ($action in $actions)
-                <div class="modal fade" id="deleteActionModal" tabindex="-1" role="dialog"
+                <div class="modal fade" id="deleteActionModal-$action.id" tabindex="-1" role="dialog"
                      aria-labelledby="modalLabel-$action.id">
                     <div class="modal-dialog" role="document">
                         <div class="modal-content">
@@ -199,7 +199,7 @@
                         </small>
                     </th>
                     <th style="text-align:right;">
-                        <button type="button" class="btn btn-default btn-sm default" data-toggle="modal" title="Delete action" data-target="#deleteActionModal">
+                        <button type="button" class="btn btn-default btn-sm default" data-toggle="modal" title="Delete action" data-target="#deleteActionModal-$action.id">
                             <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
                         </button>
                     </th>
@@ -208,7 +208,7 @@
                     <th>Component</th>
                     <th>Operation</th>
                     <th>Parameter 1</th>
-                    <th>Parameter 2</th>
+                    <th>Parameter 2</th>a
                     <th>Parameter 3</th>
                 </tr>
                 #foreach ($command in $action.commands)
