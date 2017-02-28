@@ -109,7 +109,7 @@ Add the following line at the end:
 
 Use `ctrl + x` to exit, press `Y` to save the cron setup and `enter` to confirm the filename.
 
-Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `releases/logs/hdl-bus.log`. `releases/logs/hdl-server.log` and `releases/logs/nohup.out` will also contain output and any error messages running the server.  
+Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `releases/logs/hdl-bus.log`. `releases/logs/hdl-server.log` and `releases/logs/nohup.out` will also contain output and any error messages running the server. Please note that there is a delay of 30 seconds when running the server from the `launcher.sh` script (to ensure that network interfaces are up and IP address is assigned, etc).
 
 #### 4. Reading the logs
 
