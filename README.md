@@ -53,7 +53,7 @@ See that everything is fine by looking in the file `logs\hdl-server.log`.
 ### Un*x + Windows
 You should now be able to go to the server in a browser from a computer on the local network. The server is running on port 4567, so go to `http://<server ip address>:4567`.
 
-You should now be ready to [create some actions](#part-2-adding-commands-actions).
+Next step is to [create some actions](#part-2-adding-commands-actions).
 
 ## Running the server - complete setup on a Raspberry Pi running Raspbian GNU/Linux
 
@@ -126,6 +126,11 @@ To be able to have IFTTT access (described later) the server and run the command
  - Forward a port (please use some other high number port than 4567) from Internet to port 4567 to the computer running the server
  - Set up some kind of dynamic DNS (can often be done on the router itself, or you can use the computer running the server) to get a static hostname for IFTTT
  - Use the hostname and external port number when setting up IFTTT (described later)
+
+ #### 6. Up and running
+You should now be able to go to the server in a browser from a computer on the local network. The server is running on port 4567, so go to `http://<server ip address>:4567`.
+
+Next step is to [create some actions](#part-2-adding-commands-actions).
 
 #### Updating the server
 
