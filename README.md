@@ -102,7 +102,7 @@ To kill/stop the script just enter the following command:
 The server can be run as a cron job that starts on reboot of the Raspberry Pi.
 
 To edit the cronjob:  
-`crontab - e`
+`crontab -e`
 
 Add the following line at the end:  
 `@reboot /bin/sh ~/java-hdl-webserver/launcher.sh`
