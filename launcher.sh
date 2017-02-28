@@ -1,0 +1,6 @@
+#!/bin/bash
+echo Waiting a bit before starting server...
+cd ~/java-hdl-webserver/releases
+/bin/sleep 30	# Just to be more sure that the network interfaces are up and running
+echo Starting server...
+nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &

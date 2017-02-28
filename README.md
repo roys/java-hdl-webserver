@@ -70,11 +70,48 @@ If your Java version was less than 1.8, do the follows:
 `sudo apt-get upgrade`  
 `sudo apt-get install oracle-java8-jdk`  
 
-#### 2. Directory setup and getting the script
+#### 2. Directory setup and getting the server
 
 First check out the code:  
 `cd ~`  
-`git clone https://github.com/roys/java-hdl-server.git`  
+`git clone https://github.com/roys/java-hdl-webserver.git`  
+
+It can be smart to check that the server is working and getting data:  
+`cd java-hdl-webserver/releases`  
+`java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
+
+You should see some output confirming that the server is starting up ok. Please note that it could take a few seconds to start up on hardware like one of the Raspberry Pi models.
+
+Use `ctrl + c` to exit the application.
+
+#### 3a. Running the server in the background
+
+If you want to make the server run on startup then skip to **3b**. If you want to just run the server in the background (even afer you log out) you can enter the following
+command:  
+`nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &`  
+
+The number that is printed out is the process number. You can use this number to stop the script.
+
+If you don't have the process number you can find it using `ps aux | grep hdlserver`.
+
+To kill/stop the script just enter the following command:
+`kill [process number]`  
+
+#### 3b. Running the server on startup
+The server can be run as a cron job that starts on reboot of the Raspberry Pi.
+
+To edit the cronjob:  
+`crontab - e`
+
+Add the following line at the end:  
+`@reboot /bin/sh ~/java-hdl-webserver/launcher.sh`
+
+Use `ctrl + x` to exit, press `Y` to save the cron setup and `enter` to confirm the filename.
+
+Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `network.log`. `launcher.log` will also contain output and any error messages running
+the script.
+
+
 
 ... TO BE CONTINUED ...Give me a few days to finish up the instructions. :)
 
