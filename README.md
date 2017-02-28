@@ -65,7 +65,7 @@ First SSH into your Raspberry Pi.
 
 Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
 
-If your Java version was less than 1.8, do the follows:  
+If your Java version was less than 1.8, run the following commands and follow the setup:  
 `sudo apt-get update`  
 `sudo apt-get upgrade`  
 `sudo apt-get install oracle-java8-jdk`  
