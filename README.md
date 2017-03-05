@@ -65,7 +65,7 @@ First SSH into your Raspberry Pi.
 
 Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
 
-If your Java version was less than 1.8, run the following commands and follow the setup:  
+If your Java version is less than 1.8, run the following commands and follow the setup:  
 `sudo apt-get update`  
 `sudo apt-get upgrade`  
 `sudo apt-get install oracle-java8-jdk`  
@@ -86,7 +86,7 @@ Use `ctrl + c` to exit the application.
 
 #### 3a. Running the server in the background
 
-If you want to make the server run on startup then skip to **3b**. If you want to just run the server in the background (even afer you log out) you can enter the following
+If you want to make the server run on startup then skip to **3b**. If you want to just run the server in the background (even after you log out) you can enter the following
 command:  
 `nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &`  
 
@@ -101,7 +101,7 @@ To kill/stop the script just enter the following command:
 
 The server can be run as a cron job that starts on reboot of the Raspberry Pi.
 
-To edit the cronjob:  
+To edit the cron jobs:  
 `crontab -e`
 
 Add the following line at the end:  
@@ -145,17 +145,18 @@ Prerequisites: An account at https://ifttt.com and a Google account.
 
 Dimmer actions let you say commands like *Dim the lights to 20% in the kitchen* and are meant for HDL dimmers.
 
+<img align="right" src="https://github.com/roys/java-hdl-webserver/raw/master/misc/01-create_dimmer_action.png" alt="Example of creating dimmer action for HDL Buspro server" title="Example of creating dimmer action for HDL Buspro server" width="500" />
+
 1. Go to to the **Actions** page.
 2. Below **Create dimmer action**, type in the name of the area. This will be the area you asked to be dimmed, e.g. *The kitchen*.  
 You can also add zero to many aliases for the area if you use different names for it. If using *"the"* in an area name you might want to repeat the name of the area without *"the"*. Then everything will work if you say *Dim the lights to 20% in kitchen*.
 3. Select the dimmer channel representing the area.  
 If you want the same area to control several areas or you have several channels for the same area you can add those as well.
-4. Select *Create action* and notice the info about the action at the bottom of the page.  
-  
+4. Select *Create action* and notice the info about the action at the bottom of the page.
 5. Go to https://ifttt.com/create to create a new "applet" (preferably in a new browser window/tab).
 6. Select the service *Google Assistant*.
 7. Select *Say a phrase with both a number and a text ingredient*.
-8. Choose up to three commands you want to say to trigger the action, e.g. :
+8. Choose up to three commands you want to say to trigger the action, e.g.:
  - *Dim the lights to # % in $*
  - *Turn up the lights to # % in $*
  - *Set the lights to # % in $*
@@ -165,21 +166,21 @@ If you want the same area to control several areas or you have several channels 
 12. Select *Make a web request*.
 13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
 14. Create the action.
-
 15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, dim the lights to 20% in the kitchen*.
 
 #### Create custom actions
 
 Custom actions let you give custom commands like *Open the garage* which can trigger some panel button or set a universal switch.
 
+<img align="right" src="https://github.com/roys/java-hdl-webserver/raw/master/misc/02-create_custom_action.png" alt="Example of creating custom action for HDL Buspro server" title="Example of creating custom action for HDL Buspro server" width="500" />
+
 1. Go to to the **Actions** page.
 2. Below **Create custom action**, type in the name/description of the command.  
 This command is just a description and doesn't have to be the same as the voice command.
 3. Select the component, operation, function and parameters.  
-**Panel control** in combination with **Control button** lets you specify the button number as parameters 2 and 1 for on and 0 for off.
+**Panel control** in combination with **Control button** lets you specify the button number as parameters 2 and 1 for on and 0 for off.  
 If you want the same command to do more commands you can add them.
 4. Select *Create action* and notice the info about the action at the bottom of the page.  
-  
 5. Go to https://ifttt.com/create to create a new "applet" (preferably in a new browser window/tab).
 6. Select the service *Google Assistant*.
 7. Select *Say a simple phrase*.
@@ -193,7 +194,6 @@ If you want the same command to do more commands you can add them.
 12. Select *Make a web request*.
 13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
 14. Create the action.
-
 15. Don't be to impatient, but you should now be able to test out the command you just created, e.g. *OK Google, open the garage*.
 
 **Unlike the dimmer actions you need to add both a new action and a new "applet" if you want to create another one.**
