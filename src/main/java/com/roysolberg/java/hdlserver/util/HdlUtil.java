@@ -101,6 +101,10 @@ public class HdlUtil {
                 return "UV switch control";
             case 0xE01D:
                 return "Response UV switch control";
+            case 0xE3E0:
+                return "Curtain switch control";
+            case 0xE3E1:
+                return "Response curtain switch control";
             case 0xF00E:
                 return "Read channel remark";
             case 0xF00F:
