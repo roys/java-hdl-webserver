@@ -39,6 +39,7 @@
                             <option value="49">Single channel control (0x0031)</option>
                             <option value="57372">UV switch control (0xE01C)</option>
                             <option value="58328">Panel control (0xE3D8)</option>
+                            <option value="58336">Curtain switch control (0xE3E0)</option>
                         </select>
                     </div>
                     <div class="form-group col-lg-4">
@@ -51,7 +52,12 @@
                     </div>
                     <div class="form-group col-lg-2">
                         <label for="input_parameter_2">Parameter 2</label>
-                        <input id="input_parameter_2" name="parameters2[]" min="0" max="255" type="number" class="form-control" placeholder="0-255">
+                        <input list="parameters2" id="input_parameter_2" name="parameters2[]" min="0" max="255" type="number" class="form-control" placeholder="0-255">
+                        <datalist id="parameters2">
+                            <option value="0">Curtain switch control - stop (0)</option>
+                            <option value="1">Curtain switch control - open/forward (1)</option>
+                            <option value="2">Curtain switch control - close/reverse (2)</option>
+                        </datalist>
                     </div>
                     <div class="form-group col-lg-2">
                         <label for="input_parameter_3">Parameter 3</label>
