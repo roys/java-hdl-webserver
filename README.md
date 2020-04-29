@@ -91,7 +91,7 @@ Use `ctrl + c` to exit the application.
 
 #### 4a. Running the server in the background
 
-If you want to make the server run on startup then skip to **3b**. If you want to just run the server in the background (even after you log out) you can enter the following
+If you want to make the server run on startup then skip to **4b**. If you want to just run the server in the background (even after you log out) you can enter the following
 command:  
 `nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &`  
 
@@ -221,7 +221,7 @@ on, the built-in application server this runs on, the server you are running, yo
 IFTTT and Google Assistant. You have no guarantees. If you want to stay safe, you should stay offline.
 
 If you want to learn a little more about security and HDL Buspro you read my Google+ post at
-https://plus.google.com/+RoySolberg/posts/gNt4paU7KEZ .
+https://blog.roysolberg.com/2017/08/my-dumb-smart-home .
 
 ## Links
  - This repo: https://github.com/roys/java-hdl-webserver
