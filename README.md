@@ -65,12 +65,17 @@ First SSH into your Raspberry Pi.
 
 Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
 
-If your Java version is less than 1.8, run the following commands and follow the setup:  
+If you don't have Java installed or a Java version before version 1.8, run the following commands and follow the setup:  
 `sudo apt-get update`  
 `sudo apt-get upgrade`  
-`sudo apt-get install oracle-java8-jdk`  
+`sudo apt install default-jdk` (old command: ~~`sudo apt-get install oracle-java8-jdk`~~)  
 
-#### 2. Directory setup and getting the server
+#### 2. Install Git
+
+If you don't have the version-control system Git installed you can install it like this:  
+`sudo apt-get install git`  
+
+#### 3. Directory setup and getting the server
 
 First check out the code:  
 `cd ~`  
@@ -84,7 +89,7 @@ You should see some output confirming that the server is starting up ok. Please 
 
 Use `ctrl + c` to exit the application.
 
-#### 3a. Running the server in the background
+#### 4a. Running the server in the background
 
 If you want to make the server run on startup then skip to **3b**. If you want to just run the server in the background (even after you log out) you can enter the following
 command:  
@@ -97,7 +102,7 @@ If you don't have the process number you can find it using `ps aux | grep hdlser
 To kill/stop the script just enter the following command:
 `kill [process number]`  
 
-#### 3b. Running the server on startup
+#### 4b. Running the server on startup
 
 The server can be run as a cron job that starts on reboot of the Raspberry Pi.
 
@@ -111,7 +116,7 @@ Use `ctrl + x` to exit, press `Y` to save the cron setup and `enter` to confirm 
 
 Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `releases/logs/hdl-bus.log`. `releases/logs/hdl-server.log` and `releases/logs/nohup.out` will also contain output and any error messages running the server. Please note that there is a delay of 30 seconds when running the server from the `launcher.sh` script (to ensure that network interfaces are up and IP address is assigned, etc).
 
-#### 4. Reading the logs
+#### 5. Reading the logs
 
 You can easily tap in to what's going by running `tail`:  
 `tail -f hdl-bus.log`  
@@ -119,7 +124,7 @@ You can easily tap in to what's going by running `tail`:
 
 This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
 
-#### 5. Remote access
+#### 6. Remote access
 
 To be able to have IFTTT access (described later) the server and run the commands you set up you have to ensure that the server is accessible from the Internet. How to do this depends on your Internet router, but in general it will be like this:
  - Give the computer running the server a static IP address in your router
@@ -127,7 +132,7 @@ To be able to have IFTTT access (described later) the server and run the command
  - Set up some kind of dynamic DNS (can often be done on the router itself, or you can use the computer running the server) to get a static hostname for IFTTT
  - Use the hostname and external port number when setting up IFTTT (described later)
 
- #### 6. Up and running
+#### 7. Up and running
 You should now be able to go to the server in a browser from a computer on the local network. The server is running on port 4567, so go to `http://<server ip address>:4567`.
 
 Next step is to [create some actions](#part-2-adding-commands-actions).
