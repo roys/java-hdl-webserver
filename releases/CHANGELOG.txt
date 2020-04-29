@@ -3,6 +3,9 @@ Changelog for HDL Buspro server
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
+Version 1.0.3
+ * Upgraded from using Spark version 2.5.3 to version 2.8.0. See https://github.com/advisories/GHSA-76qr-mmh8-cp8f .
+ * Fixed now broken link.
 Version 1.0.2
  + Added support for curtain switch control (0xE3E0) in custom action.
 Version 1.0.1
