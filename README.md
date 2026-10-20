@@ -9,6 +9,7 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 - [Running the server - quick and dirty](#running-the-server---quick-and-dirty)
 - [Running the server - complete setup on a Raspberry Pi](#running-the-server---complete-setup-on-a-raspberry-pi-running-raspbian-gnulinux)
 - [Security](#security)
+- [Building from source](#building-from-source)
 - [Links](#links)
 
 ## Video demo
@@ -16,7 +17,7 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 
 ## How it works
 Google have added some [triggers at IFTTT](https://ifttt.com/google_assistant) for Google Assistant (i.e. Google Home
-and Google Pixel). Combining them with the [Maker actions](https://ifttt.com/maker), a web request can be sent to the
+and Google Pixel). Combining them with the [Webhooks actions](https://ifttt.com/maker_webhooks), a web request can be sent to the
 HDL Buspro server in this project. The server interprets the requests by using the actions you have set up and sends the
 belonging HDL commands to the IP gateway.
 
@@ -32,7 +33,7 @@ belonging HDL commands to the IP gateway.
 
 ## Running the server - quick and dirty
 Prerequisites:
- - [Java 8](https://java.com/en/download/)
+ - Java 8 or later (e.g. [Eclipse Temurin](https://adoptium.net/))
  - [The server JAR](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar)
 
 ### Un*x
@@ -119,8 +120,8 @@ Restart the device using `sudo shutdown -r now` and check out if there's stuff g
 #### 5. Reading the logs
 
 You can easily tap in to what's going by running `tail`:  
-`tail -f hdl-bus.log`  
-`tail -f hdl-server.log`  
+`tail -f logs/hdl-bus.log`  
+`tail -f logs/hdl-server.log`  
 
 This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
 
@@ -129,6 +130,7 @@ This will let you follow the file and the contents that's written to it. To end 
 To be able to have IFTTT access (described later) the server and run the commands you set up you have to ensure that the server is accessible from the Internet. How to do this depends on your Internet router, but in general it will be like this:
  - Give the computer running the server a static IP address in your router
  - Forward a port (please use some other high number port than 4567) from Internet to port 4567 to the computer running the server
+ - If you put a reverse proxy (e.g. for HTTPS) in front of the server, only pass on paths starting with `/api/`
  - Set up some kind of dynamic DNS (can often be done on the router itself, or you can use the computer running the server) to get a static hostname for IFTTT
  - Use the hostname and external port number when setting up IFTTT (described later)
 
@@ -141,6 +143,14 @@ Next step is to [create some actions](#part-2-adding-commands-actions).
 
 If you chose to do a `git clone` in the first step you can just run `git pull` inside the directory at `~/java-hdl-webserver`. If you run the script at boot
 time it is easiest to just reboot your Raspberry Pi using `sudo shutdown -r now` to ensure the latest version of the script is running.
+
+Otherwise, replace `hdlserver-LATEST.jar` with [the latest one](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar)
+and restart the server. New versions keep your authorization key, actions and found components (they're in `hdlserver.db`), so your IFTTT applets keep
+working.
+
+If you open the web pages by a host name with dots in it (e.g. `http://hdl.example.com:4567`) rather than by IP address or a local name like
+`raspberrypi`/`raspberrypi.local`, start the server with that name allowed:  
+`java -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
 
 ### Part 2: Adding commands (actions)
 
@@ -167,7 +177,7 @@ If you want the same area to control several areas or you have several channels 
  - *Set the lights to # % in $*
 9. Choose a response from the Assistant. It can be nice to include the input from your command, e.g. *OK, # % in $*.
 10. Create the trigger.
-11. Select the action service *Maker*.
+11. Select the action service *Webhooks*.
 12. Select *Make a web request*.
 13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
 14. Create the action.
@@ -195,7 +205,7 @@ If you want the same command to do more commands you can add them.
  - *Open the garage, please*
 9. Choose a response from the Assistant.
 10. Create the trigger.
-11. Select the action service *Maker*.
+11. Select the action service *Webhooks*.
 12. Select *Make a web request*.
 13. Fill in the URL, method (POST), content type (application/json) and body as described in the **Actions** page in step 4.
 14. Create the action.
@@ -216,12 +226,21 @@ security. Therefore securing the frontend with a login would add a false sense o
 The security for the API and the commands lies in an automatically created random key when starting the server the first
 time. If the requests for the commands are missing the correct key they will not be executed.
 
+**Please [update](#updating-the-server) if you run version 1.0.3 or earlier.** They have known security vulnerabilities.
+
 Keep in mind that there could potentially be security holes or weaknesses in the code of this project, the web framework this is built
 on, the built-in application server this runs on, the server you are running, your router, other network components,
 IFTTT and Google Assistant. You have no guarantees. If you want to stay safe, you should stay offline.
 
-If you want to learn a little more about security and HDL Buspro you read my Google+ post at
+If you want to learn a little more about security and HDL Buspro you can read my blog post at
 https://blog.roysolberg.com/2017/08/my-dumb-smart-home .
+
+## Building from source
+You need Java 17 or later to build (the server itself still runs on Java 8):  
+`./mvnw verify`
+
+This runs the tests and builds the runnable JAR at `target/hdlserver-<version>.jar`, which is what's released as
+`releases/hdlserver-LATEST.jar`.
 
 ## Links
  - This repo: https://github.com/roys/java-hdl-webserver
@@ -231,4 +250,4 @@ https://blog.roysolberg.com/2017/08/my-dumb-smart-home .
  - Google Assistant: https://assistant.google.com
  - Google Home: https://madeby.google.com/home/
  - Google Assistant at IFTTT: https://ifttt.com/google_assistant
- - Maker at IFTTT: https://ifttt.com/maker
+ - Webhooks at IFTTT: https://ifttt.com/maker_webhooks

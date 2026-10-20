@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [17, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Build and test
+        run: ./mvnw -B verify
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == 17
+        with:
+          name: hdlserver
+          path: target/hdlserver-*.jar
+          if-no-files-found: error
+
+  # Earlier releases ran on Java 8, so the JAR must still start there.
+  java8-smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdlserver
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 8
+      - name: Start the server and call the API
+        run: |
+          rm -f original-*.jar
+          mv hdlserver-*.jar hdlserver-LATEST.jar
+          java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:4567/ && break; sleep 1; done
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"auth":"WRONG"}' http://localhost:4567/api/actions/1)
+          cat server.log
+          test "$status" = 401

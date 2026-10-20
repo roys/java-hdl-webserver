@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class TemperatureSensorComponent extends HdlComponent {
 
+    private static final long serialVersionUID = -8300304774899768303L;
+
     protected int numOfSensors;
 
     public TemperatureSensorComponent(int subnet, int deviceId, int deviceType, String remark, int numOfSensors) {

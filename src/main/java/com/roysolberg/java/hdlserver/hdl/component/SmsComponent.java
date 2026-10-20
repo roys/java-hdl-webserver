@@ -5,6 +5,8 @@ import java.util.Date;
 
 public class SmsComponent extends HdlComponent {
 
+    private static final long serialVersionUID = -7167787126653874994L;
+
     public SmsComponent(int subnet, int deviceId, int deviceType, String remark) {
         super(subnet, deviceId, deviceType, remark);
     }
@@ -25,6 +27,8 @@ public class SmsComponent extends HdlComponent {
     }
 
     public static class Sms implements Serializable, Comparable<Sms> {
+
+        private static final long serialVersionUID = 4706217290475432291L;
 
         protected int index; // Indx/ID of SMS at SMS module
         protected boolean incoming; // Incoming or outgoing SMS

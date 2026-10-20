@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class RelayComponent extends HdlComponent {
 
+    private static final long serialVersionUID = 3118452098238086035L;
+
     protected int numOfChannels;
 
     public RelayComponent(int subnet, int deviceId, int deviceType, String remark, int numOfChannels) {

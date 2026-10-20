@@ -16,6 +16,10 @@ import java.net.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 public class HdlService {
 
@@ -38,8 +42,15 @@ public class HdlService {
     protected static final byte TARGET_DEVICE_ID_ALL = (byte) 0xFF;
 
     private static Logger logger = LogManager.getLogger("HDL");
+    protected static final int MAX_QUEUED_ACTIONS = 50;
     private final ConcurrentMap components;
     private final DB database;
+    /** One action at a time, so their commands don't interleave on the bus, and a bounded number waiting. */
+    private final ExecutorService commandSender = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_ACTIONS), runnable -> {
+        Thread thread = new Thread(runnable, "hdl-command-sender");
+        thread.setDaemon(true);
+        return thread;
+    }, (runnable, executor) -> logger.warn("Already {} actions waiting to be sent. Dropping this one.", MAX_QUEUED_ACTIONS));
 
     protected boolean isRunning;
     protected DatagramSocket datagramSocket;
@@ -49,7 +60,13 @@ public class HdlService {
     public HdlService(DB database) {
         this.database = database;
         components = database.hashMap("components").createOrOpen();
-        logger.info("components:" + components.values());
+        logger.info("components: {}", components.values());
+    }
+
+    /**
+     * Starts listening to the bus and searches for components.
+     */
+    public void start() {
         run();
         doOneTimeQuickSearchForComponents();
     }
@@ -194,18 +211,17 @@ public class HdlService {
         return localInetAddress;
     }
 
-    protected byte[] getDefaultPackage(InetAddress inetAddress) {
+    protected static byte[] getDefaultPackage(InetAddress inetAddress) {
         byte[] bytes = new byte[92];
         // Local IP address
-        try {
+        if (inetAddress != null) {
             byte[] address = inetAddress.getAddress();
             bytes[0] = address[0];
             bytes[1] = address[1];
             bytes[2] = address[2];
             bytes[3] = address[3];
-        } catch (NullPointerException e) {
-            // TODO: How should we handle this?
-            logger.error("Got NullPointerException while trying to get local IP address. Still trying to send package.", e);
+        } else {
+            logger.error("Got no local IP address. Still trying to send package.");
         }
         // Static content when sending UDP
         bytes[4] = 'H';
@@ -233,12 +249,21 @@ public class HdlService {
         return bytes;
     }
 
-    protected void generateCrc(byte[] bytesToSend) {
+    protected static void generateCrc(byte[] bytesToSend) {
         int length = bytesToSend[BYTE_POSITION_LENGTH] - 2; // Length minus CRC data
+        int crc = getCrc(bytesToSend, BYTE_POSITION_LENGTH, length);
+        bytesToSend[BYTE_POSITION_LENGTH + length + 1] = (byte) crc;
+        bytesToSend[BYTE_POSITION_LENGTH + length] = (byte) (crc >>> 8);
+    }
+
+    /**
+     * CRC-16/XMODEM (CCITT polynomial 0x1021, initial value 0), as HDL Buspro uses.
+     */
+    protected static int getCrc(byte[] bytes, int offset, int length) {
         int polynomial = 0x1021;   // Represents x^16+x^12+x^5+1
         int crc = 0x0000;
-        for (int j = BYTE_POSITION_LENGTH; j < (BYTE_POSITION_LENGTH + length); j++) {
-            byte b = bytesToSend[j];
+        for (int j = offset; j < (offset + length); j++) {
+            byte b = bytes[j];
             for (int i = 0; i < 8; i++) {
                 boolean bit = ((b >> (7 - i) & 1) == 1);
                 boolean c15 = ((crc >> 15 & 1) == 1);
@@ -247,9 +272,7 @@ public class HdlService {
                 if (c15 ^ bit) crc ^= polynomial;
             }
         }
-        crc &= 0xffff;
-        bytesToSend[BYTE_POSITION_LENGTH + length + 1] = (byte) (crc >>> 0);
-        bytesToSend[BYTE_POSITION_LENGTH + length] = (byte) (crc >>> 8);
+        return crc & 0xffff;
     }
 
     public static boolean isPackageValid(byte[] bytes) {
@@ -437,83 +460,92 @@ public class HdlService {
         }
     }
 
-    public void performDimmerAction(final Action action) {
-        new Thread(() -> {
-            for (Action.Command command : action.getCommands()) {
-                byte[] bytesToSend = getDefaultPackage(getIpAddress());
-                int messageLength = 11;
-
-                // Content
-                if (command.getParameter1() != null) {
-                    messageLength++;
-                    bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
-                }
-                if (command.getParameter2() != null) {
-                    messageLength++;
-                    bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) command.getParameter2().intValue();
-                }
-                if (command.getParameter3() != null) {
-                    messageLength++;
-                    bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) command.getParameter3().intValue();
-                }
-
-                // Length
-                bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
-                // Operate code
-                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
-                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
-                // Target subnet and device ids:
-                bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
-                bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
-
-                generateCrc(bytesToSend);
-                sendBroadcastMessage(bytesToSend);
-
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-            /* no-op */
-                }
-            }
-        }).start();
+    /**
+     * Sends the commands of a custom action, e.g. "Open the garage".
+     */
+    public void performAction(final Action action) {
+        sendCommands(action, command -> getCommandPackage(getIpAddress(), command));
     }
 
+    /**
+     * Sets every channel of a dimmer action to the given level.
+     */
     public void performDimmerAction(final Action action, final int valueInPercent) {
-        new Thread(() -> {
+        sendCommands(action, command -> getDimmerPackage(getIpAddress(), command, valueInPercent));
+    }
+
+    protected void sendCommands(final Action action, final Function<Action.Command, byte[]> toPackage) {
+        commandSender.execute(() -> {
             for (Action.Command command : action.getCommands()) {
-                byte[] bytesToSend = getDefaultPackage(getIpAddress());
-                // Channel
-                if (command.getParameter1() != null) {
-                    bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
-                }
-                // Percent
-                bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) valueInPercent;
-                // Running time (high)
-                bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) 0;
-                // Running time (low)
-                bytesToSend[BYTE_POSITION_CONTENT + 3] = (byte) 0;
-                // Not sure, but the DLP sends different values for a fifth field:
-                bytesToSend[BYTE_POSITION_CONTENT + 4] = (byte) 0x0F;
-
-                // Length
-                bytesToSend[BYTE_POSITION_LENGTH] = (byte) 16;
-                // Operate code
-                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
-                bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
-                // Target subnet and device ids:
-                bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
-                bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
-
-                generateCrc(bytesToSend);
-                sendBroadcastMessage(bytesToSend);
-
+                sendBroadcastMessage(toPackage.apply(command));
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-            /* no-op */
+                    Thread.currentThread().interrupt();
+                    return;
                 }
             }
-        }).start();
+        });
+    }
+
+    /**
+     * A command with up to three parameters as its content.
+     */
+    protected static byte[] getCommandPackage(InetAddress localInetAddress, Action.Command command) {
+        byte[] bytesToSend = getDefaultPackage(localInetAddress);
+        int messageLength = 11;
+
+        // Content
+        if (command.getParameter1() != null) {
+            messageLength++;
+            bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
+        }
+        if (command.getParameter2() != null) {
+            messageLength++;
+            bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) command.getParameter2().intValue();
+        }
+        if (command.getParameter3() != null) {
+            messageLength++;
+            bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) command.getParameter3().intValue();
+        }
+
+        bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
+        setTarget(bytesToSend, command);
+        generateCrc(bytesToSend);
+        return bytesToSend;
+    }
+
+    /**
+     * Single channel control (0x0031) of the command's channel (parameter 1) to the given level.
+     */
+    protected static byte[] getDimmerPackage(InetAddress localInetAddress, Action.Command command, int valueInPercent) {
+        byte[] bytesToSend = getDefaultPackage(localInetAddress);
+        // Channel
+        if (command.getParameter1() != null) {
+            bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
+        }
+        // Percent
+        bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) valueInPercent;
+        // Running time (high)
+        bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) 0;
+        // Running time (low)
+        bytesToSend[BYTE_POSITION_CONTENT + 3] = (byte) 0;
+        // Not sure, but the DLP sends different values for a fifth field:
+        bytesToSend[BYTE_POSITION_CONTENT + 4] = (byte) 0x0F;
+
+        bytesToSend[BYTE_POSITION_LENGTH] = (byte) 16;
+        setTarget(bytesToSend, command);
+        generateCrc(bytesToSend);
+        return bytesToSend;
+    }
+
+    protected static void setTarget(byte[] bytesToSend, Action.Command command) {
+        // Operate code
+        bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_1] = (byte) (command.getOperation() >> 8);
+        bytesToSend[BYTE_POSITION_OPERATION_CODE_BYTE_2] = (byte) command.getOperation();
+        // Target subnet and device ids:
+        bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = (byte) command.getSubnetId();
+        bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = (byte) command.getDeviceId();
     }
 
 }

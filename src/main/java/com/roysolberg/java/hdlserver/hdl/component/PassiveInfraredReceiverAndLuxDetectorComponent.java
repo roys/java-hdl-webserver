@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class PassiveInfraredReceiverAndLuxDetectorComponent extends HdlComponent {
 
+    private static final long serialVersionUID = -1385951599527635418L;
+
     public PassiveInfraredReceiverAndLuxDetectorComponent(int subnet, int deviceId, int deviceType, String remark) {
         super(subnet, deviceId, deviceType, remark);
     }

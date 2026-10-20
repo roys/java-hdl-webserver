@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class Rs232IpGatewayComponent extends HdlComponent {
 
+    private static final long serialVersionUID = -961768629124809759L;
+
     public Rs232IpGatewayComponent(int subnet, int deviceId, int deviceType, String remark) {
         super(subnet, deviceId, deviceType, remark);
     }

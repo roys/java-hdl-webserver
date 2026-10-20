@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class CurtainControllerComponent extends HdlComponent {
 
+    private static final long serialVersionUID = 1667697937105683095L;
+
     public CurtainControllerComponent(int subnet, int deviceId, int deviceType, String remark) {
         super(subnet, deviceId, deviceType, remark);
     }

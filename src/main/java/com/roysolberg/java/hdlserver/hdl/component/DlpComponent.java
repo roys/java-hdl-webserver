@@ -5,6 +5,8 @@ import java.util.Map;
 
 public class DlpComponent extends HdlComponent {
 
+    private static final long serialVersionUID = -7006428983864834171L;
+
     protected final int numOfButtons;
     protected final boolean hasImages;
     protected final int numOfPages;

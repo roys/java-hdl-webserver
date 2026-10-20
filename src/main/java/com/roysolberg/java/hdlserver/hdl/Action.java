@@ -1,17 +1,21 @@
 package com.roysolberg.java.hdlserver.hdl;
 
+import org.apache.commons.lang.StringEscapeUtils;
+
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
-
-import static spark.Spark.halt;
+import java.util.Locale;
 
 /**
  * Describing an action that can be performed in this application.
  */
 public class Action implements Serializable {
+
+    // Pinned to what 1.0.x computed: hdlserver.db files hold serialized actions, so changing this would lose them.
+    private static final long serialVersionUID = 4680743543381546225L;
 
     protected ActionType actionType;
     protected int id;
@@ -59,6 +63,8 @@ public class Action implements Serializable {
 
     public static class Command implements Serializable {
 
+        private static final long serialVersionUID = -193804117547559178L;
+
         protected int subnetId;
         protected int deviceId;
         protected int operation;
@@ -103,7 +109,7 @@ public class Action implements Serializable {
     public String getUrl(String host) {
         switch (actionType) {
             case Dimmer:
-                return String.format("http://%s/api/actions/dimmer/%s", host, description.toLowerCase().replaceAll(" ", "%20")); // TODO: URL encode
+                return String.format("http://%s/api/actions/dimmer/%s", host, getEncodedAlias());
         }
         return String.format("http://%s/api/actions/%d", host, id);
     }
@@ -111,22 +117,29 @@ public class Action implements Serializable {
     public String getCurlCommand(String host, String authToken) {
         switch (actionType) {
             case Dimmer:
-                return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, description.toLowerCase().replaceAll(" ", "%20"));
+                return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, getEncodedAlias());
         }
         return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\"}' http://%s/api/actions/%d", authToken, host, id);
     }
 
+    /**
+     * @return how to set this action up at IFTTT, as HTML.
+     */
     public String getIftttCommand(String host, String authToken) {
-        try {
-            switch (actionType) {
-                case Dimmer:
-                    return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", authToken);
-            }
-            return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker\">Maker action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", id, authToken);
-        } catch (Exception e) {
-            System.err.print(e);
+        String escapedAuthToken = StringEscapeUtils.escapeHtml(authToken);
+        switch (actionType) {
+            case Dimmer:
+                return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker_webhooks\" target=\"_blank\">Webhooks action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", escapedAuthToken);
         }
-        return "OK";
+        return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker_webhooks\" target=\"_blank\">Webhooks action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", id, escapedAuthToken);
+    }
+
+    protected String getEncodedAlias() {
+        try {
+            return URLEncoder.encode(description.toLowerCase(Locale.ROOT), "UTF-8").replace("+", "%20");
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException("UTF-8 is always supported", e);
+        }
     }
 
     public enum ActionType implements Serializable {
