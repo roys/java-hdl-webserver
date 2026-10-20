@@ -3,6 +3,8 @@ Changelog for HDL Buspro server
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
+Version 1.1.1
+ * Bugfix: Old log files were never deleted, so over the years they could fill up the disk. Logs older than 30 days are now deleted, also when the server starts.
 Version 1.1.0
  * Security: Fixed several security vulnerabilities. Everyone running an earlier version should upgrade.
  * The web pages only answer to IP addresses and local host names, unless others are allowed. See "Updating the server" in README.md.

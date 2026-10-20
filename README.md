@@ -125,6 +125,8 @@ You can easily tap in to what's going by running `tail`:
 
 This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
 
+The server starts a new log file every day, and deletes log files older than 30 days.
+
 #### 6. Remote access
 
 To be able to have IFTTT access (described later) the server and run the commands you set up you have to ensure that the server is accessible from the Internet. How to do this depends on your Internet router, but in general it will be like this:

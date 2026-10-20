@@ -6,7 +6,7 @@
 
     <groupId>com.roysolberg.java</groupId>
     <artifactId>hdlserver</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <name>HDL Buspro server</name>
     <description>Web server for setting up and sending commands to an HDL Buspro smart home system.</description>
     <url>https://github.com/roys/java-hdl-webserver</url>
