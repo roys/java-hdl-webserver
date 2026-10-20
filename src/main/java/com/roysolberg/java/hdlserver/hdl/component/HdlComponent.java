@@ -2,7 +2,10 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 import java.io.Serializable;
 
-public abstract class HdlComponent implements Serializable{
+public abstract class HdlComponent implements Serializable {
+
+    // Pinned to what 1.0.x computed, as in every component: hdlserver.db files hold serialized components.
+    private static final long serialVersionUID = -4085944321443626431L;
 
     protected int subnet; // 0-254
     protected int deviceId; // 0-254

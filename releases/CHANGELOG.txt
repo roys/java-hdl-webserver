@@ -3,6 +3,16 @@ Changelog for HDL Buspro server
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
+Version 1.1.0
+ * Security: Fixed several security vulnerabilities. Everyone running an earlier version should upgrade.
+ * The web pages only answer to IP addresses and local host names, unless others are allowed. See "Updating the server" in README.md.
+ * Upgraded libraries, among them Spark to 2.9.4 and Jetty to 9.4.58.
+ * Bugfix: Calling a dimmer action with a wrong key answered 500 rather than 401.
+ * Bugfix: Calling a custom action that doesn't exist answered 500 rather than 404.
+ * Bugfix: Deleting an action didn't always remove its aliases.
+ * Bugfix: Creating an action now says whether it worked, and why not.
+ * Bugfix: Actions called at the same time could get their commands mixed on the bus. They're now sent one at a time.
+ * IFTTT's Maker service is now called Webhooks.
 Version 1.0.3
  * Upgraded from using Spark version 2.5.3 to version 2.8.0. See https://github.com/advisories/GHSA-76qr-mmh8-cp8f .
  * Fixed now broken link.

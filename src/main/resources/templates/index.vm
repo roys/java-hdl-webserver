@@ -31,7 +31,7 @@
                 <tr>
                     <td class="text-center">$component.subnet</td>
                     <td class="text-center">$component.deviceId</td>
-                    <th>$component.remark</th>
+                    <th>$!esc.escapeHtml($component.remark)</th>
                     <td>$component.description</td>
                 </tr>
                 #end

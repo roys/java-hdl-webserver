@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Existing hdlserver.db files were written with MapDB 3.0.2.
+      - dependency-name: org.mapdb:mapdb
+      # Spark 2.9 is built on Jetty 9.4.
+      - dependency-name: org.eclipse.jetty:jetty-bom
+        versions: [">= 10"]
+      # These need Java 17, and the server must still build for and run on Java 8.
+      - dependency-name: org.apache.logging.log4j:*
+        versions: [">= 3"]
+      - dependency-name: org.junit.jupiter:junit-jupiter
+        versions: [">= 6"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

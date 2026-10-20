@@ -2,6 +2,8 @@ package com.roysolberg.java.hdlserver.hdl.component;
 
 public class TouchPanelComponent extends HdlComponent {
 
+    private static final long serialVersionUID = 5324924963949204941L;
+
     public static final int KEY_MODE_INVALID = 0;
     public static final int KEY_MODE_SINGLE_ON_OFF = 1;
     public static final int KEY_MODE_SINGLE_ON = 2;

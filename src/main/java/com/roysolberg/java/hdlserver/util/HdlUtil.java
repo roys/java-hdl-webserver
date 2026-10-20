@@ -33,20 +33,6 @@ public class HdlUtil {
     protected static final byte TARGET_SUBNET_ID_ALL = (byte) 0xFF;
     protected static final byte TARGET_DEVICE_ID_ALL = (byte) 0xFF;
 
-    public static boolean isPackageValid(byte[] bytes) {
-        if (bytes != null && bytes.length >= 23) {
-            byte[] fixedBytes = new byte[]{'H', 'D', 'L', 'M', 'I', 'R', 'A', 'C', 'L', 'E', (byte) 0xAA, (byte) 0xAA}; // TODO: should be constant + used for default package creation + fix those 0xaa
-            for (int i = 0; i < fixedBytes.length; i++) {
-                if (bytes[i + 4] != fixedBytes[i]) {
-                    return false;
-                }
-                // TODO: Verify CRC
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static String getNiceOperationCode(int operationCode) {
         switch (operationCode) {
             case 14: // 0x000E
