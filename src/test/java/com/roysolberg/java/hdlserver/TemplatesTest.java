@@ -86,10 +86,11 @@ class TemplatesTest {
         assertTrue(html.contains("Dimmer - The Kitchen:"));
         assertTrue(html.contains("Kitchen, Cooking"));
         assertTrue(html.contains("http://192.168.1.199:4567/api/actions/dimmer/the%20kitchen"));
-        assertTrue(html.contains("/api/actions/dimmer/{{TextField}}</code>"));
-        assertTrue(html.contains("{&#34;auth&#34;:&#34;TOKEN&#34;,&#34;value&#34;:{{NumberField}}}") || html.contains("{\"auth\":\"TOKEN\",\"value\":{{NumberField}}}"));
+        assertTrue(html.contains("can't pass on a level"));
+        assertTrue(html.contains("{\"auth\":\"TOKEN\",\"value\":&lt;0-100&gt;}"));
         assertTrue(html.contains("Custom - Open the garage:"));
         assertTrue(html.contains("/api/actions/7</code>"));
+        assertTrue(html.contains("<code>Activate scene</code>"), "IFTTT's only Google Assistant trigger since 2022");
         assertTrue(html.contains("Panel control"));
         assertTrue(html.contains("deleteActionModal-7"));
     }

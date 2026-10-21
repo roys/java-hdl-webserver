@@ -69,7 +69,7 @@ public final class Application {
                 + " - Or go back to version 1.1.1, which runs on Java 8: in the folder you cloned the server to, run\n"
                 + "   git checkout v1.1.1 -- releases/hdlserver-LATEST.jar\n"
                 + "   or download it from https://github.com/roys/java-hdl-webserver/releases/tag/v1.1.1\n"
-                + "See https://github.com/roys/java-hdl-webserver#upgrading-to-version-2";
+                + "See https://github.com/roys/java-hdl-webserver/tree/v2#upgrading-to-version-2";
     }
 
     private static String version() {
