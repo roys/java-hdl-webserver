@@ -1,6 +1,6 @@
 # 🏠 HDL Buspro server
 
-**Talk to your HDL Buspro smart home.** *"OK Google, activate Screens up"*, and the screens go up.
+**Talk to your HDL Buspro smart home.** *"Hey Google, activate Screens up"*, and the screens go up.
 
 A small, self-hosted bridge from web requests to HDL Buspro commands. Control your house from its web pages, from Google
 Assistant through IFTTT, or from anything else that can send a web request. It runs happily on a Raspberry Pi.
@@ -50,7 +50,7 @@ Assistant through IFTTT, or from anything else that can send a web request. It r
 
 ```mermaid
 flowchart LR
-    A["🗣️ OK Google…"] --> B[IFTTT]
+    A["🗣️ Hey Google…"] --> B[IFTTT]
     B -- "web request + key" --> C["🏠 This server"]
     C -- "HDL commands (UDP)" --> D[HDL IP gateway]
     D --> E["💡 Lights, curtains, panels…"]
@@ -199,7 +199,7 @@ Click **▶ Run** to try it. 🎯
    | Content type | `application/json` |
    | Body | `{"auth":"<your key>"}` |
 
-4. Save, wait a minute, and say: ***"OK Google, activate Open the garage."*** 🎉
+4. Save, wait a minute, and say: ***"Hey Google, activate Open the garage."*** 🎉
 
 You need one action and one applet for each command.
 
