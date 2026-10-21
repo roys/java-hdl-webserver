@@ -80,6 +80,20 @@ class HdlServerTest {
         assertFalse(HdlServer.isAllowedHost("another.example.com", allowedHosts));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "http, , , http",
+            "https, , , https",
+            "http, https, , https",
+            "http, 'https, http', , https",
+            "http, , 'for=192.168.1.5;proto=https', https",
+            "http, , 'for=192.168.1.5;proto=http', http",
+            "http, ftp, , http",
+    })
+    void examplesUseHttpsWhenThePageWasOpenedOverHttps(String scheme, String xForwardedProto, String forwarded, String expected) {
+        assertEquals(expected, HdlServer.shownScheme(scheme, xForwardedProto, forwarded));
+    }
+
     @Test
     void thePortIs4567UnlessSetOtherwise() {
         assertEquals(4567, HdlServer.parsePort(null));

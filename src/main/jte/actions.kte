@@ -73,9 +73,9 @@
             <summary>How to call it</summary>
             <dl>
                 <dt>URL</dt>
-                <dd class="is-family-monospace">${action.getUrl(page.host)}</dd>
+                <dd class="is-family-monospace">${action.getUrl(page.baseUrl)}</dd>
                 <dt>cURL</dt>
-                <dd><code>${action.getCurlCommand(page.host, page.authToken)}</code></dd>
+                <dd><code>${action.getCurlCommand(page.baseUrl, page.authToken)}</code></dd>
                 <dt>IFTTT</dt>
                 @if(action.actionType == Action.ActionType.Dimmer)
                 <dd>IFTTT's <a href="https://ifttt.com/google_assistant_v2" target="_blank" rel="noopener noreferrer">Google Assistant</a> can't pass on a level, so for voice, create a custom action for each level you want. Anything else that can send a web request can set any level, like the cURL command above: method <code>POST</code>, content type <code>application/json</code> and body <code>{"auth":"${page.authToken}","value":&lt;0-100&gt;}</code>.</dd>

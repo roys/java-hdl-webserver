@@ -104,20 +104,20 @@ public class Action implements Serializable {
         }
     }
 
-    public String getUrl(String host) {
+    /**
+     * @param baseUrl e.g. "http://192.168.1.199:4567"
+     */
+    public String getUrl(String baseUrl) {
         switch (actionType) {
             case Dimmer:
-                return String.format("http://%s/api/actions/dimmer/%s", host, getEncodedAlias());
+                return String.format("%s/api/actions/dimmer/%s", baseUrl, getEncodedAlias());
         }
-        return String.format("http://%s/api/actions/%d", host, id);
+        return String.format("%s/api/actions/%d", baseUrl, id);
     }
 
-    public String getCurlCommand(String host, String authToken) {
-        switch (actionType) {
-            case Dimmer:
-                return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, getEncodedAlias());
-        }
-        return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\"}' http://%s/api/actions/%d", authToken, host, id);
+    public String getCurlCommand(String baseUrl, String authToken) {
+        return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '%s' %s",
+                actionType == ActionType.Dimmer ? "{\"auth\":\"" + authToken + "\",\"value\":80}" : "{\"auth\":\"" + authToken + "\"}", getUrl(baseUrl));
     }
 
     protected String getEncodedAlias() {

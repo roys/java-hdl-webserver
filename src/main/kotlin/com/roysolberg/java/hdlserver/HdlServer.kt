@@ -367,6 +367,7 @@ class HdlServer(
             host = ctx.host().orEmpty(),
             successMessage = ctx.queryParam("success"),
             errorMessage = ctx.queryParam("error"),
+            scheme = shownScheme(ctx.scheme(), ctx.header("X-Forwarded-Proto"), ctx.header("Forwarded")),
         )
         val html = StringOutput()
         templateEngine.render("$name.kte", mapOf("page" to page, *extra), html)
@@ -506,6 +507,7 @@ class HdlServer(
         // .ts.net names are Tailscale's MagicDNS, which only resolve inside the VPN
         private val LOCAL_HOST_NAME_SUFFIXES = listOf(".local", ".lan", ".home", ".home.arpa", ".internal", ".ts.net")
         private val IPV4_LITERAL = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+        private val FORWARDED_PROTO = Regex("""proto="?(https?)""", RegexOption.IGNORE_CASE)
         private val FORWARDED_FOR = Regex("""for="?\[?([^\]";,]+)""", RegexOption.IGNORE_CASE)
 
         /** Headers proxies add without saying who they forward for. */
@@ -595,6 +597,16 @@ class HdlServer(
             }
             return port.trim().toIntOrNull()?.takeIf { it in 1..65535 }
                 ?: throw IllegalArgumentException("-D$PORT_PROPERTY must be a port number from 1 to 65535, not \"$port\".")
+        }
+
+        /**
+         * Whether the browser opened the page over HTTPS, directly or through a proxy that says so. Only used for showing
+         * addresses on the pages; a proxy's headers never make a request more trusted (see [isLocalRequest]).
+         */
+        @JvmStatic
+        fun shownScheme(scheme: String, xForwardedProto: String?, forwarded: String?): String {
+            val proxiedScheme = xForwardedProto?.substringBefore(',')?.trim() ?: forwarded?.let { FORWARDED_PROTO.find(it)?.groupValues?.get(1) }
+            return if (scheme.equals("https", ignoreCase = true) || proxiedScheme.equals("https", ignoreCase = true)) "https" else "http"
         }
 
         @JvmStatic
