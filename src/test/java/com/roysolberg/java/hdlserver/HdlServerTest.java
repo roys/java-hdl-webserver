@@ -16,7 +16,7 @@ class HdlServerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"192.168.1.20", "10.0.0.5", "172.16.0.1", "172.31.255.255", "fd12:3456:789a::1", "fc00::1",
-            "100.64.0.1", "100.97.211.33", "100.127.255.255", "fd7a:115c:a1e0::1"})
+            "100.64.0.1", "100.101.102.103", "100.127.255.255", "fd7a:115c:a1e0::1"})
     void localAddresses(String address) {
         assertTrue(HdlServer.isLocalAddress(address));
     }
