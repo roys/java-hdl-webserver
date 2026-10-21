@@ -11,13 +11,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mapdb.DB;
-import spark.Spark;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -36,18 +36,18 @@ class ApiContractTest {
 
     private static DB database;
     private static RecordingHdlService hdlService;
+    private static Application application;
 
     @BeforeAll
     static void startServer() {
         database = Application.openDatabase(LegacyDatabases.copyToDirectory("1.0.3", directory));
         hdlService = new RecordingHdlService(database);
-        new Application(database, hdlService).start(0);
+        application = new Application(database, hdlService).start(0);
     }
 
     @AfterAll
     static void stopServer() {
-        Spark.stop();
-        Spark.awaitStop();
+        application.stop();
         database.close();
     }
 
@@ -161,7 +161,7 @@ class ApiContractTest {
             json.append("xxxxxxxxxxxxxxxx");
         }
         json.append("\"}");
-        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + Spark.port() + "/api/actions/1").openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + application.port() + "/api/actions/1").openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
@@ -205,12 +205,38 @@ class ApiContractTest {
         assertFalse(result.body.contains(LegacyDatabases.AUTH_TOKEN));
     }
 
+    /**
+     * Paths that could look like /api/ to the access check but reach a web page, or be decoded differently by the
+     * check and by the router. Sent as raw request lines, so no client tidies them up first.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/settings", "/api/../settings", "/api/%2e%2e/settings", "/api/..;/settings", "/api;/../settings",
+            "//settings", "/Settings", "/settings/", "/%73ettings", "/settings;jsessionid=x", "/api/actions/../../settings",
+            "/api/..%2Fsettings", "/./settings", "/api%2F../settings", "/api/%2E%2E/settings", "/settings%00", "/settings?x=/api/",
+            "/static/../settings", "/templates/settings.vm", "/log4j2.properties", "/api/../actions"})
+    void pathTricksCanNotReachWebPages(String path) throws IOException {
+        try (Socket socket = new Socket("127.0.0.1", application.port())) {
+            socket.getOutputStream().write(("GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            ByteArrayOutputStream response = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            for (int read; (read = socket.getInputStream().read(buffer)) != -1; ) {
+                response.write(buffer, 0, read);
+            }
+            String text = new String(response.toByteArray(), StandardCharsets.ISO_8859_1);
+            String statusLine = text.substring(0, Math.max(0, text.indexOf("\r\n")));
+
+            assertFalse(statusLine.contains(" 200"), path + " answered " + statusLine);
+            assertFalse(statusLine.matches("HTTP/1\\.1 5\\d\\d.*"), path + " answered " + statusLine);
+            assertFalse(text.contains(LegacyDatabases.AUTH_TOKEN), path);
+        }
+    }
+
     private static HttpResult post(String path, String json) throws IOException {
         return send("POST", path, "application/json", json, "application/json");
     }
 
     private static HttpResult send(String method, String path, String contentType, String body, String accept, String... headerNamesAndValues) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + Spark.port() + path).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + application.port() + path).openConnection();
         connection.setRequestMethod(method);
         connection.setInstanceFollowRedirects(false);
         for (int i = 0; i + 1 < headerNamesAndValues.length; i += 2) {

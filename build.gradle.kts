@@ -19,17 +19,16 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.spark.core)
-    implementation(libs.spark.velocity)
+    implementation(libs.javalin)
     implementation(platform(libs.jetty.bom))
+    implementation(platform(libs.jetty.ee10.bom))
+    implementation(libs.jackson.databind)
+    implementation(libs.velocity)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
-    implementation(libs.log4j.slf4j.impl)
+    implementation(libs.log4j.slf4j2.impl)
     implementation(libs.commons.lang)
     implementation(libs.mapdb)
-    implementation(libs.json.simple) {
-        exclude(group = "junit", module = "junit") // Wrongly declared as a compile dependency
-    }
     constraints {
         // Pulled in by Velocity 1.7, which asks for the older 3.2.1
         implementation(libs.commons.collections)
