@@ -426,6 +426,9 @@ class HdlServer(
         private val logger = LogManager.getLogger(HdlServer::class.java)
 
         const val DEFAULT_PORT = 4567 // Spark's default, which IFTTT applets made for earlier versions use
+
+        /** The port to listen on, if not [DEFAULT_PORT]. */
+        const val PORT_PROPERTY = "hdlserver.port"
         const val DATABASE_FILE = "hdlserver.db"
         const val AUTH_TOKEN_KEY = "authToken"
         const val MIN_AUTH_TOKEN_LENGTH = 25
@@ -452,11 +455,13 @@ class HdlServer(
 
         @JvmStatic
         fun main(args: Array<String>) {
+            // Before anything is started, so a mistyped port stops the server instead of leaving it half running
+            val port = parsePort(System.getProperty(PORT_PROPERTY))
             val database = openDatabase(DATABASE_FILE)
             Runtime.getRuntime().addShutdownHook(Thread(database::close))
             val hdlService = HdlService(database)
             hdlService.start()
-            HdlServer(database, hdlService).start(DEFAULT_PORT)
+            HdlServer(database, hdlService).start(port)
         }
 
         @JvmStatic
@@ -520,6 +525,18 @@ class HdlServer(
             host = host.substringBeforeLast(':').removeSuffix(".")
             return IPV4_LITERAL.matches(host) || !host.contains('.') || host in allowedHosts ||
                 LOCAL_HOST_NAME_SUFFIXES.any(host::endsWith)
+        }
+
+        /**
+         * A mistyped port stops the server with a clear message, rather than quietly listening somewhere IFTTT doesn't call.
+         */
+        @JvmStatic
+        fun parsePort(port: String?): Int {
+            if (port.isNullOrBlank()) {
+                return DEFAULT_PORT
+            }
+            return port.trim().toIntOrNull()?.takeIf { it in 1..65535 }
+                ?: throw IllegalArgumentException("-D$PORT_PROPERTY must be a port number from 1 to 65535, not \"$port\".")
         }
 
         @JvmStatic

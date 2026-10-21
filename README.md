@@ -234,13 +234,18 @@ Didn't use `git clone`? Replace `hdlserver-LATEST.jar` with
 [the latest one](https://github.com/roys/java-hdl-webserver/releases/latest/download/hdlserver-LATEST.jar), and restart the server.
 
 <details>
-<summary>🌐 Opening the pages by a host name with dots in it</summary>
+<summary>⚙️ Settings: another port, or a host name with dots in it</summary>
 
-The pages answer to IP addresses and local names like `raspberrypi` or `raspberrypi.local`. To open them by a name like
-`hdl.example.com`, allow it when starting the server:
+Settings go before `-cp` in the start command (or in `ExecStart` in the service, followed by `sudo systemctl daemon-reload`
+and a restart):
+
+| Setting | What it does |
+|---|---|
+| `-Dhdlserver.port=8080` | Listens on another port than 4567. Remember the port forwarding in your router, and your IFTTT applets' URLs. |
+| `-Dhdlserver.allowedHosts=hdl.example.com` | Lets you open the pages by a host name with dots in it. IP addresses and local names like `raspberrypi` or `raspberrypi.local` always work. |
 
 ```sh
-java -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application
+java -Dhdlserver.port=8080 -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application
 ```
 </details>
 

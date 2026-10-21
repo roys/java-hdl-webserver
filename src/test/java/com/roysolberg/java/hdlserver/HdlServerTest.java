@@ -80,6 +80,21 @@ class HdlServerTest {
         assertFalse(HdlServer.isAllowedHost("another.example.com", allowedHosts));
     }
 
+    @Test
+    void thePortIs4567UnlessSetOtherwise() {
+        assertEquals(4567, HdlServer.parsePort(null));
+        assertEquals(4567, HdlServer.parsePort(" "));
+        assertEquals(8080, HdlServer.parsePort(" 8080 "));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "65536", "-1", "80a", "http"})
+    void aMistypedPortStopsTheServer(String port) {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> HdlServer.parsePort(port));
+
+        assertTrue(exception.getMessage().contains("hdlserver.port"));
+    }
+
     @ParameterizedTest
     @CsvSource({
             "http://192.168.1.199:4567, 192.168.1.199:4567, true",
