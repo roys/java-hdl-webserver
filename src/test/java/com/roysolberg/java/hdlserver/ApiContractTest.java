@@ -215,19 +215,87 @@ class ApiContractTest {
             "/api/..%2Fsettings", "/./settings", "/api%2F../settings", "/api/%2E%2E/settings", "/settings%00", "/settings?x=/api/",
             "/static/../settings", "/templates/settings.vm", "/log4j2.properties", "/api/../actions"})
     void pathTricksCanNotReachWebPages(String path) throws IOException {
+        RawResponse response = sendRaw("GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+
+        assertFalse(response.statusLine.contains(" 200"), path + " answered " + response.statusLine);
+        assertFalse(response.statusLine.matches("HTTP/1\\.1 5\\d\\d.*"), path + " answered " + response.statusLine);
+        assertFalse(response.text.contains(LegacyDatabases.AUTH_TOKEN), path);
+    }
+
+    /**
+     * Javalin would route by this header instead of the request's own method, so it's refused everywhere.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"POST /api/actions/1", "GET /api/actions/1", "GET /settings", "POST /update_settings"})
+    void methodOverrideIsRefused(String request) throws IOException {
+        String body = "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\"}";
+        RawResponse response = sendRaw(request + " HTTP/1.1\r\nHost: 127.0.0.1\r\nX-HTTP-Method-Override: POST\r\n"
+                + "Content-Type: application/json\r\nContent-Length: " + body.length() + "\r\nConnection: close\r\n\r\n" + body);
+
+        assertTrue(response.statusLine.startsWith("HTTP/1.1 400"), request + " answered " + response.statusLine);
+        assertTrue(hdlService.calls.isEmpty());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"HEAD", "OPTIONS", "PUT", "DELETE", "PATCH", "TRACE"})
+    void otherMethodsGetNoWebPagesOutsideTheLocalNetwork(String method) throws IOException {
+        for (String path : new String[]{"/settings", "/update_settings", "/delete_action", "/nonexistent"}) {
+            RawResponse response = sendRaw(method + " " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+
+            assertTrue(response.status >= 400 && response.status < 500, method + " " + path + " answered " + response.statusLine);
+            assertFalse(response.text.contains(LegacyDatabases.AUTH_TOKEN), method + " " + path);
+        }
+        assertEquals(LegacyDatabases.AUTH_TOKEN, database.hashMap("config").createOrOpen().get(Application.AUTH_TOKEN_KEY));
+        assertNotNull(database.hashMap("actions").createOrOpen().get(1));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GET", "PUT", "DELETE", "PATCH"})
+    void apiActionsOnlyRunOnPost(String method) throws IOException {
+        String body = "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\",\"value\":30}";
+        for (String path : new String[]{"/api/actions/1", "/api/actions/dimmer/kitchen"}) {
+            RawResponse response = sendRaw(method + " " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n"
+                    + "Content-Length: " + body.length() + "\r\nConnection: close\r\n\r\n" + body);
+
+            assertTrue(response.status >= 400 && response.status < 500, method + " " + path + " answered " + response.statusLine);
+        }
+        assertTrue(hdlService.calls.isEmpty());
+    }
+
+    @Test
+    void unknownPathsOutsideTheLocalNetworkAreDenied() throws IOException {
+        assertEquals(401, send("GET", "/nonexistent", null, null, null).status);
+    }
+
+    @Test
+    void errorBodiesAreAsBefore() throws IOException {
+        assertEquals("Invalid authentication token.", post("/api/actions/1", "{\"auth\":\"WRONG\"}").body);
+        assertEquals("Action not found.", post("/api/actions/99", "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\"}").body);
+        assertEquals("{\"status\":\"error\",\"message\":\"Body must be a JSON object.\"}", post("/api/actions/1", "[]").body);
+    }
+
+    private static RawResponse sendRaw(String request) throws IOException {
         try (Socket socket = new Socket("127.0.0.1", application.port())) {
-            socket.getOutputStream().write(("GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
             ByteArrayOutputStream response = new ByteArrayOutputStream();
             byte[] buffer = new byte[4096];
             for (int read; (read = socket.getInputStream().read(buffer)) != -1; ) {
                 response.write(buffer, 0, read);
             }
-            String text = new String(response.toByteArray(), StandardCharsets.ISO_8859_1);
-            String statusLine = text.substring(0, Math.max(0, text.indexOf("\r\n")));
+            return new RawResponse(new String(response.toByteArray(), StandardCharsets.ISO_8859_1));
+        }
+    }
 
-            assertFalse(statusLine.contains(" 200"), path + " answered " + statusLine);
-            assertFalse(statusLine.matches("HTTP/1\\.1 5\\d\\d.*"), path + " answered " + statusLine);
-            assertFalse(text.contains(LegacyDatabases.AUTH_TOKEN), path);
+    private static final class RawResponse {
+        final String text;
+        final String statusLine;
+        final int status;
+
+        RawResponse(String text) {
+            this.text = text;
+            this.statusLine = text.substring(0, Math.max(0, text.indexOf("\r\n")));
+            String[] parts = statusLine.split(" ");
+            this.status = parts.length > 1 ? Integer.parseInt(parts[1]) : -1;
         }
     }
 

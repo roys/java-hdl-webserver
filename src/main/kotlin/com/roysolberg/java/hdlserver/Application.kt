@@ -76,14 +76,19 @@ class Application(
 
             config.routes.exception(HaltException::class.java) { e, ctx -> ctx.status(e.status).result(e.body) }
             config.routes.before { ctx ->
-                logger.info("Request: {} - \"{} {} {}\" - \"{}\"", ctx.ip(), ctx.method(), ctx.path(), ctx.req().protocol, ctx.userAgent())
+                logger.info("Request: {} - \"{} {} {}\" - \"{}\"", ctx.ip(), ctx.req().method, ctx.path(), ctx.req().protocol, ctx.userAgent())
+                // Javalin would otherwise route by this header instead of the request's own method
+                if (ctx.header(METHOD_OVERRIDE_HEADER) != null) {
+                    logger.info("Got {} from [{}].", METHOD_OVERRIDE_HEADER, ctx.ip())
+                    throw HaltException(400, "Bad request.")
+                }
             }
             // Everything but the API is the web front end, which is only for the local network.
             config.routes.before { ctx ->
                 if (!isApiPath(ctx.normalizedPath())) {
                     requireLocalRequest(ctx)
                     requireAllowedHost(ctx)
-                    if (ctx.method().name == "POST") {
+                    if (ctx.req().method !in SAFE_METHODS) {
                         requireSameOrigin(ctx)
                     }
                     ctx.header("X-Frame-Options", "DENY")
@@ -365,6 +370,10 @@ class Application(
         const val MAX_API_BODY_BYTES = 16 * 1024
 
         private const val SINGLE_CHANNEL_CONTROL = 0x0031
+        private const val METHOD_OVERRIDE_HEADER = "X-HTTP-Method-Override"
+
+        /** Methods that can't change anything, so they need no same-origin check. */
+        private val SAFE_METHODS = setOf("GET", "HEAD")
         private val LOCAL_HOST_NAME_SUFFIXES = listOf(".local", ".lan", ".home", ".home.arpa", ".internal")
         private val IPV4_LITERAL = Regex("""\d{1,3}(\.\d{1,3}){3}""")
         private val FORWARDED_FOR = Regex("""for="?\[?([^\]";,]+)""", RegexOption.IGNORE_CASE)

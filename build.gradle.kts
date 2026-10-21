@@ -49,8 +49,9 @@ tasks.test {
     providers.systemProperty("hdlserver.legacyDb").orNull?.let { systemProperty("hdlserver.legacyDb", it) }
 }
 
+// Only the runnable JAR is built, so build/libs/ never holds a JAR without its dependencies
 tasks.jar {
-    manifest.attributes("Main-Class" to mainClassName)
+    enabled = false
 }
 
 // The runnable JAR with all dependencies, released as releases/hdlserver-LATEST.jar
