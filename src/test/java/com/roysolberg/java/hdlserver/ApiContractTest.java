@@ -21,6 +21,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -54,6 +55,38 @@ class ApiContractTest {
     @BeforeEach
     void clearRecordedCalls() {
         hdlService.calls.clear();
+    }
+
+    @Test
+    void apiCallsShowInTheActivityLog() throws IOException {
+        post("/api/actions/1", "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\"}");
+        post("/api/actions/1", "{\"auth\":\"WRONG\"}");
+        post("/api/actions/99", "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\"}");
+        post("/api/actions/dimmer/kitchen", "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\",\"value\":30}");
+
+        List<ActivityLog.Entry> entries = application.activityLog.entries().subList(0, 4);
+        assertEquals("the kitchen to 30%", entries.get(0).getWhat());
+        assertEquals("No such action", entries.get(1).getResult());
+        assertEquals("Refused: wrong key", entries.get(2).getResult());
+        assertFalse(entries.get(2).getSucceeded());
+        assertEquals("Open the garage", entries.get(3).getWhat());
+        assertEquals("Sent", entries.get(3).getResult());
+        assertEquals("API (127.0.0.1)", entries.get(3).getSource());
+    }
+
+    @Test
+    void actionsCanBeRunFromTheWebPage() {
+        assertEquals("Sent \"Open the garage\".", application.runAction(hdlService, "1", null, "Web page (192.168.1.3)").getFirst());
+        assertEquals("Sent \"the kitchen\" to 70%.", application.runAction(hdlService, "2", " 70 ", "Web page (192.168.1.3)").getFirst());
+        assertEquals(Arrays.asList("action 1", "dimmer 2 to 70"), hdlService.calls);
+        assertEquals("Web page (192.168.1.3)", application.activityLog.entries().get(0).getSource());
+    }
+
+    @ParameterizedTest
+    @CsvSource(nullValues = "null", value = {"2, null", "2, 101", "2, -1", "2, bright", "99, 50", "abc, 50", "null, 50"})
+    void runningNeedsAnActionAndALevelForDimmers(String actionId, String value) {
+        assertFalse(application.runAction(hdlService, actionId, value, "Web page").getSecond());
+        assertTrue(hdlService.calls.isEmpty());
     }
 
     @Test
@@ -141,7 +174,8 @@ class ApiContractTest {
      * The tests reach the server from 127.0.0.1, which, like any address outside the local network, gets no web pages.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"GET /", "GET /actions", "GET /settings", "POST /update_settings", "POST /delete_action", "POST /search_for_components", "POST /create_custom_action", "POST /create_dimmer_action"})
+    @ValueSource(strings = {"GET /", "GET /actions", "GET /settings", "POST /update_settings", "POST /delete_action", "POST /search_for_components", "POST /create_custom_action", "POST /create_dimmer_action",
+            "GET /activity", "GET /status", "POST /run_action"})
     void webPagesAreNotForNonLocalAddresses(String request) throws IOException {
         String[] methodAndPath = request.split(" ");
         HttpResult result = send(methodAndPath[0], methodAndPath[1], "application/x-www-form-urlencoded", "authKey=ATTACKERCHOSENKEY0123456789ABC&actionId=1", null);

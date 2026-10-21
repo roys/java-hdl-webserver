@@ -198,6 +198,26 @@
                         </div>
                     </div>
                 </div>
+                @if(action.actionType != Action.ActionType.Dimmer)
+                <div class="modal fade" id="runActionModal-${action.id}" tabindex="-1" role="dialog" aria-labelledby="runModalLabel-${action.id}">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                <h4 class="modal-title" id="runModalLabel-${action.id}">Run "@if(!action.description.isNullOrEmpty())${action.description}@else Action ${action.id}@endif" now?</h4>
+                            </div>
+                            <div class="modal-body">This sends its commands to the HDL bus right away.</div>
+                            <div class="modal-footer">
+                                <form action="run_action" method="post">
+                                    <input type="hidden" name="actionId" value="${action.id}"/>
+                                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Run</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
                 <tr class="active">
                     <th style="font-size:larger;" class="text-left" colspan="4">
                         ${action.actionType.name} - @if(!action.description.isNullOrEmpty())${action.description}@else Action ${action.id}@endif:
@@ -206,7 +226,21 @@
                             ${action.aliases.orEmpty().joinToString(", ")}
                         </small>
                     </th>
-                    <th style="text-align:right;">
+                    <th style="text-align:right;white-space:nowrap;">
+                        @if(action.actionType == Action.ActionType.Dimmer)
+                        <form action="run_action" method="post" class="form-inline" style="display:inline-block;">
+                            <input type="hidden" name="actionId" value="${action.id}"/>
+                            <div class="input-group input-group-sm" style="width:9em;">
+                                <input type="number" name="value" class="form-control" min="0" max="100" value="50" aria-label="Level in percent" required/>
+                                <span class="input-group-addon">%</span>
+                                <span class="input-group-btn"><button type="submit" class="btn btn-primary" title="Set the level now">Set</button></span>
+                            </div>
+                        </form>
+                        @else
+                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" title="Run this action now" data-target="#runActionModal-${action.id}">
+                            <span class="glyphicon glyphicon-play" aria-hidden="true"></span> Run
+                        </button>
+                        @endif
                         <button type="button" class="btn btn-default btn-sm default" data-toggle="modal" title="Delete action" data-target="#deleteActionModal-${action.id}">
                             <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
                         </button>

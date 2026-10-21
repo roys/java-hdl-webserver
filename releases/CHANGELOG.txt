@@ -4,15 +4,14 @@ List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
 Version 2.0.0
- * Needs Java 17 or later (was Java 8). On older Java the server doesn't start, and says what to do. See "Upgrading to version 2" in README.md.
- * Rebuilt on maintained libraries: Javalin 7 and Jetty 12 instead of Spark and Jetty 9.4, which no longer get free security fixes.
- * The web pages are JTE templates, which escape everything by themselves. They look as before.
- + update.sh updates the server only if the new version runs on this Java, and restarts the systemd service.
- * The README sets the server up as a systemd service on Raspberry Pi OS, instead of a cron job.
- * The API no longer requires an Accept: application/json header (1.1.1 answered 404 to other values).
- * The web pages' forms only read their fields from the request body, not from the URL.
- * Requests with an X-HTTP-Method-Override header, and ambiguous paths like /api/%2e%2e/settings, are refused (400).
- * Responses no longer say which web server and version they come from.
+ * Needs Java 17 or later (was Java 8). If yours is older, the server tells you what to do. See "Upgrading to version 2" in README.md.
+ + Run any action straight from the Actions page.
+ + Activity page: what was done when, and from where.
+ + Status page: is the server well, and is the HDL bus alive.
+ + The web pages also work over Tailscale.
+ + update.sh updates the server in one go, and only if the new version runs on your Java.
+ * The setup guide in README.md runs the server as a service that starts by itself and restarts if it ever stops.
+ * Built on new, maintained libraries, so it keeps getting security fixes. Your actions, key and IFTTT applets work as before.
 Version 1.1.1
  * Bugfix: Old log files were never deleted, so over the years they could fill up the disk. Logs older than 30 days are now deleted, also when the server starts.
 Version 1.1.0

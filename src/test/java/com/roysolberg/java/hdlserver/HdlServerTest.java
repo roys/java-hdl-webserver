@@ -15,13 +15,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class HdlServerTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"192.168.1.20", "10.0.0.5", "172.16.0.1", "172.31.255.255", "fd12:3456:789a::1", "fc00::1"})
+    @ValueSource(strings = {"192.168.1.20", "10.0.0.5", "172.16.0.1", "172.31.255.255", "fd12:3456:789a::1", "fc00::1",
+            "100.64.0.1", "100.97.211.33", "100.127.255.255", "fd7a:115c:a1e0::1"})
     void localAddresses(String address) {
         assertTrue(HdlServer.isLocalAddress(address));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"8.8.8.8", "172.32.0.1", "127.0.0.1", "::1", "2001:4860:4860::8888", "", "localhost", "example.com", "1.2.3.4:5678"})
+    @ValueSource(strings = {"8.8.8.8", "172.32.0.1", "127.0.0.1", "::1", "2001:4860:4860::8888", "", "localhost", "example.com", "1.2.3.4:5678",
+            "100.63.255.255", "100.128.0.1"})
     void nonLocalAddresses(String address) {
         assertFalse(HdlServer.isLocalAddress(address));
     }
@@ -57,7 +59,8 @@ class HdlServerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"192.168.1.199:4567", "192.168.1.199", "raspberrypi:4567", "localhost:4567", "rpi2.local:4567", "server.lan", "server.home.arpa:4567", "[fd00::1]:4567", "RaspberryPi.Local.:4567"})
+    @ValueSource(strings = {"192.168.1.199:4567", "192.168.1.199", "raspberrypi:4567", "localhost:4567", "rpi2.local:4567", "server.lan", "server.home.arpa:4567", "[fd00::1]:4567", "RaspberryPi.Local.:4567",
+            "rpi4.tail1234.ts.net:4567"})
     void allowedHostNames(String host) {
         assertTrue(HdlServer.isAllowedHost(host, Collections.emptySet()));
     }

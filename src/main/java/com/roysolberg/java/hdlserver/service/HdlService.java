@@ -1,5 +1,6 @@
 package com.roysolberg.java.hdlserver.service;
 
+import com.roysolberg.java.hdlserver.BusStats;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponentFactory;
@@ -45,6 +46,7 @@ public class HdlService {
     protected static final int MAX_QUEUED_ACTIONS = 50;
     private final ConcurrentMap components;
     private final DB database;
+    private final BusStats busStats = new BusStats();
     /** One action at a time, so their commands don't interleave on the bus, and a bounded number waiting. */
     private final ExecutorService commandSender = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_ACTIONS), runnable -> {
         Thread thread = new Thread(runnable, "hdl-command-sender");
@@ -61,6 +63,10 @@ public class HdlService {
         this.database = database;
         components = database.hashMap("components").createOrOpen();
         logger.info("components: {}", components.values());
+    }
+
+    public BusStats getBusStats() {
+        return busStats;
     }
 
     /**
@@ -81,6 +87,7 @@ public class HdlService {
                         byte[] bytes = blockingQueue.take();
                         //System.out.println("Queue size: " + blockingQueue.size() + ", remaining capacity: " + blockingQueue.remainingCapacity());
                         if (isPackageValid(bytes)) {
+                            busStats.record();
                             // XXX: Comment out:
                             //logger.info("Received package " + nicelyFormattedBytes + ".");
                             final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);

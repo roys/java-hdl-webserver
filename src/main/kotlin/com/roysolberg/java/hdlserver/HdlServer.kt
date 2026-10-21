@@ -25,6 +25,7 @@ import java.net.URLEncoder
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.Instant
 import java.util.concurrent.ConcurrentMap
 
 /**
@@ -50,7 +51,11 @@ class HdlServer(
     private val allowedHosts = parseAllowedHosts(System.getProperty(ALLOWED_HOSTS_PROPERTY))
     private val objectMapper = ObjectMapper()
     private val templateEngine = TemplateEngine.createPrecompiled(ContentType.Html)
+    private val startedAt = Instant.now()
     private var javalin: Javalin? = null
+
+    @JvmField
+    internal val activityLog = ActivityLog()
 
     init {
         if (!configConcurrentMap.containsKey(AUTH_TOKEN_KEY)) {
@@ -95,6 +100,12 @@ class HdlServer(
             for (page in listOf("index", "actions", "security", "demo", "settings")) {
                 config.routes.get(if (page == "index") "/" else "/$page") { ctx -> render(ctx, page) }
             }
+            config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
+            config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
+            config.routes.post("/run_action") { ctx ->
+                val (message, succeeded) = runAction(hdlService, ctx.formParam("actionId"), ctx.formParam("value"), "Web page (${ctx.ip()})")
+                ctx.redirectWithMessage("/actions", message.takeIf { succeeded }, message.takeUnless { succeeded })
+            }
             config.routes.post("/create_custom_action") { ctx ->
                 val errorMessage = createCustomAction(
                     ctx.formParam("description"), ctx.formParams("components[]"), ctx.formParams("operations[]"),
@@ -107,28 +118,34 @@ class HdlServer(
                 ctx.redirectWithMessage("/actions", if (errorMessage == null) "Action was successfully created." else null, errorMessage)
             }
             config.routes.post("/api/actions/{actionId}") { ctx ->
+                val source = "API (${ctx.ip()})"
+                val what = "Action ${ctx.pathParam("actionId")}"
                 val json = parseJsonBody(ctx)
-                requireValidAuthToken(json.get("auth").toPlainValue())
+                requireValidAuthToken(json.get("auth").toPlainValue(), source, what)
                 val action = getAction(ctx.pathParam("actionId"))
                 if (action == null || action.actionType != Action.ActionType.Custom) {
+                    activityLog.record(source, what, "No such action", succeeded = false)
                     throw HaltException(404, "Action not found.")
                 }
-                // TODO: Log all performed actions
                 hdlService.performAction(action)
+                activityLog.record(source, action.describe(), "Sent", succeeded = true)
                 ctx.accepted()
             }
             config.routes.post("/api/actions/dimmer/{alias}") { ctx ->
-                val json = parseJsonBody(ctx)
-                requireValidAuthToken(json.get("auth").toPlainValue())
-                val valueInPercent = parsePercent(json.get("value").toPlainValue())
+                val source = "API (${ctx.ip()})"
                 val areaAlias = ctx.pathParam("alias").trim().lowercase()
+                val what = "Dim \"$areaAlias\""
+                val json = parseJsonBody(ctx)
+                requireValidAuthToken(json.get("auth").toPlainValue(), source, what)
+                val valueInPercent = parsePercent(json.get("value").toPlainValue())
                 val action = actionAliasesConcurrentMap[areaAlias]?.let { actionsConcurrentMap[it] }
                 if (action == null) {
                     logger.info("Found no dimmer action for alias [{}].", areaAlias)
+                    activityLog.record(source, what, "No such area", succeeded = false)
                     throw HaltException(404, "Action not found.")
                 }
-                // TODO: Log all performed actions
                 hdlService.performDimmerAction(action, valueInPercent)
+                activityLog.record(source, "${action.describe()} to $valueInPercent%", "Sent", succeeded = true)
                 ctx.accepted()
             }
             config.routes.post("/delete_action") { ctx ->
@@ -293,7 +310,7 @@ class HdlServer(
         throw HaltException(400, "{\"status\":\"error\",\"message\":\"Body must be a JSON object.\"}")
     }
 
-    private fun render(ctx: Context, name: String) {
+    private fun render(ctx: Context, name: String, vararg extra: Pair<String, Any?>) {
         val page = Page(
             name = name,
             authToken = configConcurrentMap[AUTH_TOKEN_KEY].orEmpty(),
@@ -304,7 +321,7 @@ class HdlServer(
             errorMessage = ctx.queryParam("error"),
         )
         val html = StringOutput()
-        templateEngine.render("$name.kte", page, html)
+        templateEngine.render("$name.kte", mapOf("page" to page, *extra), html)
         ctx.contentType("text/html; charset=utf-8").result(html.toString())
     }
 
@@ -338,10 +355,56 @@ class HdlServer(
         }
     }
 
-    private fun requireValidAuthToken(incomingAuthToken: Any?) {
+    private fun requireValidAuthToken(incomingAuthToken: Any?, source: String, what: String) {
         if (!isValidAuthToken(incomingAuthToken, configConcurrentMap[AUTH_TOKEN_KEY])) {
+            activityLog.record(source, what, "Refused: wrong key", succeeded = false)
             throw HaltException(401, "Invalid authentication token.")
         }
+    }
+
+    /**
+     * Runs an action from the web page: a custom action as it is, a dimmer action at the given level.
+     *
+     * @return what to tell the user, and whether it was sent.
+     */
+    fun runAction(hdlService: HdlService, actionId: String?, value: String?, source: String): Pair<String, Boolean> {
+        val action = actionId?.let(::getAction) ?: return "Unable to find action." to false
+        when (action.actionType) {
+            Action.ActionType.Dimmer -> {
+                val valueInPercent = value?.trim()?.toIntOrNull()?.takeIf { it in 0..100 }
+                    ?: return "The level must be a number from 0 to 100." to false
+                hdlService.performDimmerAction(action, valueInPercent)
+                activityLog.record(source, "${action.describe()} to $valueInPercent%", "Sent", succeeded = true)
+                return "Sent \"${action.describe()}\" to $valueInPercent%." to true
+            }
+            else -> {
+                hdlService.performAction(action)
+                activityLog.record(source, action.describe(), "Sent", succeeded = true)
+                return "Sent \"${action.describe()}\"." to true
+            }
+        }
+    }
+
+    private fun status(hdlService: HdlService): Status {
+        val runtime = Runtime.getRuntime()
+        val entries = activityLog.entries()
+        val apiCalls = entries.filter { it.source.startsWith("API") }
+        return Status(
+            version = HdlServer::class.java.`package`.implementationVersion ?: "(development build)",
+            javaVersion = System.getProperty("java.version"),
+            startedAt = startedAt,
+            now = Instant.now(),
+            busMessages = hdlService.busStats.totalMessages,
+            lastBusMessage = hdlService.busStats.lastMessage,
+            busMessagesPerMinute = hdlService.busStats.messagesPerMinute(),
+            components = componentsConcurrentMap.size,
+            actions = actionsConcurrentMap.size,
+            lastApiCall = apiCalls.firstOrNull(),
+            apiCallsToday = Status.countToday(apiCalls),
+            memoryUsedMb = (runtime.totalMemory() - runtime.freeMemory()) / 1_048_576,
+            memoryMaxMb = runtime.maxMemory() / 1_048_576,
+            cpuTemperature = Status.cpuTemperature(),
+        )
     }
 
     companion object {
@@ -364,7 +427,8 @@ class HdlServer(
 
         /** Methods that can't change anything, so they need no same-origin check. */
         private val SAFE_METHODS = setOf("GET", "HEAD")
-        private val LOCAL_HOST_NAME_SUFFIXES = listOf(".local", ".lan", ".home", ".home.arpa", ".internal")
+        // .ts.net names are Tailscale's MagicDNS, which only resolve inside the VPN
+        private val LOCAL_HOST_NAME_SUFFIXES = listOf(".local", ".lan", ".home", ".home.arpa", ".internal", ".ts.net")
         private val IPV4_LITERAL = Regex("""\d{1,3}(\.\d{1,3}){3}""")
         private val FORWARDED_FOR = Regex("""for="?\[?([^\]";,]+)""", RegexOption.IGNORE_CASE)
 
@@ -418,8 +482,11 @@ class HdlServer(
             return try {
                 val inetAddress = InetAddress.getByName(address)
                 val bytes = inetAddress.address
-                val isUniqueLocalIpv6 = bytes.size == 16 && (bytes[0].toInt() and 0xFE) == 0xFC // fc00::/7
-                inetAddress.isSiteLocalAddress || isUniqueLocalIpv6
+                val isUniqueLocalIpv6 = bytes.size == 16 && (bytes[0].toInt() and 0xFE) == 0xFC // fc00::/7, also Tailscale's IPv6
+                // 100.64.0.0/10, where Tailscale gives out addresses. Packets claiming it from the Internet can't get answers back:
+                // Tailscale routes the range into the VPN, so a spoofed connection never gets established.
+                val isTailscale = bytes.size == 4 && bytes[0].toInt() == 100 && (bytes[1].toInt() and 0xC0) == 64
+                inetAddress.isSiteLocalAddress || isUniqueLocalIpv6 || isTailscale
             } catch (e: UnknownHostException) {
                 logger.info("Got invalid IP address [{}].", address)
                 false
@@ -514,6 +581,9 @@ class HdlServer(
             logger.info("Got ambiguous path [{}] from [{}]: {}", path(), ip(), e.message)
             throw HaltException(400, "Bad request.")
         }
+
+        /** "Open the garage", or "Action 7" for custom actions from earlier versions that have no description */
+        private fun Action.describe(): String = description?.takeIf(String::isNotBlank) ?: "Action $id"
 
         private fun Context.accepted() {
             status(202).contentType("application/json").result("{\"status\":\"ok\"}")

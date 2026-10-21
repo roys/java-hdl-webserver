@@ -1,0 +1,40 @@
+@import com.roysolberg.java.hdlserver.ActivityLog
+@import com.roysolberg.java.hdlserver.Page
+@import com.roysolberg.java.hdlserver.Status
+@param page: Page
+@param entries: List<ActivityLog.Entry>
+@template.layout(page = page, content = @`
+<div class="row">
+    <div class="col-md-10 col-md-offset-1">
+        <h3>Activity</h3>
+        <p class="text-muted">The latest ${ActivityLog.MAX_ENTRIES} actions run or refused, from IFTTT, the API and these pages, newest first.
+            The list starts empty when the server starts.</p>
+        @if(entries.isEmpty())
+        <div class="well text-muted">Nothing yet. Run an action from the <a href="/actions">Actions</a> page, or say one of your commands.</div>
+        @else
+        <div class="table-responsive">
+            <table class="table table-hover table-condensed">
+                <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>What</th>
+                    <th>From</th>
+                    <th>Result</th>
+                </tr>
+                </thead>
+                <tbody>
+                @for(entry in entries)
+                <tr class="${if (entry.succeeded) null else "warning"}">
+                    <td style="white-space:nowrap;">${Status.formatTime(entry.time)}</td>
+                    <td>${entry.what}</td>
+                    <td>${entry.source}</td>
+                    <td><span class="label ${if (entry.succeeded) "label-success" else "label-danger"}">${entry.result}</span></td>
+                </tr>
+                @endfor
+                </tbody>
+            </table>
+        </div>
+        @endif
+    </div>
+</div>
+`)

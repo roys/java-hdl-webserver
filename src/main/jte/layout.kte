@@ -24,6 +24,8 @@
     <ul class="nav navbar-nav">
         <li class="${if (page.name == "index") "active" else null}"><a href="/">Components</a></li>
         <li class="${if (page.name == "actions") "active" else null}"><a href="/actions">Actions</a></li>
+        <li class="${if (page.name == "activity") "active" else null}"><a href="/activity">Activity</a></li>
+        <li class="${if (page.name == "status") "active" else null}"><a href="/status">Status</a></li>
         <li class="${if (page.name == "security") "active" else null}"><a href="/security">Security</a></li>
         <li class="${if (page.name == "settings") "active" else null}"><a href="/settings">Settings</a></li>
         <li class="${if (page.name == "demo") "active" else null}"><a href="/demo">Demo</a></li>

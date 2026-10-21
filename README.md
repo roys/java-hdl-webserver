@@ -257,7 +257,8 @@ can replayed and someone might guess how to use other commands.
 The reason there is no login for the frontend of the web server is simple: The moment someone has access to the network
 where there are HDL Buspro traffic they don't need this server. All communication is done in plain text with no
 security. Therefore securing the frontend with a login would add a false sense of security. **The web server front end
-(not the API for the commands) requires the user to be in the same local network.**
+(not the API for the commands) requires the user to be in the same local network** (or on the same [Tailscale](https://tailscale.com/)
+network, so you can use the pages away from home too).
 
 The security for the API and the commands lies in an automatically created random key when starting the server the first
 time. If the requests for the commands are missing the correct key they will not be executed.
