@@ -1,5 +1,6 @@
-#parse('templates/header.vm')
-
+@import com.roysolberg.java.hdlserver.Page
+@param page: Page
+@template.layout(page = page, content = @`
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Components</h3>
@@ -27,21 +28,20 @@
                 </tr>
                 </thead>
                 <tbody>
-                #foreach ($component in $components)
+                @for(component in page.components)
                 <tr>
-                    <td class="text-center">$component.subnet</td>
-                    <td class="text-center">$component.deviceId</td>
-                    <th>$!esc.escapeHtml($component.remark)</th>
-                    <td>$component.description</td>
+                    <td class="text-center">${component.subnet}</td>
+                    <td class="text-center">${component.deviceId}</td>
+                    <th>${component.remark}</th>
+                    <td>${component.description}</td>
                 </tr>
-                #end
+                @endfor
                 <tr>
-                    <th colspan="4">$components.size() components found</th>
+                    <th colspan="4">${page.components.size} components found</th>
                 </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-
-#parse('templates/footer.vm')
+`)

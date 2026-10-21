@@ -1,3 +1,7 @@
+@import com.roysolberg.java.hdlserver.Page
+@import gg.jte.Content
+@param page: Page
+@param content: Content
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,31 +22,35 @@
 <nav class="navbar navbar-inverse navbar-static-top">
     <a href="/" class="navbar-brand">Smart Home</a>
     <ul class="nav navbar-nav">
-        <li class="#if($page=='index')active#end"><a href="/">Components</a></li>
-        <li class="#if($page=='actions')active#end"><a href="/actions">Actions</a></li>
-        <li class="#if($page=='security')active#end"><a href="/security">Security</a></li>
-        <li class="#if($page=='settings')active#end"><a href="/settings">Settings</a></li>
-        <li class="#if($page=='demo')active#end"><a href="/demo">Demo</a></li>
+        <li class="${if (page.name == "index") "active" else null}"><a href="/">Components</a></li>
+        <li class="${if (page.name == "actions") "active" else null}"><a href="/actions">Actions</a></li>
+        <li class="${if (page.name == "security") "active" else null}"><a href="/security">Security</a></li>
+        <li class="${if (page.name == "settings") "active" else null}"><a href="/settings">Settings</a></li>
+        <li class="${if (page.name == "demo") "active" else null}"><a href="/demo">Demo</a></li>
     </ul>
 </nav>
 <div class="container-fluid">
-    #if($successMessage && $successMessage != '')
+    @if(!page.successMessage.isNullOrEmpty())
     <div class="row">
         <div class="col-md-10 col-md-offset-1">
             <div class="alert alert-success" role="alert">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                $successMessage
+                ${page.successMessage}
             </div>
         </div>
     </div>
-    #end
-    #if($errorMessage && $errorMessage != '')
+    @endif
+    @if(!page.errorMessage.isNullOrEmpty())
     <div class="row">
         <div class="col-md-10 col-md-offset-1">
             <div class="alert alert-danger" role="alert">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                $errorMessage
+                ${page.errorMessage}
             </div>
         </div>
     </div>
-    #end
+    @endif
+${content}
+</div>
+</body>
+</html>

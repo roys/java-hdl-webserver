@@ -1,7 +1,5 @@
 package com.roysolberg.java.hdlserver.hdl;
 
-import org.apache.commons.lang.StringEscapeUtils;
-
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -120,18 +118,6 @@ public class Action implements Serializable {
                 return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\",\"value\":80}' http://%s/api/actions/dimmer/%s", authToken, host, getEncodedAlias());
         }
         return String.format("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"%s\"}' http://%s/api/actions/%d", authToken, host, id);
-    }
-
-    /**
-     * @return how to set this action up at IFTTT, as HTML.
-     */
-    public String getIftttCommand(String host, String authToken) {
-        String escapedAuthToken = StringEscapeUtils.escapeHtml(authToken);
-        switch (actionType) {
-            case Dimmer:
-                return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a phrase with both a number and a text ingredient</code> and say <code>Dim the lights to # %% in $</code>, use <a href=\"https://ifttt.com/maker_webhooks\" target=\"_blank\">Webhooks action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/dimmer/{{TextField}}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\",\"value\":{{NumberField}}}</code>. You need just one \"applet\" like this set up for all dimmer actions.", escapedAuthToken);
-        }
-        return String.format("Use <a href=\"https://ifttt.com/google_assistant\" target=\"_blank\">Google Assistant trigger</a> <code>Say a simple phrase</code>, use <a href=\"https://ifttt.com/maker_webhooks\" target=\"_blank\">Webhooks action service</a> <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/%d</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{\"auth\":\"%s\"}</code>. You need one \"applet\" for each custom action.", id, escapedAuthToken);
     }
 
     protected String getEncodedAlias() {

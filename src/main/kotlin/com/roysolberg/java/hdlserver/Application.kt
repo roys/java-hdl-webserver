@@ -7,21 +7,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.roysolberg.java.hdlserver.hdl.Action
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent
 import com.roysolberg.java.hdlserver.service.HdlService
-import com.roysolberg.java.hdlserver.util.HdlUtil
+import gg.jte.ContentType
+import gg.jte.TemplateEngine
+import gg.jte.output.StringOutput
 import io.javalin.Javalin
 import io.javalin.http.Context
-import org.apache.commons.lang.StringEscapeUtils
 import org.apache.logging.log4j.LogManager
-import org.apache.velocity.VelocityContext
-import org.apache.velocity.app.VelocityEngine
-import org.apache.velocity.runtime.RuntimeConstants
-import org.apache.velocity.runtime.log.NullLogChute
-import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader
 import org.mapdb.DB
 import org.mapdb.DBMaker
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.io.StringWriter
 import java.math.BigInteger
 import java.net.InetAddress
 import java.net.URI
@@ -54,7 +49,7 @@ class Application(
 
     private val allowedHosts = parseAllowedHosts(System.getProperty(ALLOWED_HOSTS_PROPERTY))
     private val objectMapper = ObjectMapper()
-    private val velocity = createVelocityEngine()
+    private val templateEngine = TemplateEngine.createPrecompiled(ContentType.Html)
     private var javalin: Javalin? = null
 
     init {
@@ -298,23 +293,18 @@ class Application(
         throw HaltException(400, "{\"status\":\"error\",\"message\":\"Body must be a JSON object.\"}")
     }
 
-    private fun render(ctx: Context, page: String) {
-        val components = componentsConcurrentMap.values.sortedWith(compareBy(HdlComponent::getSubnet, HdlComponent::getDeviceId))
-        val model = VelocityContext(
-            mapOf(
-                "page" to page,
-                "config" to configConcurrentMap,
-                "components" to components,
-                "actions" to actionsConcurrentMap.values,
-                "host" to ctx.host(),
-                "successMessage" to StringEscapeUtils.escapeHtml(ctx.queryParam("success")),
-                "errorMessage" to StringEscapeUtils.escapeHtml(ctx.queryParam("error")),
-                "HdlUtil" to HdlUtil::class.java,
-                "esc" to StringEscapeUtils::class.java,
-            ),
+    private fun render(ctx: Context, name: String) {
+        val page = Page(
+            name = name,
+            authToken = configConcurrentMap[AUTH_TOKEN_KEY].orEmpty(),
+            components = componentsConcurrentMap.values.sortedWith(compareBy(HdlComponent::getSubnet, HdlComponent::getDeviceId)),
+            actions = actionsConcurrentMap.values,
+            host = ctx.host().orEmpty(),
+            successMessage = ctx.queryParam("success"),
+            errorMessage = ctx.queryParam("error"),
         )
-        val html = StringWriter()
-        velocity.getTemplate("templates/$page.vm", Charsets.UTF_8.name()).merge(model, html)
+        val html = StringOutput()
+        templateEngine.render("$name.kte", page, html)
         ctx.contentType("text/html; charset=utf-8").result(html.toString())
     }
 
@@ -513,14 +503,6 @@ class Application(
         }
 
         private fun generateAuthToken(): String = BigInteger(130, SecureRandom()).toString(32).uppercase()
-
-        private fun createVelocityEngine() = VelocityEngine().apply {
-            setProperty(RuntimeConstants.RESOURCE_LOADER, "class")
-            setProperty("class.resource.loader.class", ClasspathResourceLoader::class.java.name)
-            // Otherwise Velocity 1.7 writes velocity.log to the working folder
-            setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, NullLogChute::class.java.name)
-            init()
-        }
 
         /**
          * The decoded path with dot segments resolved, so /api/../settings counts as /settings. Jetty refuses to decode

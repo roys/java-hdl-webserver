@@ -1,6 +1,6 @@
-#parse('templates/header.vm')
-
-
+@import com.roysolberg.java.hdlserver.Page
+@param page: Page
+@template.layout(page = page, content = @`
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Demo video</h3>
@@ -14,5 +14,4 @@
         </div>
     </div>
 </div>
-
-#parse('templates/footer.vm')
+`)

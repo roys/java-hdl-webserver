@@ -27,15 +27,4 @@ class ActionTest {
         assertEquals("curl --include --header 'Content-Type: application/json' --request POST --data '{\"auth\":\"TOKEN\",\"value\":80}' http://host:4567/api/actions/dimmer/the%20kitchen", action.getCurlCommand("host:4567", "TOKEN"));
     }
 
-    @Test
-    void iftttInstructionsEscapeTheAuthToken() {
-        Action action = new Action(Action.ActionType.Custom, 7, "Open the garage");
-
-        String instructions = action.getIftttCommand("host:4567", "<script>alert(1)</script>");
-
-        assertFalse(instructions.contains("<script>"));
-        assertTrue(instructions.contains("&lt;script&gt;"));
-        assertTrue(instructions.contains("/api/actions/7"));
-    }
-
 }

@@ -2,6 +2,7 @@ plugins {
     java
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.jte)
 }
 
 group = "com.roysolberg.java"
@@ -23,20 +24,26 @@ dependencies {
     implementation(platform(libs.jetty.bom))
     implementation(platform(libs.jetty.ee10.bom))
     implementation(libs.jackson.databind)
-    implementation(libs.velocity)
+    implementation(libs.jte)
+    // Only needed to turn the .kte templates into Kotlin; keeps the Kotlin compiler out of the JAR
+    compileOnly(libs.jte.kotlin)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
     implementation(libs.log4j.slf4j2.impl)
-    implementation(libs.commons.lang)
     implementation(libs.mapdb)
-    constraints {
-        // Pulled in by Velocity 1.7, which asks for the older 3.2.1
-        implementation(libs.commons.collections)
-    }
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+// The pages in src/main/jte are turned into Kotlin and compiled with the rest, so a mistake in them fails the build
+jte {
+    generate()
+    contentType = gg.jte.ContentType.Html
+}
+kotlin.sourceSets.main {
+    kotlin.srcDir(tasks.generateJte)
 }
 
 // The build compiles for Java 17; CI also runs the tests on newer Java with -PtestJavaVersion=21 and so on.

@@ -1,5 +1,6 @@
-#parse('templates/header.vm')
-
+@import com.roysolberg.java.hdlserver.Page
+@param page: Page
+@template.layout(page = page, content = @`
 <div class="row">
     <div class="col-md-10 col-md-offset-1">
         <h3>Security</h3>
@@ -17,5 +18,4 @@
         <p>If you want to learn a little more about security and HDL Buspro you can read the post at <a href="https://blog.roysolberg.com/2017/08/my-dumb-smart-home">https://blog.roysolberg.com/2017/08/my-dumb-smart-home</a>.</p>
     </div>
 </div>
-
-#parse('templates/footer.vm')
+`)
