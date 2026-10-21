@@ -53,7 +53,9 @@ internal class UpdateCheck(private val currentVersion: String?, private val isEn
                 logger.info("Couldn't check for updates: GitHub answered {}.", response.statusCode())
                 return
             }
-            newerVersion = newerVersion(currentVersion, ObjectMapper().readTree(response.body()).path("tag_name").asText())
+            val latestTag = ObjectMapper().readTree(response.body()).path("tag_name").asText()
+            newerVersion = newerVersion(currentVersion, latestTag)
+            logger.info("Checked for updates: the latest is {}, this is {}.", latestTag, currentVersion)
         } catch (e: Exception) {
             // The check is only a nicety; it'll try again tomorrow
             logger.info("Couldn't check for updates: {}", e.toString())
