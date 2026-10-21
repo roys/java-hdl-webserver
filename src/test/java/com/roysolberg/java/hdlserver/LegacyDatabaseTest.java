@@ -31,11 +31,11 @@ class LegacyDatabaseTest {
     @ParameterizedTest
     @ValueSource(strings = {"1.0.0", "1.0.3"})
     void readsEverythingEarlierVersionsStored(String version) {
-        DB database = Application.openDatabase(LegacyDatabases.copyToDirectory(version, directory));
+        DB database = HdlServer.openDatabase(LegacyDatabases.copyToDirectory(version, directory));
         try {
-            Application application = new Application(database, null);
+            HdlServer application = new HdlServer(database, null);
 
-            assertEquals(LegacyDatabases.AUTH_TOKEN, application.configConcurrentMap.get(Application.AUTH_TOKEN_KEY));
+            assertEquals(LegacyDatabases.AUTH_TOKEN, application.configConcurrentMap.get(HdlServer.AUTH_TOKEN_KEY));
 
             Action custom = (Action) application.actionsConcurrentMap.get(LegacyDatabases.CUSTOM_ACTION_ID);
             assertEquals(Action.ActionType.Custom, custom.getActionType());
@@ -65,13 +65,13 @@ class LegacyDatabaseTest {
     @Test
     void keepsChangesAfterReopening() {
         String file = LegacyDatabases.copyToDirectory("1.0.3", directory);
-        DB database = Application.openDatabase(file);
-        new Application(database, null).removeAction(String.valueOf(LegacyDatabases.DIMMER_ACTION_ID));
+        DB database = HdlServer.openDatabase(file);
+        new HdlServer(database, null).removeAction(String.valueOf(LegacyDatabases.DIMMER_ACTION_ID));
         database.close();
 
-        DB reopenedDatabase = Application.openDatabase(file);
+        DB reopenedDatabase = HdlServer.openDatabase(file);
         try {
-            Application application = new Application(reopenedDatabase, null);
+            HdlServer application = new HdlServer(reopenedDatabase, null);
             assertNull(application.actionsConcurrentMap.get(LegacyDatabases.DIMMER_ACTION_ID));
             assertNull(application.actionAliasesConcurrentMap.get("kitchen"));
             assertNotNull(application.actionsConcurrentMap.get(LegacyDatabases.CUSTOM_ACTION_ID));
@@ -90,11 +90,11 @@ class LegacyDatabaseTest {
         Path file = directory.resolve("hdlserver.db");
         Files.copy(Paths.get(givenFile), file);
 
-        DB database = Application.openDatabase(file.toString());
+        DB database = HdlServer.openDatabase(file.toString());
         try {
-            Application application = new Application(database, null);
-            String authToken = (String) application.configConcurrentMap.get(Application.AUTH_TOKEN_KEY);
-            assertTrue(authToken != null && authToken.length() >= Application.MIN_AUTH_TOKEN_LENGTH);
+            HdlServer application = new HdlServer(database, null);
+            String authToken = (String) application.configConcurrentMap.get(HdlServer.AUTH_TOKEN_KEY);
+            assertTrue(authToken != null && authToken.length() >= HdlServer.MIN_AUTH_TOKEN_LENGTH);
             for (Object action : application.actionsConcurrentMap.values()) {
                 assertNotNull(((Action) action).getCommands());
             }

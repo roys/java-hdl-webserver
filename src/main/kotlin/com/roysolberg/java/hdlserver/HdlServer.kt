@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentMap
 /**
  * The web server: the API that IFTTT applets call, and the web pages for the local network.
  */
-class Application(
+class HdlServer(
     private val database: DB,
     private val hdlService: HdlService?,
 ) {
@@ -59,7 +59,7 @@ class Application(
         }
     }
 
-    fun start(port: Int): Application {
+    fun start(port: Int): HdlServer {
         val hdlService = checkNotNull(hdlService) { "The server can't start without an HdlService" }
         javalin = Javalin.create { config ->
             config.startup.showJavalinBanner = false
@@ -346,7 +346,7 @@ class Application(
 
     companion object {
 
-        private val logger = LogManager.getLogger(Application::class.java)
+        private val logger = LogManager.getLogger(HdlServer::class.java)
 
         const val DEFAULT_PORT = 4567 // Spark's default, which IFTTT applets made for earlier versions use
         const val DATABASE_FILE = "hdlserver.db"
@@ -377,7 +377,7 @@ class Application(
             Runtime.getRuntime().addShutdownHook(Thread(database::close))
             val hdlService = HdlService(database)
             hdlService.start()
-            Application(database, hdlService).start(DEFAULT_PORT)
+            HdlServer(database, hdlService).start(DEFAULT_PORT)
         }
 
         @JvmStatic

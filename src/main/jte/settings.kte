@@ -1,4 +1,4 @@
-@import com.roysolberg.java.hdlserver.Application
+@import com.roysolberg.java.hdlserver.HdlServer
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
 @template.layout(page = page, content = @`
@@ -8,7 +8,7 @@
         <form action="update_settings" method="post">
             <div class="form-group">
                 <label for="input_auth_key">Authorization key</label>
-                <input type="text" name="authKey" class="form-control" id="input_auth_key" placeholder="At least ${Application.MIN_AUTH_TOKEN_LENGTH} characters" minlength="${Application.MIN_AUTH_TOKEN_LENGTH}" aria-describedby="help_block_auth_key" value="${page.authToken}"/>
+                <input type="text" name="authKey" class="form-control" id="input_auth_key" placeholder="At least ${HdlServer.MIN_AUTH_TOKEN_LENGTH} characters" minlength="${HdlServer.MIN_AUTH_TOKEN_LENGTH}" aria-describedby="help_block_auth_key" value="${page.authToken}"/>
                 <span id="help_block_auth_key" class="help-block">Key used for the action calls. Remember to also update the keys on any scripts calling this server.</span>
             </div>
             <div class="form-group col-xs-18">

@@ -36,13 +36,13 @@ class ApiContractTest {
 
     private static DB database;
     private static RecordingHdlService hdlService;
-    private static Application application;
+    private static HdlServer application;
 
     @BeforeAll
     static void startServer() {
-        database = Application.openDatabase(LegacyDatabases.copyToDirectory("1.0.3", directory));
+        database = HdlServer.openDatabase(LegacyDatabases.copyToDirectory("1.0.3", directory));
         hdlService = new RecordingHdlService(database);
-        application = new Application(database, hdlService).start(0);
+        application = new HdlServer(database, hdlService).start(0);
     }
 
     @AfterAll
@@ -149,7 +149,7 @@ class ApiContractTest {
         assertEquals(401, result.status);
         assertFalse(result.body.contains(LegacyDatabases.AUTH_TOKEN));
         assertTrue(hdlService.calls.isEmpty());
-        assertEquals(LegacyDatabases.AUTH_TOKEN, database.hashMap("config").createOrOpen().get(Application.AUTH_TOKEN_KEY));
+        assertEquals(LegacyDatabases.AUTH_TOKEN, database.hashMap("config").createOrOpen().get(HdlServer.AUTH_TOKEN_KEY));
         assertNotNull(database.hashMap("actions").createOrOpen().get(1));
     }
 
@@ -157,7 +157,7 @@ class ApiContractTest {
     @ValueSource(booleans = {false, true})
     void tooLargeBodiesAreRejectedWithoutBeingRead(boolean chunked) throws IOException {
         StringBuilder json = new StringBuilder("{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\",\"padding\":\"");
-        while (json.length() < Application.MAX_API_BODY_BYTES) {
+        while (json.length() < HdlServer.MAX_API_BODY_BYTES) {
             json.append("xxxxxxxxxxxxxxxx");
         }
         json.append("\"}");
@@ -182,7 +182,7 @@ class ApiContractTest {
     @Test
     void bodiesUpToTheLimitAreAccepted() throws IOException {
         StringBuilder json = new StringBuilder("{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\",\"padding\":\"");
-        while (json.length() < Application.MAX_API_BODY_BYTES - 100) {
+        while (json.length() < HdlServer.MAX_API_BODY_BYTES - 100) {
             json.append('x');
         }
         json.append("\"}");
@@ -245,7 +245,7 @@ class ApiContractTest {
             assertTrue(response.status >= 400 && response.status < 500, method + " " + path + " answered " + response.statusLine);
             assertFalse(response.text.contains(LegacyDatabases.AUTH_TOKEN), method + " " + path);
         }
-        assertEquals(LegacyDatabases.AUTH_TOKEN, database.hashMap("config").createOrOpen().get(Application.AUTH_TOKEN_KEY));
+        assertEquals(LegacyDatabases.AUTH_TOKEN, database.hashMap("config").createOrOpen().get(HdlServer.AUTH_TOKEN_KEY));
         assertNotNull(database.hashMap("actions").createOrOpen().get(1));
     }
 

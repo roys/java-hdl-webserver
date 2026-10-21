@@ -19,6 +19,13 @@ repositories {
     mavenCentral()
 }
 
+// The main class, Application, is built for Java 8 on its own, so too old a Java gets a clear message instead of a crash
+val launcher: SourceSet by sourceSets.creating
+tasks.named<JavaCompile>(launcher.compileJavaTaskName) {
+    options.release = 8
+    options.compilerArgs.add("-Xlint:-options") // Java 8 is "obsolete" to newer compilers, which is the point here
+}
+
 dependencies {
     implementation(libs.javalin)
     implementation(platform(libs.jetty.bom))
@@ -32,6 +39,7 @@ dependencies {
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.mapdb)
 
+    testImplementation(launcher.output)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
@@ -63,6 +71,7 @@ tasks.jar {
 
 // The runnable JAR with all dependencies, released as releases/hdlserver-LATEST.jar
 tasks.shadowJar {
+    from(launcher.output)
     archiveClassifier = ""
     mergeServiceFiles()
     manifest.attributes(

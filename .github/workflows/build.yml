@@ -33,7 +33,7 @@ jobs:
           path: build/libs/hdlserver-*.jar
           if-no-files-found: error
 
-  # The runnable JAR must start on the lowest supported Java.
+  # The runnable JAR must start on the lowest supported Java, and explain itself on older Java (8 and 11 ran 1.x).
   smoke-test:
     needs: build
     runs-on: ubuntu-latest
@@ -44,10 +44,28 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
-      - name: Start the server and call the API
+          java-version: |
+            8
+            11
+            17
+      - name: Too old Java gets a clear message
         run: |
           mv hdlserver-*.jar hdlserver-LATEST.jar
+          for v in 8 11; do
+            home_var="JAVA_HOME_${v}_X64"
+            set +e
+            "${!home_var}/bin/java" -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application > out.txt 2>&1
+            code=$?
+            set -e
+            cat out.txt
+            test "$code" = 1
+            grep -q "needs Java 17 or later" out.txt
+            grep -q "needs Java 17 or later" logs/hdl-server.log
+          done
+      - name: --version checks without starting
+        run: java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application --version
+      - name: Start the server and call the API
+        run: |
           java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application > server.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:4567/ && break; sleep 1; done
           status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"auth":"WRONG"}' http://localhost:4567/api/actions/1)
