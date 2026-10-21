@@ -1,0 +1,3 @@
+@import com.roysolberg.java.hdlserver.Icon
+@param icon: Icon
+<span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icon.path}"/></svg></span>

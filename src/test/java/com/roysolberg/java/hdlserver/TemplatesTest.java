@@ -34,7 +34,7 @@ class TemplatesTest {
         String html = render(new Page(name, "TOKEN", Collections.emptyList(), Collections.emptyList(), "192.168.1.199:4567", null, null));
 
         assertTrue(html.startsWith("<!DOCTYPE html>"));
-        assertTrue(html.contains("<li class=\"active\">"), "The page's own menu item is marked");
+        assertTrue(html.contains("is-active\" href=\"" + (name.equals("index") ? "/" : "/" + name) + "\" aria-current=\"page\""), "The page's own menu item is marked");
         assertTrue(html.trim().endsWith("</html>"));
     }
 
@@ -66,9 +66,9 @@ class TemplatesTest {
     void messagesAreShown() {
         String html = render(new Page("index", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", "Saved & done", "Oops"));
 
-        assertTrue(html.contains("alert-success"));
+        assertTrue(html.contains("notification is-success"));
         assertTrue(html.contains("Saved &amp; done"));
-        assertTrue(html.contains("alert-danger"));
+        assertTrue(html.contains("notification is-danger"));
         assertTrue(html.contains("Oops"));
     }
 
@@ -83,12 +83,12 @@ class TemplatesTest {
 
         String html = render(new Page("actions", "TOKEN", Collections.emptyList(), Arrays.asList(dimmer, custom), "192.168.1.199:4567", null, null));
 
-        assertTrue(html.contains("Dimmer - The Kitchen:"));
+        assertTrue(html.contains("The Kitchen <span class=\"tag is-rounded\">Dimmer</span>"));
         assertTrue(html.contains("Kitchen, Cooking"));
         assertTrue(html.contains("http://192.168.1.199:4567/api/actions/dimmer/the%20kitchen"));
         assertTrue(html.contains("can't pass on a level"));
         assertTrue(html.contains("{\"auth\":\"TOKEN\",\"value\":&lt;0-100&gt;}"));
-        assertTrue(html.contains("Custom - Open the garage:"));
+        assertTrue(html.contains("Open the garage <span class=\"tag is-rounded\">Custom</span>"));
         assertTrue(html.contains("/api/actions/7</code>"));
         assertTrue(html.contains("<code>Activate scene</code>"), "IFTTT's only Google Assistant trigger since 2022");
         assertTrue(html.contains("Panel control"));
@@ -116,9 +116,10 @@ class TemplatesTest {
         String html = render("activity", page, "entries", activityLog.entries());
 
         assertTrue(html.contains("Open the garage"));
-        assertTrue(html.contains("label-success"));
-        assertTrue(html.contains("label-danger"));
-        assertTrue(html.contains("<li class=\"active\"><a href=\"/activity\">"));
+        assertTrue(html.contains("tag is-success"));
+        assertTrue(html.contains("tag is-danger"));
+        assertTrue(html.contains("href=\"/activity\" aria-current=\"page\""));
+        assertTrue(html.contains("data-live=\"/activity/events\""));
         assertFalse(html.contains(SCRIPT));
         assertFalse(html.contains("<img src=x"));
     }
@@ -146,7 +147,8 @@ class TemplatesTest {
         assertTrue(html.contains(">107<"));
         assertTrue(html.contains("<polyline points=\"0.0,"));
         assertTrue(html.contains("57 &deg;C"));
-        assertTrue(html.contains("width:23%;"), "Memory bar");
+        assertTrue(html.contains("value=\"120\" max=\"512\""), "Memory bar");
+        assertTrue(html.contains("data-live=\"/status/events\""));
     }
 
     @Test
@@ -169,10 +171,40 @@ class TemplatesTest {
 
         String html = render(new Page("actions", "TOKEN", Collections.emptyList(), Arrays.asList(dimmer, custom), "host", null, null));
 
-        assertTrue(html.contains("data-target=\"#runActionModal-7\""));
+        assertTrue(html.contains("data-open=\"runActionModal-7\""));
+        assertTrue(html.contains("<dialog id=\"runActionModal-7\""));
         assertTrue(html.contains("Run &#34;Open the garage&#34; now?") || html.contains("Run \"Open the garage\" now?"));
         assertFalse(html.contains("runActionModal-2"), "No confirmation for dimmers");
-        assertTrue(html.contains("name=\"value\" class=\"form-control\" min=\"0\" max=\"100\""));
+        assertTrue(html.contains("name=\"value\" class=\"input level-input\" min=\"0\" max=\"100\""));
+    }
+
+    /**
+     * The pages get a Content-Security-Policy that blocks inline styles and scripts, so anything like that would break.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"index", "actions", "security", "settings", "demo", "activity", "status"})
+    void pagesHaveNoInlineStylesOrScripts(String name) {
+        Action action = new Action(Action.ActionType.Custom, 7, "Open the garage");
+        action.addCommand(new Action.Command(1, 81, 0xE3D8, 18, 1, null));
+        Page page = new Page(name, "TOKEN", Collections.singletonList(new DimmerComponent(1, 40, 600, "Kitchen", 2)),
+                Collections.singletonList(action), "host", "Saved", "Oops");
+        ActivityLog activityLog = new ActivityLog();
+        activityLog.record("API (203.0.113.9)", "Open the garage", "Sent", true);
+        java.time.Instant now = java.time.Instant.now();
+        Status status = new Status("2.0.0", "21.0.4", now, now, 1, now, Collections.nCopies(60, 1), 1, 1, null, 0, 10, 512, 50.0);
+        Map<String, Object> params = new HashMap<>();
+        params.put("page", page);
+        params.put("entries", activityLog.entries());
+        params.put("status", status);
+        StringOutput output = new StringOutput();
+        templateEngine.render(name + ".kte", params, output);
+        String html = output.toString();
+
+        assertFalse(html.contains("style="), "Inline style on " + name);
+        assertFalse(html.contains("<style"), "Style element on " + name);
+        assertFalse(java.util.regex.Pattern.compile("\\son[a-z]+=").matcher(html).find(), "Event handler attribute on " + name);
+        assertEquals(1, html.split("<script").length - 1, "Only app.js on " + name);
+        assertTrue(html.contains("<script src=\"/assets/app.js\" defer></script>"));
     }
 
     private String render(Page page) {

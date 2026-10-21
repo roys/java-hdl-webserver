@@ -1,0 +1,73 @@
+@import com.roysolberg.java.hdlserver.Status
+@param status: Status
+<div class="box">
+    <p class="stat-label">HDL bus</p>
+    <p class="title is-2 bus-state"><span class="dot ${if (status.busAlive) "is-alive" else "is-silent"}"></span>@if(status.busAlive)Alive@elseSilent@endif</p>
+    <p class="has-text-grey">Last message ${status.lastBusMessageAgo} &middot; ${status.busMessagesLastHour} in the last hour &middot; ${status.busMessages} since the server started</p>
+    <svg class="sparkline" viewBox="0 0 ${Status.SPARKLINE_WIDTH} ${Status.SPARKLINE_HEIGHT}" preserveAspectRatio="none" role="img" aria-label="Messages on the HDL bus per minute, the last hour">
+        <defs>
+            <linearGradient id="bus-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-opacity=".35"/>
+                <stop offset="100%" stop-opacity=".02"/>
+            </linearGradient>
+        </defs>
+        <polygon points="${status.sparklineArea}" class="sparkline-area"/>
+        <polyline points="${status.sparklineLine}" class="sparkline-line" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <p class="sparkline-axis has-text-grey"><span>1 hour ago</span><span>now</span></p>
+</div>
+<div class="columns is-multiline is-mobile">
+    <div class="column is-half-mobile is-one-quarter-tablet">
+        <div class="box stat">
+            <p class="stat-label">Running for</p>
+            <p class="title is-4">${status.uptime}</p>
+            <p class="has-text-grey is-size-7">Since ${Status.formatTime(status.startedAt)}</p>
+        </div>
+    </div>
+    <div class="column is-half-mobile is-one-quarter-tablet">
+        <div class="box stat">
+            <p class="stat-label">Devices</p>
+            <p class="title is-2">${status.components}</p>
+            <a href="/" class="is-size-7">See them</a>
+        </div>
+    </div>
+    <div class="column is-half-mobile is-one-quarter-tablet">
+        <div class="box stat">
+            <p class="stat-label">Actions</p>
+            <p class="title is-2">${status.actions}</p>
+            <a href="/actions" class="is-size-7">See them</a>
+        </div>
+    </div>
+    <div class="column is-half-mobile is-one-quarter-tablet">
+        <div class="box stat">
+            <p class="stat-label">API calls today</p>
+            <p class="title is-2">${status.apiCallsToday}</p>
+            <p class="has-text-grey is-size-7">
+                @if(status.lastApiCall != null)
+                Last ${Status.formatTime(status.lastApiCall.time).substring(11)}: ${status.lastApiCall.result}
+                @else
+                None since the server started
+                @endif
+            </p>
+        </div>
+    </div>
+</div>
+<div class="box">
+    <p class="stat-label">Server</p>
+    <table class="table is-fullwidth server-table">
+        <tbody>
+        <tr><th>Version</th><td>${status.version}</td></tr>
+        <tr><th>Java</th><td>${status.javaVersion}</td></tr>
+        <tr>
+            <th>Memory</th>
+            <td>
+                ${status.memoryUsedMb} of ${status.memoryMaxMb} MB
+                <progress class="progress is-primary is-small" value="${status.memoryUsedMb}" max="${status.memoryMaxMb.coerceAtLeast(1)}">${status.memoryUsedMb} MB</progress>
+            </td>
+        </tr>
+        @if(status.cpuTemperature != null)
+        <tr><th>CPU temperature</th><td>${String.format(java.util.Locale.ROOT, "%.0f", status.cpuTemperature)} &deg;C</td></tr>
+        @endif
+        </tbody>
+    </table>
+</div>

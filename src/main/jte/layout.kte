@@ -1,3 +1,5 @@
+@import com.roysolberg.java.hdlserver.HdlServer
+@import com.roysolberg.java.hdlserver.Icon
 @import com.roysolberg.java.hdlserver.Page
 @import gg.jte.Content
 @param page: Page
@@ -6,53 +8,61 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HDL Buspro server</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
-          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.1.1.min.js"
-            integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
-            crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
-            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
-            crossorigin="anonymous"></script>
+    <title>${page.title} · HDL Buspro server</title>
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#00d1b2" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#006b5b" media="(prefers-color-scheme: dark)">
+    <link rel="icon" href="${HdlServer.ASSETS_PATH}/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="${HdlServer.ASSETS_PATH}/apple-touch-icon.png">
+    <link rel="manifest" href="${HdlServer.ASSETS_PATH}/manifest.webmanifest">
+    <link rel="stylesheet" href="${HdlServer.ASSETS_PATH}/vendor/bulma.min.css">
+    <link rel="stylesheet" href="${HdlServer.ASSETS_PATH}/app.css">
+    <script src="${HdlServer.ASSETS_PATH}/app.js" defer></script>
 </head>
 <body>
-<nav class="navbar navbar-inverse navbar-static-top">
-    <a href="/" class="navbar-brand">Smart Home</a>
-    <ul class="nav navbar-nav">
-        <li class="${if (page.name == "index") "active" else null}"><a href="/">Components</a></li>
-        <li class="${if (page.name == "actions") "active" else null}"><a href="/actions">Actions</a></li>
-        <li class="${if (page.name == "activity") "active" else null}"><a href="/activity">Activity</a></li>
-        <li class="${if (page.name == "status") "active" else null}"><a href="/status">Status</a></li>
-        <li class="${if (page.name == "security") "active" else null}"><a href="/security">Security</a></li>
-        <li class="${if (page.name == "settings") "active" else null}"><a href="/settings">Settings</a></li>
-        <li class="${if (page.name == "demo") "active" else null}"><a href="/demo">Demo</a></li>
-    </ul>
+<nav class="navbar is-primary" aria-label="Main menu">
+    <div class="container">
+        <div class="navbar-brand">
+            <a class="navbar-item brand" href="/">
+                @template.icon(icon = Icon.Home)
+                <span>Smart Home</span>
+            </a>
+            <a role="button" class="navbar-burger" aria-label="Menu" aria-expanded="false" aria-controls="menu" tabindex="0">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </a>
+        </div>
+        <div id="menu" class="navbar-menu">
+            <div class="navbar-start">
+                @for(item in Page.MENU)
+                <a class="navbar-item${if (item.name == page.name) " is-active" else ""}" href="${item.path}" aria-current="${if (item.name == page.name) "page" else null}">${item.title}</a>
+                @endfor
+            </div>
+        </div>
+    </div>
 </nav>
-<div class="container-fluid">
-    @if(!page.successMessage.isNullOrEmpty())
-    <div class="row">
-        <div class="col-md-10 col-md-offset-1">
-            <div class="alert alert-success" role="alert">
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                ${page.successMessage}
-            </div>
+<main class="section">
+    <div class="container">
+        @if(!page.successMessage.isNullOrEmpty())
+        <div class="notification is-success is-light" role="status">
+            <button type="button" class="delete" aria-label="Close"></button>
+            ${page.successMessage}
         </div>
-    </div>
-    @endif
-    @if(!page.errorMessage.isNullOrEmpty())
-    <div class="row">
-        <div class="col-md-10 col-md-offset-1">
-            <div class="alert alert-danger" role="alert">
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                ${page.errorMessage}
-            </div>
+        @endif
+        @if(!page.errorMessage.isNullOrEmpty())
+        <div class="notification is-danger is-light" role="alert">
+            <button type="button" class="delete" aria-label="Close"></button>
+            ${page.errorMessage}
         </div>
+        @endif
+        ${content}
     </div>
-    @endif
-${content}
-</div>
+</main>
+<footer class="page-footer has-text-grey is-size-7">
+    <div class="container">Independent project, not affiliated with or endorsed by HDL Automation. HDL, Buspro and other trademarks belong to their owners.</div>
+</footer>
 </body>
 </html>

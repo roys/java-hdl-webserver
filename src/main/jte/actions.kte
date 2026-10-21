@@ -1,290 +1,229 @@
+@import com.roysolberg.java.hdlserver.Icon
 @import com.roysolberg.java.hdlserver.Page
 @import com.roysolberg.java.hdlserver.hdl.Action
 @import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent
 @import com.roysolberg.java.hdlserver.util.HdlUtil
 @param page: Page
 @template.layout(page = page, content = @`
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <h3>Create custom action</h3>
-        <h4>
-            <small>Can be used for custom commands like <i>"Open the garage"</i>.</small>
-        </h4>
-        <form action="create_custom_action" method="post">
-            <div class="form-group">
-                <label for="input_description">Description</label>
-                <input type="text" name="description" class="form-control" id="input_description" placeholder="E.g. Open garage">
-            </div>
-            <div class="row">
-                <div class="col-md-10">
-                    <label style="font-size:larger;">Commands</label>
-                </div>
-            </div>
-            <div id="panel-action" class="panel panel-default">
-                <span style="float:right;text-align:right;">
-                    <button type="button" class="btn btn-default btn-sm default" onclick="if($(this).parent().parent().siblings('.panel').length > 0){ $(this).parent().parent().remove();}">
-                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                    </button>
-                </span>
-                <div class="panel-body">
-                    <div class="form-group col-lg-9">
-                        <label for="select_component">Component</label>
-                        <select id="select_component" name="components[]" class="form-control">
-                            @for(component in page.components)
-                            <option value="${component.subnet}:${component.deviceId}">${component.remark}
-                                (${component.subnet}/${component.deviceId} - ${component.description})
-                            </option>
-                            @endfor
-                        </select>
-                    </div>
-                    <div class="form-group col-lg-9">
-                        <label for="select_operation">Operation</label>
-                        <select id="select_operation" name="operations[]" class="form-control">
-                            <option value="49">Single channel control (0x0031)</option>
-                            <option value="57372">UV switch control (0xE01C)</option>
-                            <option value="58328">Panel control (0xE3D8)</option>
-                            <option value="58336">Curtain switch control (0xE3E0)</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-lg-4">
-                        <label for="parameter_1">Parameter 1</label>
-                        <input list="parameters" id="parameter_1" name="parameters1[]" min="0" max="255" type="number" class="form-control" placeholder="0-255"/>
-                        <datalist id="parameters">
-                            <option value="17">Panel control - control button status (17)</option>
-                            <option value="18">Panel control - control button (18)</option>
-                        </datalist>
-                    </div>
-                    <div class="form-group col-lg-2">
-                        <label for="input_parameter_2">Parameter 2</label>
-                        <input list="parameters2" id="input_parameter_2" name="parameters2[]" min="0" max="255" type="number" class="form-control" placeholder="0-255">
-                        <datalist id="parameters2">
-                            <option value="0">Curtain switch control - stop (0)</option>
-                            <option value="1">Curtain switch control - open/forward (1)</option>
-                            <option value="2">Curtain switch control - close/reverse (2)</option>
-                        </datalist>
-                    </div>
-                    <div class="form-group col-lg-2">
-                        <label for="input_parameter_3">Parameter 3</label>
-                        <input id="input_parameter_3" name="parameters3[]" min="0" max="255" type="number" class="form-control" placeholder="0-255">
-                    </div>
-                </div>
-            </div>
-            <div id="row-add_command" class="row">
-                <div class="form-group col-xs-6">
-                    <button type="button" class="btn btn-default"
-                            onclick="$('#panel-action').clone().insertBefore('#row-add_command');">Add another command
-                    </button>
-                </div>
-            </div>
-            <div class="form-group col-xs-18">
-                <button type="submit" class="btn btn-primary">Create action</button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <hr/>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <h3>Create dimmer action</h3>
-        <h4>
-            <small>Can be used for commands like <i>"Dim the lights to
-                <mark>20%</mark>
-                in
-                <mark>the kitchen</mark>
-                "</i>.
-            </small>
-        </h4>
-        <form action="create_dimmer_action" method="post">
-            <div class="form-group">
-                <label for="input_area_name">Area name (to be used in action)</label>
-                <input type="text" name="description" class="form-control" id="input_area_name" placeholder="E.g. the kitchen"/>
-            </div>
-            <div class="row">
-                <div class="col-md-10">
-                    <label style="font-size:larger;">Aliases</label>
-                </div>
-            </div>
-            <div id="panel-dimmer-alias" class="panel-dimmer-alias panel panel-default">
-                <span style="float:right;text-align:right;">
-                    <button type="button" class="btn btn-default btn-sm default" onclick="if($(this).parent().parent().siblings('.panel-dimmer-alias').length > 0){ $(this).parent().parent().remove();}">
-                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                    </button>
-                </span>
-                <div class="panel-body">
-                    <div class="form-group col-lg-5">
-                        <label for="select_dimmer_channel">Area alias</label>
-                        <input type="text" name="aliases[]" class="form-control" placeholder="E.g. kitchen (without the)"/>
-                    </div>
-                </div>
-            </div>
-            <div id="row-add_dimmer_alias" class="row">
-                <div class="form-group col-xs-6">
-                    <button type="button" class="btn btn-default" onclick="$('#panel-dimmer-alias').clone().insertBefore('#row-add_dimmer_alias');">Add area alias</button>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-10">
-                    <label style="font-size:larger;">Commands</label>
-                </div>
-            </div>
-            <div id="panel-dimmer-channel" class="panel-dimmer-channel panel panel-default">
-                <span style="float:right;text-align:right;">
-                    <button type="button" class="btn btn-default btn-sm default" onclick="if($(this).parent().parent().siblings('.panel-dimmer-channel').length > 0){ $(this).parent().parent().remove();}">
-                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                    </button>
-                </span>
-                <div class="panel-body">
-                    <div class="form-group col-lg-5">
-                        <label for="select_dimmer_channel">Dimmer channel</label>
-                        <select id="select_dimmer_channel" name="channels[]" class="form-control">
-                            @for(component in page.components.filterIsInstance<DimmerComponent>())
-                            @for(index in 1..component.numOfChannels)
-                            <option value="${component.subnet}:${component.deviceId}:${index}">${component.remark}
-                                (${component.subnet}/${component.deviceId}) - channel ${index}
-                            </option>
-                            @endfor
-                            @endfor
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div id="row-add_dimmer_channel" class="row">
-                <div class="form-group col-xs-6">
-                    <button type="button" class="btn btn-default" onclick="$('#panel-dimmer-channel').clone().insertBefore('#row-add_dimmer_channel');">Add another dimmer channel</button>
-                </div>
-            </div>
-            <div class="form-group col-xs-18">
-                <button type="submit" class="btn btn-primary">Create action</button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <hr/>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <h3>Existing actions</h3>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <tbody>
-                @for(action in page.actions)
-                <div class="modal fade" id="deleteActionModal-${action.id}" tabindex="-1" role="dialog"
-                     aria-labelledby="modalLabel-${action.id}">
-                    <div class="modal-dialog" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                                <h4 class="modal-title" id="modalLabel-${action.id}">Delete action?</h4>
-                            </div>
-                            <div class="modal-body">Are you sure you want to delete this action?</div>
-                            <div class="modal-footer">
-                                <form action="delete_action" method="post">
-                                    <input type="hidden" name="actionId" value="${action.id}"/>
-                                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-danger">Delete</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @if(action.actionType != Action.ActionType.Dimmer)
-                <div class="modal fade" id="runActionModal-${action.id}" tabindex="-1" role="dialog" aria-labelledby="runModalLabel-${action.id}">
-                    <div class="modal-dialog" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                                <h4 class="modal-title" id="runModalLabel-${action.id}">Run "@if(!action.description.isNullOrEmpty())${action.description}@else Action ${action.id}@endif" now?</h4>
-                            </div>
-                            <div class="modal-body">This sends its commands to the HDL bus right away.</div>
-                            <div class="modal-footer">
-                                <form action="run_action" method="post">
-                                    <input type="hidden" name="actionId" value="${action.id}"/>
-                                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Run</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<h1 class="title">Actions</h1>
+@if(page.actions.isEmpty())
+<div class="notification">No actions yet. Create your first one below.</div>
+@endif
+@for(action in page.actions)
+!{val name = if (action.description.isNullOrEmpty()) "Action ${action.id}" else action.description}
+<div class="card action-card">
+    <header class="card-header">
+        <div class="card-header-title">
+            <div>
+                <p>${name} <span class="tag is-rounded">${action.actionType.name}</span></p>
+                @if(!action.aliases.isNullOrEmpty())
+                <p class="has-text-grey is-size-7 has-text-weight-normal">Also: ${action.aliases.joinToString(", ")}</p>
                 @endif
-                <tr class="active">
-                    <th style="font-size:larger;" class="text-left" colspan="4">
-                        ${action.actionType.name} - @if(!action.description.isNullOrEmpty())${action.description}@else Action ${action.id}@endif:
-                        <br/>
-                        <small>
-                            ${action.aliases.orEmpty().joinToString(", ")}
-                        </small>
-                    </th>
-                    <th style="text-align:right;white-space:nowrap;">
-                        @if(action.actionType == Action.ActionType.Dimmer)
-                        <form action="run_action" method="post" class="form-inline" style="display:inline-block;">
-                            <input type="hidden" name="actionId" value="${action.id}"/>
-                            <div class="input-group input-group-sm" style="width:9em;">
-                                <input type="number" name="value" class="form-control" min="0" max="100" value="50" aria-label="Level in percent" required/>
-                                <span class="input-group-addon">%</span>
-                                <span class="input-group-btn"><button type="submit" class="btn btn-primary" title="Set the level now">Set</button></span>
-                            </div>
-                        </form>
-                        @else
-                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" title="Run this action now" data-target="#runActionModal-${action.id}">
-                            <span class="glyphicon glyphicon-play" aria-hidden="true"></span> Run
-                        </button>
-                        @endif
-                        <button type="button" class="btn btn-default btn-sm default" data-toggle="modal" title="Delete action" data-target="#deleteActionModal-${action.id}">
-                            <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
-                        </button>
-                    </th>
-                </tr>
+            </div>
+        </div>
+        <div class="action-buttons">
+            @if(action.actionType == Action.ActionType.Dimmer)
+            <form action="run_action" method="post">
+                <input type="hidden" name="actionId" value="${action.id}"/>
+                <div class="field has-addons">
+                    <div class="control">
+                        <input type="number" name="value" class="input level-input" min="0" max="100" value="50" aria-label="Level in percent" required/>
+                    </div>
+                    <div class="control"><span class="button is-static">%</span></div>
+                    <div class="control"><button type="submit" class="button is-primary" title="Set the level now">Set</button></div>
+                </div>
+            </form>
+            @else
+            <button type="button" class="button is-primary" title="Run this action now" data-open="runActionModal-${action.id}">
+                @template.icon(icon = Icon.Play)<span>Run</span>
+            </button>
+            @endif
+            <button type="button" class="button" title="Delete action" aria-label="Delete action" data-open="deleteActionModal-${action.id}">
+                @template.icon(icon = Icon.Delete)
+            </button>
+        </div>
+    </header>
+    <div class="card-content">
+        <div class="table-container">
+            <table class="table is-fullwidth is-narrow commands-table">
+                <thead>
                 <tr>
                     <th>Component</th>
                     <th>Operation</th>
-                    <th>Parameter 1</th>
-                    <th>Parameter 2</th>
-                    <th>Parameter 3</th>
+                    <th><abbr title="Parameter 1">P1</abbr></th>
+                    <th><abbr title="Parameter 2">P2</abbr></th>
+                    <th><abbr title="Parameter 3">P3</abbr></th>
                 </tr>
+                </thead>
+                <tbody>
                 @for(command in action.commands)
                 <tr>
-                    <td>${command.subnetId}/${command.deviceId}</td>
+                    <td class="is-family-monospace">${command.subnetId}/${command.deviceId}</td>
                     <td>${HdlUtil.getNiceOperationCode(command.operation)}</td>
                     <td>${command.parameter1?.toString()}</td>
                     <td>${command.parameter2?.toString()}</td>
                     <td>${command.parameter3?.toString()}</td>
                 </tr>
                 @endfor
-                <tr>
-                    <th>URL:</th>
-                    <td colspan="4">${action.getUrl(page.host)}</td>
-                </tr>
-                <tr>
-                    <th>cURL:</th>
-                    <td style="font-family:monospace;font-size:smaller;" colspan="4">
-                        ${action.getCurlCommand(page.host, page.authToken)}
-                    </td>
-                </tr>
-                <tr>
-                    <th>IFTTT:</th>
-                    <td style="font-family:monospace;font-size:smaller;" colspan="4">
-                        @if(action.actionType == Action.ActionType.Dimmer)
-                        IFTTT's <a href="https://ifttt.com/google_assistant_v2" target="_blank" rel="noopener noreferrer">Google Assistant</a> can't pass on a level, so for voice, create a custom action for each level you want. Anything else that can send a web request can set any level, like the cURL command above: method <code>POST</code>, content type <code>application/json</code> and body <code>{"auth":"${page.authToken}","value":&lt;0-100&gt;}</code>.
-                        @else
-                        Use <a href="https://ifttt.com/google_assistant_v2" target="_blank" rel="noopener noreferrer">Google Assistant</a> <code>Activate scene</code>, and say <code>OK Google, activate &lt;scene name&gt;</code>. Then use <a href="https://ifttt.com/maker_webhooks" target="_blank" rel="noopener noreferrer">Webhooks</a> (needs IFTTT Pro) <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/${action.id}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{"auth":"${page.authToken}"}</code>. You need one applet for each custom action.
-                        @endif
-                    </td>
-                </tr>
-                @endfor
                 </tbody>
             </table>
+        </div>
+        <details class="how-to-call">
+            <summary>How to call it</summary>
+            <dl>
+                <dt>URL</dt>
+                <dd class="is-family-monospace">${action.getUrl(page.host)}</dd>
+                <dt>cURL</dt>
+                <dd><code>${action.getCurlCommand(page.host, page.authToken)}</code></dd>
+                <dt>IFTTT</dt>
+                @if(action.actionType == Action.ActionType.Dimmer)
+                <dd>IFTTT's <a href="https://ifttt.com/google_assistant_v2" target="_blank" rel="noopener noreferrer">Google Assistant</a> can't pass on a level, so for voice, create a custom action for each level you want. Anything else that can send a web request can set any level, like the cURL command above: method <code>POST</code>, content type <code>application/json</code> and body <code>{"auth":"${page.authToken}","value":&lt;0-100&gt;}</code>.</dd>
+                @else
+                <dd>Use <a href="https://ifttt.com/google_assistant_v2" target="_blank" rel="noopener noreferrer">Google Assistant</a> <code>Activate scene</code>, and say <code>OK Google, activate &lt;scene name&gt;</code>. Then use <a href="https://ifttt.com/maker_webhooks" target="_blank" rel="noopener noreferrer">Webhooks</a> (needs IFTTT Pro) <code>Make a web request</code> with URL <code>http://&lt;fill in your external host name or IP address and port number&gt;/api/actions/${action.id}</code>, method <code>POST</code>, content type <code>application/json</code> and body <code>{"auth":"${page.authToken}"}</code>. You need one applet for each custom action.</dd>
+                @endif
+            </dl>
+        </details>
+    </div>
+</div>
+@if(action.actionType != Action.ActionType.Dimmer)
+<dialog id="runActionModal-${action.id}" class="box" aria-labelledby="runModalLabel-${action.id}">
+    <form action="run_action" method="post">
+        <input type="hidden" name="actionId" value="${action.id}"/>
+        <p class="title is-5" id="runModalLabel-${action.id}">Run "${name}" now?</p>
+        <p class="block">This sends its commands to the HDL bus right away.</p>
+        <div class="buttons is-right">
+            <button type="button" class="button" data-close>Cancel</button>
+            <button type="submit" class="button is-primary">@template.icon(icon = Icon.Play)<span>Run</span></button>
+        </div>
+    </form>
+</dialog>
+@endif
+<dialog id="deleteActionModal-${action.id}" class="box" aria-labelledby="deleteModalLabel-${action.id}">
+    <form action="delete_action" method="post">
+        <input type="hidden" name="actionId" value="${action.id}"/>
+        <p class="title is-5" id="deleteModalLabel-${action.id}">Delete "${name}"?</p>
+        <p class="block">IFTTT applets and anything else calling it will stop working.</p>
+        <div class="buttons is-right">
+            <button type="button" class="button" data-close>Cancel</button>
+            <button type="submit" class="button is-danger">Delete</button>
+        </div>
+    </form>
+</dialog>
+@endfor
+
+<h2 class="title is-4 create-heading">Create an action</h2>
+<div class="columns">
+    <div class="column">
+        <div class="box">
+            <h3 class="title is-5">Custom action</h3>
+            <p class="subtitle is-6 has-text-grey">Commands of your choice, like pressing a panel button for <i>Open the garage</i>.</p>
+            <form action="create_custom_action" method="post">
+                <div class="field">
+                    <label class="label" for="input_description">Name</label>
+                    <div class="control"><input type="text" name="description" class="input" id="input_description" placeholder="E.g. Open the garage"></div>
+                </div>
+                <p class="label">Commands</p>
+                <div id="custom-commands" class="repeat-list">
+                    <div class="repeat-row">
+                        <button type="button" class="delete" aria-label="Remove this command" data-remove></button>
+                        <div class="field">
+                            <label class="label is-small">Component</label>
+                            <div class="control">
+                                <div class="select is-fullwidth">
+                                    <select name="components[]" aria-label="Component">
+                                        @for(component in page.components)
+                                        <option value="${component.subnet}:${component.deviceId}">${component.remark} (${component.subnet}/${component.deviceId} - ${component.description})</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label class="label is-small">Operation</label>
+                            <div class="control">
+                                <div class="select is-fullwidth">
+                                    <select name="operations[]" aria-label="Operation">
+                                        <option value="49">Single channel control (0x0031)</option>
+                                        <option value="57372">UV switch control (0xE01C)</option>
+                                        <option value="58328">Panel control (0xE3D8)</option>
+                                        <option value="58336">Curtain switch control (0xE3E0)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="columns is-mobile is-variable is-2">
+                            <div class="column field">
+                                <label class="label is-small">Parameter 1</label>
+                                <div class="control"><input list="parameters1" name="parameters1[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 1"/></div>
+                            </div>
+                            <div class="column field">
+                                <label class="label is-small">Parameter 2</label>
+                                <div class="control"><input list="parameters2" name="parameters2[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 2"/></div>
+                            </div>
+                            <div class="column field">
+                                <label class="label is-small">Parameter 3</label>
+                                <div class="control"><input name="parameters3[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 3"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <datalist id="parameters1">
+                    <option value="17">Panel control - control button status (17)</option>
+                    <option value="18">Panel control - control button (18)</option>
+                </datalist>
+                <datalist id="parameters2">
+                    <option value="0">Curtain switch control - stop (0)</option>
+                    <option value="1">Curtain switch control - open/forward (1)</option>
+                    <option value="2">Curtain switch control - close/reverse (2)</option>
+                </datalist>
+                <div class="buttons">
+                    <button type="button" class="button is-light" data-add="custom-commands">@template.icon(icon = Icon.Add)<span>Add a command</span></button>
+                    <button type="submit" class="button is-primary">Create action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="column">
+        <div class="box">
+            <h3 class="title is-5">Dimmer action</h3>
+            <p class="subtitle is-6 has-text-grey">Sets the lights in an area to any level, like <i>the kitchen</i> to 20 %.</p>
+            <form action="create_dimmer_action" method="post">
+                <div class="field">
+                    <label class="label" for="input_area_name">Area name</label>
+                    <div class="control"><input type="text" name="description" class="input" id="input_area_name" placeholder="E.g. the kitchen"/></div>
+                </div>
+                <p class="label">Other names for the area</p>
+                <div id="dimmer-aliases" class="repeat-list">
+                    <div class="repeat-row is-compact">
+                        <button type="button" class="delete" aria-label="Remove this name" data-remove></button>
+                        <div class="control"><input type="text" name="aliases[]" class="input" placeholder="E.g. kitchen (without the)" aria-label="Other name for the area"/></div>
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button type="button" class="button is-light" data-add="dimmer-aliases">@template.icon(icon = Icon.Add)<span>Add a name</span></button>
+                </div>
+                <p class="label">Dimmer channels</p>
+                <div id="dimmer-channels" class="repeat-list">
+                    <div class="repeat-row is-compact">
+                        <button type="button" class="delete" aria-label="Remove this channel" data-remove></button>
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                <select name="channels[]" aria-label="Dimmer channel">
+                                    @for(component in page.components.filterIsInstance<DimmerComponent>())
+                                    @for(index in 1..component.numOfChannels)
+                                    <option value="${component.subnet}:${component.deviceId}:${index}">${component.remark} (${component.subnet}/${component.deviceId}) - channel ${index}</option>
+                                    @endfor
+                                    @endfor
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button type="button" class="button is-light" data-add="dimmer-channels">@template.icon(icon = Icon.Add)<span>Add a channel</span></button>
+                    <button type="submit" class="button is-primary">Create action</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -2,19 +2,17 @@
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
 @template.layout(page = page, content = @`
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <h3>Settings</h3>
-        <form action="update_settings" method="post">
-            <div class="form-group">
-                <label for="input_auth_key">Authorization key</label>
-                <input type="text" name="authKey" class="form-control" id="input_auth_key" placeholder="At least ${HdlServer.MIN_AUTH_TOKEN_LENGTH} characters" minlength="${HdlServer.MIN_AUTH_TOKEN_LENGTH}" aria-describedby="help_block_auth_key" value="${page.authToken}"/>
-                <span id="help_block_auth_key" class="help-block">Key used for the action calls. Remember to also update the keys on any scripts calling this server.</span>
+<h1 class="title">Settings</h1>
+<div class="box">
+    <form action="update_settings" method="post">
+        <div class="field">
+            <label class="label" for="input_auth_key">Authorization key</label>
+            <div class="control">
+                <input type="text" name="authKey" class="input is-family-monospace" id="input_auth_key" placeholder="At least ${HdlServer.MIN_AUTH_TOKEN_LENGTH} characters" minlength="${HdlServer.MIN_AUTH_TOKEN_LENGTH}" aria-describedby="help_auth_key" value="${page.authToken}"/>
             </div>
-            <div class="form-group col-xs-18">
-                <button type="submit" class="btn btn-primary">Update settings</button>
-            </div>
-        </form>
-    </div>
+            <p id="help_auth_key" class="help">The key every action call needs. If you change it, also change it in your IFTTT applets and anything else calling this server.</p>
+        </div>
+        <button type="submit" class="button is-primary">Save</button>
+    </form>
 </div>
 `)

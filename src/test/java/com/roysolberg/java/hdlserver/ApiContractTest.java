@@ -88,6 +88,13 @@ class ApiContractTest {
 
         assertEquals(200, sendTo(origin, "GET", "/status").status);
         assertEquals(200, sendTo(origin, "GET", "/activity").status);
+        HttpResult css = sendTo(origin, "GET", "/assets/vendor/bulma.min.css");
+        assertEquals(200, css.status);
+        assertTrue(css.contentType.startsWith("text/css"), css.contentType);
+        assertTrue(css.body.contains("bulma.io v"));
+        assertTrue(sendTo(origin, "GET", "/assets/manifest.webmanifest").contentType.startsWith("application/manifest+json"));
+        HttpURLConnection page = (HttpURLConnection) new URL(origin + "/").openConnection();
+        assertEquals(HdlServer.CONTENT_SECURITY_POLICY, page.getHeaderField("Content-Security-Policy"));
         HttpResult actions = sendTo(origin, "GET", "/actions");
         assertEquals(200, actions.status);
         assertTrue(actions.body.contains("runActionModal-1"));
@@ -101,6 +108,32 @@ class ApiContractTest {
         assertTrue(run.text.contains("success=Sent"));
         assertEquals(Collections.singletonList("action 1"), hdlService.calls);
         assertTrue(application.activityLog.entries().get(0).getSource().startsWith("Web page (" + lanAddress));
+    }
+
+    @Test
+    void livePagesGetUpdatesOnTheLocalNetworkOnly() throws IOException {
+        assertEquals(401, send("GET", "/status/events", null, null, null).status);
+        assertEquals(401, send("GET", "/activity/events", null, null, null).status);
+        String lanAddress = siteLocalAddress();
+        assumeTrue(lanAddress != null, "No LAN address on this machine");
+
+        for (String path : new String[]{"/status/events", "/activity/events"}) {
+            try (Socket socket = new Socket(lanAddress, application.port())) {
+                socket.setSoTimeout(10_000);
+                String request = "GET " + path + " HTTP/1.1\r\nHost: " + lanAddress + ":" + application.port() + "\r\nAccept: text/event-stream\r\n\r\n";
+                socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+                Scanner scanner = new Scanner(socket.getInputStream(), "UTF-8");
+                String firstLine = scanner.nextLine();
+                assertTrue(firstLine.contains(" 200 "), firstLine);
+                String line;
+                do {
+                    line = scanner.nextLine();
+                } while (!line.startsWith("event: " + LivePages.EVENT));
+                String data = scanner.nextLine();
+                assertTrue(data.startsWith("data: "), data);
+                assertTrue(data.contains(path.startsWith("/status") ? "HDL bus" : "Nothing yet") || data.contains("activity-table"), data);
+            }
+        }
     }
 
     /**
@@ -316,9 +349,13 @@ class ApiContractTest {
         assertEquals(202, post("/api/actions/1", json.toString()).status);
     }
 
-    @Test
-    void noStaticFilesAreServedOutsideTheLocalNetwork() throws IOException {
-        assertEquals(401, send("GET", "/static/css/styles.css", null, null, null).status);
+    @ParameterizedTest
+    @ValueSource(strings = {"/assets/vendor/bulma.min.css", "/assets/app.js", "/assets/nothing-here.css", "/static/css/styles.css"})
+    void noStaticFilesAreServedOutsideTheLocalNetwork(String path) throws IOException {
+        HttpResult result = send("GET", path, null, null, null);
+
+        assertEquals(401, result.status);
+        assertFalse(result.body.contains("bulma"));
     }
 
     @ParameterizedTest

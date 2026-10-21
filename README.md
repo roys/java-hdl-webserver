@@ -320,3 +320,7 @@ This runs the tests and builds the runnable JAR at `build/libs/hdlserver-<versio
 - 🎬 [The demo on YouTube](https://youtu.be/P6BgsM8IiW8)
 - 🏢 [HDL Automation](https://www.hdlautomation.com/)
 - 📝 [Changelog](releases/CHANGELOG.txt)
+
+---
+
+<sub>Independent project, not affiliated with or endorsed by HDL Automation. HDL, Buspro and other trademarks belong to their owners.</sub>

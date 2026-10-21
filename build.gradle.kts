@@ -26,7 +26,13 @@ tasks.named<JavaCompile>(launcher.compileJavaTaskName) {
     options.compilerArgs.add("-Xlint:-options") // Java 8 is "obsolete" to newer compilers, which is the point here
 }
 
+// CSS for the web pages, served from the JAR so the pages also work when the Internet is down
+val webAssets: Configuration by configurations.creating {
+    isTransitive = false
+}
+
 dependencies {
+    webAssets(libs.bulma)
     implementation(libs.javalin)
     implementation(platform(libs.jetty.bom))
     implementation(platform(libs.jetty.ee10.bom))
@@ -43,6 +49,14 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.processResources {
+    from({ webAssets.map(::zipTree) }) {
+        include("META-INF/resources/webjars/bulma/*/css/bulma.min.css")
+        eachFile { path = "public/vendor/$name" }
+        includeEmptyDirs = false
+    }
 }
 
 // The pages in src/main/jte are turned into Kotlin and compiled with the rest, so a mistake in them fails the build

@@ -12,6 +12,7 @@ import gg.jte.TemplateEngine
 import gg.jte.output.StringOutput
 import io.javalin.Javalin
 import io.javalin.http.Context
+import io.javalin.http.staticfiles.Location
 import org.apache.logging.log4j.LogManager
 import org.mapdb.DB
 import org.mapdb.DBMaker
@@ -54,6 +55,7 @@ class HdlServer(
     private val templateEngine = TemplateEngine.createPrecompiled(ContentType.Html)
     private val startedAt = Instant.now()
     private var javalin: Javalin? = null
+    private var livePages: LivePages? = null
 
     @JvmField
     internal val activityLog = ActivityLog()
@@ -68,6 +70,7 @@ class HdlServer(
 
     fun start(port: Int): HdlServer {
         val hdlService = checkNotNull(hdlService) { "The server can't start without an HdlService" }
+        val livePages = LivePages { template -> renderLive(template, hdlService) }.also { livePages = it }
         javalin = Javalin.create { config ->
             config.startup.showJavalinBanner = false
             config.startup.showOldJavalinVersionWarning = false
@@ -75,6 +78,13 @@ class HdlServer(
             config.contextResolver.ip = { ctx -> ctx.req().remoteAddr }
             config.contextResolver.host = { ctx -> ctx.req().getHeader("Host") }
             config.jetty.modifyHttpConfiguration { httpConfiguration -> httpConfiguration.sendServerVersion = false }
+            // The pages' CSS, scripts and icons. The before-handlers below make them local-only, like the pages.
+            config.staticFiles.add { staticFiles ->
+                staticFiles.hostedPath = ASSETS_PATH
+                staticFiles.directory = "/public"
+                staticFiles.location = Location.CLASSPATH
+                staticFiles.mimeTypes.add("application/manifest+json", "webmanifest")
+            }
 
             config.routes.exception(HaltException::class.java) { e, ctx -> ctx.status(e.status).result(e.body) }
             config.routes.before { ctx ->
@@ -96,6 +106,7 @@ class HdlServer(
                     ctx.header("X-Frame-Options", "DENY")
                     ctx.header("X-Content-Type-Options", "nosniff")
                     ctx.header("Referrer-Policy", "strict-origin-when-cross-origin") // YouTube embeds need the origin
+                    ctx.header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
                 }
             }
 
@@ -104,6 +115,8 @@ class HdlServer(
             }
             config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
+            config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
+            config.routes.sse("/activity/events") { client -> livePages.add(client, "live/activity") }
             config.routes.post("/run_action") { ctx ->
                 val (message, succeeded) = runAction(hdlService, ctx.formParam("actionId"), ctx.formParam("value"), "Web page (${ctx.ip()})")
                 ctx.redirectWithMessage("/actions", message.takeIf { succeeded }, message.takeUnless { succeeded })
@@ -179,6 +192,8 @@ class HdlServer(
     fun port(): Int = checkNotNull(javalin) { "The server isn't started" }.port()
 
     fun stop() {
+        livePages?.close()
+        livePages = null
         javalin?.stop()
         javalin = null
     }
@@ -312,6 +327,18 @@ class HdlServer(
         throw HaltException(400, "{\"status\":\"error\",\"message\":\"Body must be a JSON object.\"}")
     }
 
+    /** The part of a page that [LivePages] keeps up to date. */
+    private fun renderLive(template: String, hdlService: HdlService): String {
+        val params = when (template) {
+            "live/status" -> mapOf("status" to status(hdlService))
+            "live/activity" -> mapOf("entries" to activityLog.entries())
+            else -> throw IllegalArgumentException("No live template $template")
+        }
+        val html = StringOutput()
+        templateEngine.render("$template.kte", params, html)
+        return html.toString()
+    }
+
     private fun render(ctx: Context, name: String, vararg extra: Pair<String, Any?>) {
         val page = Page(
             name = name,
@@ -435,6 +462,15 @@ class HdlServer(
 
         /** Comma-separated host names, besides IP addresses and local names, that the web pages may be reached by. */
         const val ALLOWED_HOSTS_PROPERTY = "hdlserver.allowedHosts"
+
+        const val ASSETS_PATH = "/assets"
+
+        /**
+         * Everything the pages load comes from this server, and no script is written into a page, so even a value that
+         * slipped past the templates' escaping couldn't run. Only the Demo page embeds a video from YouTube.
+         */
+        const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
+            "frame-src https://www.youtube-nocookie.com; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
 
         /** IFTTT's requests are well under 1 KiB; anything much bigger is someone trying to use up the memory. */
         const val MAX_API_BODY_BYTES = 16 * 1024

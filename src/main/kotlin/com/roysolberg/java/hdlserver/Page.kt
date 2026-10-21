@@ -14,4 +14,26 @@ class Page(
     val host: String,
     val successMessage: String?,
     val errorMessage: String?,
-)
+) {
+    /** The page's name in the menu and in the browser tab. */
+    val title: String
+        get() = MENU.firstOrNull { it.name == name }?.title ?: name.replaceFirstChar(Char::uppercase)
+
+    class MenuItem(val name: String, val title: String) {
+        val path: String
+            get() = if (name == "index") "/" else "/$name"
+    }
+
+    companion object {
+        @JvmField
+        val MENU = listOf(
+            MenuItem("index", "Components"),
+            MenuItem("actions", "Actions"),
+            MenuItem("activity", "Activity"),
+            MenuItem("status", "Status"),
+            MenuItem("security", "Security"),
+            MenuItem("settings", "Settings"),
+            MenuItem("demo", "Demo"),
+        )
+    }
+}

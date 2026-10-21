@@ -1,22 +1,19 @@
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
 @template.layout(page = page, content = @`
-<div class="row">
-    <div class="col-md-10 col-md-offset-1">
-        <h3>Security</h3>
-        <p>It's strongly recommended to use HTTPS for this server. If not using HTTPS and accessing it from Internet someone might pick up the commands being sent. The commands can replayed and someone might guess how to use other
-            commands.</p>
-
-        <p>The reason there is no login for the frontend of the web server is simple: The moment someone has access to the network where there are HDL Buspro traffic they don't need this server. All communication is done in plain text with
-            no security. Therefore securing the frontend with a login would add a false sense of security. The web server front end (not the API for the commands) requires the user to be in the same local network
-            (or on the same <a href="https://tailscale.com/">Tailscale</a> network, so you can use the pages away from home too).</p>
-
-        <p>The security for the API and the commands lies in an automatically created random key when starting the server the first time. If the requests for the commands are missing the correct key they will not be executed.</p>
-
-        <p>Keep in mind that there could potentially be security holes or weaknesses in the code of this server, the web framework it is built on, the built-in application server this runs on, the server you are running, your router, other
-            network components, IFTTT and Google Assistant. You have no guarantees. If you want to stay safe, you should stay offline.</p>
-
-        <p>If you want to learn a little more about security and HDL Buspro you can read the post at <a href="https://blog.roysolberg.com/2017/08/my-dumb-smart-home">https://blog.roysolberg.com/2017/08/my-dumb-smart-home</a>.</p>
-    </div>
+<h1 class="title">Security</h1>
+<div class="content box">
+    <p><strong>Use HTTPS</strong> for this server if you can. Without it, someone between IFTTT and you could pick up the commands being sent,
+        send them again, and maybe guess how to send others.</p>
+    <p><strong>Why is there no login on these pages?</strong> Anyone on the network the HDL Buspro bus is on doesn't need this server:
+        the bus has no security of its own, and everything on it is sent in plain text. A login would only give a false sense of security.
+        So these pages (not the API the commands use) only answer on the local network, or on the same
+        <a href="https://tailscale.com/" target="_blank" rel="noopener noreferrer">Tailscale</a> network, so you can use them away from home too.</p>
+    <p><strong>The API and the commands</strong> are guarded by a random key, made the first time the server started.
+        Requests without the right key aren't run.</p>
+    <p>No software is perfect. There could be weaknesses in this server, the libraries it builds on, the computer it runs on, your router,
+        other network equipment, IFTTT or Google Assistant. If you want to stay completely safe, stay offline.</p>
+    <p>Read more about security and HDL Buspro in
+        <a href="https://blog.roysolberg.com/2017/08/my-dumb-smart-home" target="_blank" rel="noopener noreferrer">My dumb smart home</a>.</p>
 </div>
 `)

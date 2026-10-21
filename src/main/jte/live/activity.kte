@@ -1,0 +1,29 @@
+@import com.roysolberg.java.hdlserver.ActivityLog
+@import com.roysolberg.java.hdlserver.Status
+@param entries: List<ActivityLog.Entry>
+@if(entries.isEmpty())
+<div class="notification">Nothing yet. Run an action from the <a href="/actions">Actions</a> page, or say one of your commands.</div>
+@else
+<div class="table-container">
+    <table class="table is-fullwidth is-hoverable activity-table">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>What</th>
+            <th>From</th>
+            <th>Result</th>
+        </tr>
+        </thead>
+        <tbody>
+        @for(entry in entries)
+        <tr>
+            <td class="activity-time">${Status.formatTime(entry.time)}</td>
+            <td class="activity-what">${entry.what}</td>
+            <td class="activity-from">${entry.source}</td>
+            <td class="activity-result"><span class="tag ${if (entry.succeeded) "is-success" else "is-danger"} is-light">${entry.result}</span></td>
+        </tr>
+        @endfor
+        </tbody>
+    </table>
+</div>
+@endif

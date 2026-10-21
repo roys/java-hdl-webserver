@@ -1,0 +1,318 @@
+/* What the pages need beyond Bulma. Bulma follows the system's light or dark mode by itself; so does everything here. */
+
+:root {
+    --app-alive: hsl(141, 53%, 53%);
+    --app-silent: hsl(348, 86%, 61%);
+}
+
+/* The menu's brand stays the turquoise of the icon; in dark mode the bar is a deeper shade, like theme-color */
+@media (prefers-color-scheme: dark) {
+    .navbar.is-primary {
+        --bulma-navbar-background-color: #006b5b;
+        background-color: #006b5b;
+        color: #fff;
+    }
+    .navbar.is-primary .navbar-item,
+    .navbar.is-primary .navbar-burger {
+        color: #fff;
+    }
+}
+
+.brand {
+    gap: .4rem;
+    font-weight: 600;
+}
+
+.navbar.is-primary .navbar-burger {
+    color: inherit;
+}
+
+.navbar.is-primary .navbar-item.is-active {
+    background-color: rgba(0, 0, 0, .1);
+    font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+    .navbar.is-primary .navbar-item.is-active {
+        background-color: rgba(255, 255, 255, .15);
+        color: #fff;
+    }
+}
+
+.icon svg {
+    width: 1.25em;
+    height: 1.25em;
+    fill: currentColor;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-header .title {
+    margin-bottom: 0;
+}
+
+/* Live: shown while the page gets updates from the server */
+.live-tag {
+    visibility: hidden;
+    gap: .4em;
+}
+
+.is-live .live-tag {
+    visibility: visible;
+}
+
+.live-tag::before {
+    content: "";
+    width: .5em;
+    height: .5em;
+    border-radius: 50%;
+    background: var(--app-alive);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    50% {
+        opacity: .25;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live-tag::before {
+        animation: none;
+    }
+}
+
+/* Status */
+.stat-label {
+    color: var(--bulma-text-weak);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: .25rem;
+}
+
+.columns .stat {
+    height: 100%;
+}
+
+.bus-state {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .5rem !important;
+}
+
+.dot {
+    width: .4em;
+    height: .4em;
+    border-radius: 50%;
+}
+
+.dot.is-alive {
+    background: var(--app-alive);
+    box-shadow: 0 0 0 .12em color-mix(in srgb, var(--app-alive) 30%, transparent);
+}
+
+.dot.is-silent {
+    background: var(--app-silent);
+    box-shadow: 0 0 0 .12em color-mix(in srgb, var(--app-silent) 30%, transparent);
+}
+
+.sparkline {
+    display: block;
+    width: 100%;
+    height: 80px;
+    margin-top: 1rem;
+}
+
+.sparkline stop {
+    stop-color: var(--bulma-primary);
+}
+
+.sparkline-area {
+    fill: url(#bus-fill);
+}
+
+.sparkline-line {
+    fill: none;
+    stroke: var(--bulma-primary);
+    stroke-width: 2;
+}
+
+.sparkline-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+}
+
+.server-table th {
+    width: 35%;
+}
+
+.server-table .progress {
+    margin-top: .5rem;
+}
+
+/* Activity: on phones, each entry is two lines instead of a wide table row */
+.activity-time {
+    white-space: nowrap;
+}
+
+@media screen and (max-width: 768px) {
+    .activity-table thead {
+        display: none;
+    }
+    .activity-table tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "what result" "time from";
+        padding: .5rem 0;
+        border-bottom: 1px solid var(--bulma-border-weak);
+    }
+    .activity-table td {
+        border: none !important;
+        padding: 0 .25rem !important;
+    }
+    .activity-what {
+        grid-area: what;
+        font-weight: 600;
+    }
+    .activity-result {
+        grid-area: result;
+        justify-self: end;
+    }
+    .activity-time,
+    .activity-from {
+        color: var(--bulma-text-weak);
+        font-size: .8rem;
+    }
+    .activity-time {
+        grid-area: time;
+    }
+    .activity-from {
+        grid-area: from;
+        justify-self: end;
+        text-align: right;
+    }
+}
+
+/* Actions */
+.action-card {
+    margin-bottom: 1.25rem;
+}
+
+.action-card .card-header {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    margin-left: auto;
+}
+
+.action-buttons form .field {
+    margin-bottom: 0;
+}
+
+.level-input {
+    width: 4.5em;
+}
+
+.commands-table {
+    margin-bottom: .75rem !important;
+}
+
+.how-to-call summary {
+    cursor: pointer;
+    color: var(--bulma-link);
+}
+
+.how-to-call dl {
+    margin-top: .75rem;
+    font-size: .875rem;
+}
+
+.how-to-call dt {
+    font-weight: 600;
+    margin-top: .5rem;
+}
+
+.how-to-call dd {
+    overflow-wrap: anywhere;
+}
+
+.how-to-call code {
+    white-space: normal;
+}
+
+.create-heading {
+    margin-top: 2.5rem;
+}
+
+.repeat-list {
+    margin-bottom: .75rem;
+}
+
+.repeat-row {
+    position: relative;
+    padding: .75rem 2.5rem .75rem .75rem;
+    margin-bottom: .5rem;
+    border: 1px solid var(--bulma-border-weak);
+    border-radius: var(--bulma-radius);
+}
+
+.repeat-row.is-compact {
+    padding: .5rem 2.5rem .5rem .5rem;
+}
+
+.repeat-row > .delete {
+    position: absolute;
+    top: .6rem;
+    right: .6rem;
+}
+
+/* Native dialogs, styled as Bulma boxes. Bulma's .box shows them even when closed, unless told otherwise. */
+dialog.box:not([open]) {
+    display: none;
+}
+
+dialog.box {
+    width: min(32rem, calc(100vw - 2rem));
+    margin: auto;
+    border: none;
+    padding: 1.5rem;
+}
+
+dialog::backdrop {
+    background: rgba(10, 10, 10, .6);
+}
+
+.page-footer {
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-top: 1px solid var(--bulma-border-weak);
+}
+
+/* Demo */
+.video {
+    max-width: 52rem;
+    aspect-ratio: 16 / 9;
+}
+
+.video iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: var(--bulma-radius-large);
+}
