@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.roysolberg.java"
-version = "2.0.0"
+version = "2.1.0-SNAPSHOT"
 description = "Web server for setting up and sending commands to an HDL Buspro smart home system."
 
 val mainClassName = "com.roysolberg.java.hdlserver.Application"

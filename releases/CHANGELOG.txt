@@ -3,6 +3,8 @@ Changelog for HDL Buspro server
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
+Version 2.1.0
+ * The server sends to the bus as 11/252 with its own device type (0xFFFB), so it can be told apart from the Android/iOS app (11/253) in the bus log and in HDL's Setup Tool.
 Version 2.0.0
  * Needs Java 17 or later (was Java 8). If yours is older, the server tells you what to do. See "Upgrading to version 2" in README.md.
  + Run any action straight from the Actions page.

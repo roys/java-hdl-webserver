@@ -42,6 +42,13 @@ public class HdlService {
     protected final static byte OPERATE_CODE_SEARCH_BYTE_2 = (byte) 0x0E;
     protected static final byte TARGET_SUBNET_ID_ALL = (byte) 0xFF;
     protected static final byte TARGET_DEVICE_ID_ALL = (byte) 0xFF;
+    // Who this server sends as. 0xFFFC is taken by HDL, 0xFFFD by the Android/iOS app and 0xFFFE by HDL's Setup Tool, so
+    // with 0xFFFB the bus log (and anyone else listening) can tell them apart.
+    public static final int SENDER_SUBNET_ID = 11;
+    public static final int SENDER_DEVICE_ID = 252;
+    public static final int SENDER_DEVICE_TYPE = 0xFFFB;
+    public static final int APP_DEVICE_TYPE = 0xFFFD; // 11/253
+    public static final int SETUP_TOOL_DEVICE_TYPE = 0xFFFE; // 12/254
 
     private static Logger logger = LogManager.getLogger("HDL");
     protected static final int MAX_QUEUED_ACTIONS = 50;
@@ -250,13 +257,11 @@ public class HdlService {
         bytes[15] = (byte) 0xAA;
         // Length
         bytes[BYTE_POSITION_LENGTH] = (byte) 0x0B; // 11 is the least it can be
-        // Original subnet ID
-        bytes[BYTE_POSITION_SUBNET_ID] = (byte) 0x0B; // HDL-BUS Pro Setup Tool seems to use 12 - we use 11
-        // Original device ID
-        bytes[BYTE_POSITION_DEVICE_ID] = (byte) 0xFD; // HDL-BUS Pro Setup Tool seems to use 254 - we use 253
-        // Original device type
-        bytes[BYTE_POSITION_DEVICE_TYPE_BYTE_1] = (byte) 0xFF; // HDL-BUS Pro Setup Tool seems to use 65534 - we use 65533
-        bytes[BYTE_POSITION_DEVICE_TYPE_BYTE_2] = (byte) 0xFD;
+        // Original subnet ID, device ID and device type
+        bytes[BYTE_POSITION_SUBNET_ID] = (byte) SENDER_SUBNET_ID;
+        bytes[BYTE_POSITION_DEVICE_ID] = (byte) SENDER_DEVICE_ID;
+        bytes[BYTE_POSITION_DEVICE_TYPE_BYTE_1] = (byte) (SENDER_DEVICE_TYPE >> 8);
+        bytes[BYTE_POSITION_DEVICE_TYPE_BYTE_2] = (byte) SENDER_DEVICE_TYPE;
         return bytes;
     }
 
@@ -313,9 +318,11 @@ public class HdlService {
 
     public static HdlComponent getComponent(int subnetId, int deviceId, int deviceType, String remark) {
         switch (deviceType) {
-            case 0xFFFD:
-                return new UnsupportedComponent(subnetId, deviceId, deviceType, remark, "This app");
-            case 0xFFFE:
+            case SENDER_DEVICE_TYPE:
+                return new UnsupportedComponent(subnetId, deviceId, deviceType, remark, "This server");
+            case APP_DEVICE_TYPE:
+                return new UnsupportedComponent(subnetId, deviceId, deviceType, remark, "Android/iOS app");
+            case SETUP_TOOL_DEVICE_TYPE:
                 return new UnsupportedComponent(subnetId, deviceId, deviceType, remark, "HDL-BUS Pro Setup Tool");
             default:
                 return HdlComponentFactory.getHdlComponent(subnetId, deviceId, deviceType, remark);

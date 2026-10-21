@@ -3,7 +3,6 @@ package com.roysolberg.java.hdlserver.service;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
-import com.roysolberg.java.hdlserver.hdl.component.UnsupportedComponent;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
@@ -33,7 +32,7 @@ class HdlServiceTest {
 
         byte[] bytes = HdlService.getDimmerPackage(LOCAL_ADDRESS, command, 30);
 
-        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 10 0b fd ff fd 00 31 01 28 03 1e 00 00 0f 14 71", bytes);
+        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 10 0b fc ff fb 00 31 01 28 03 1e 00 00 0f 64 bb", bytes);
     }
 
     @Test
@@ -42,7 +41,7 @@ class HdlServiceTest {
 
         byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, command);
 
-        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 0d 0b fd ff fd e3 d8 01 51 12 01 d1 ee", bytes);
+        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 0d 0b fc ff fb e3 d8 01 51 12 01 9b e8", bytes);
     }
 
     @Test
@@ -77,9 +76,19 @@ class HdlServiceTest {
     }
 
     @Test
-    void ownAndSetupToolPackagesAreUnsupportedComponents() {
-        assertTrue(HdlService.getComponent(11, 253, 0xFFFD, null) instanceof UnsupportedComponent);
-        assertTrue(HdlService.getComponent(12, 254, 0xFFFE, null) instanceof UnsupportedComponent);
+    void theServerTheAppAndTheSetupToolAreToldApart() {
+        assertEquals("This server", HdlService.getComponent(11, 252, 0xFFFB, null).getDescription());
+        assertEquals("Android/iOS app", HdlService.getComponent(11, 253, 0xFFFD, null).getDescription());
+        assertEquals("HDL-BUS Pro Setup Tool", HdlService.getComponent(12, 254, 0xFFFE, null).getDescription());
+    }
+
+    @Test
+    void theServerSendsAs11Slash252WithItsOwnDeviceType() {
+        byte[] bytes = HdlService.getDefaultPackage(InetAddress.getLoopbackAddress());
+
+        assertEquals(11, bytes[HdlService.BYTE_POSITION_SUBNET_ID] & 0xFF);
+        assertEquals(252, bytes[HdlService.BYTE_POSITION_DEVICE_ID] & 0xFF);
+        assertEquals(0xFFFB, HdlService.getComponentFromBytes(bytes, false, null).getDeviceType());
     }
 
     @Test
