@@ -1,4 +1,9 @@
 # Web server for HDL Buspro
+
+> 📦 **Version 2 is out**, with Activity and Status pages, running actions right from the web page, and easier updates.
+> It needs Java 17. This is version 1.1.1 for Java 8, which stays here on `master`, so `git pull` won't move you.
+> See [version 2 and how to upgrade](https://github.com/roys/java-hdl-webserver/tree/v2#upgrading-to-version-2).
+
 **This is a web server for setting up and communicating with the smart home system *HDL Buspro*. It was mainly built for
 the purpose of integrating with *Google Assistant* (Google Home and Google Pixel).**
 
