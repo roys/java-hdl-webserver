@@ -2,10 +2,10 @@
 
 **Talk to your HDL Buspro smart home.** *"OK Google, activate Screens up"*, and the screens go up.
 
-A small web server that turns web requests into HDL Buspro commands. Use it with Google Assistant through IFTTT, or with
-anything else that can send a web request. It runs happily on a Raspberry Pi.
+A small, self-hosted bridge from web requests to HDL Buspro commands. Control your house from its web pages, from Google
+Assistant through IFTTT, or from anything else that can send a web request. It runs happily on a Raspberry Pi.
 
-[![Build](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml/badge.svg)](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml)
+[![Build](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml/badge.svg?branch=v2)](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/roys/java-hdl-webserver)](https://github.com/roys/java-hdl-webserver/releases)
 ![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)
 [![MIT license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -14,20 +14,20 @@ anything else that can send a web request. It runs happily on a Raspberry Pi.
 
 [What you get](#-what-you-get) · [How it works](#-how-it-works) · [Quick start](#-quick-start) ·
 [Raspberry Pi](#-set-it-up-on-a-raspberry-pi) · [Voice commands](#-voice-commands-with-ifttt) ·
-[Updating](#-updating) · [Security](#-security)
+[Updating](#-updating-the-server) · [Security](#-security)
 
 ---
 
 ## ✨ What you get
 
-- 🔍 **Finds your devices.** Searches the bus and lists every module: dimmers, relays, curtains, panels, sensors.
+- 🔍 **Finds your devices.** Searches the bus and lists the modules that answer: dimmers, relays, curtains, panels, sensors.
 - 🎛️ **Actions without code.** Set up dimmer and custom actions (panel buttons, curtains, switches) on a web page.
 - ▶️ **Run them right there.** Test an action with one click, or set a dimmer to any level.
 - 🎤 **Voice control.** Google Assistant through IFTTT, or Siri Shortcuts, Tasker, Home Assistant, `curl`…
-- 📋 **Activity.** What was done, when and from where, and what was refused.
-- 💓 **Status.** Is the HDL bus alive, how long has the server run, and how warm is the Pi.
-- 🔒 **Safe by default.** A random key guards the API. The pages only answer your home network, or [Tailscale](https://tailscale.com/) when you're away.
-- 🔄 **One-command updates** that check the new version runs before changing anything.
+- 📋 **Recent activity.** The latest 100 actions run or refused, with when and from where.
+- 💓 **Status.** Is the HDL bus alive, how long has the server run, and how warm is the Pi (when it can tell).
+- 🔒 **Protected.** A random key guards the API. The pages only answer your home network, or [Tailscale](https://tailscale.com/) when you're away.
+- 🔄 **Safe updates.** One command checks that the new version runs on your Java before installing it, then restarts the server.
 
 <table>
   <tr>
@@ -35,10 +35,12 @@ anything else that can send a web request. It runs happily on a Raspberry Pi.
     <td><img src="misc/screenshots/activity.png" alt="The Activity page lists what was done, when and from where" /></td>
   </tr>
   <tr>
-    <td align="center">Every module on the bus</td>
-    <td align="center">Everything that happened</td>
+    <td align="center">The modules on the bus</td>
+    <td align="center">Recent actions and refusals</td>
   </tr>
 </table>
+
+<sub>Screenshots show example data.</sub>
 
 🎬 **See it in action:** [the original demo on YouTube](https://youtu.be/P6BgsM8IiW8)
 
@@ -61,8 +63,11 @@ at that URL, the server sends the action's HDL commands to the bus.
 
 ## 🚀 Quick start
 
-You need **Java 17 or later** (e.g. [Eclipse Temurin](https://adoptium.net/)) and
-[the server JAR](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar).
+You need:
+
+- An **HDL Buspro IP gateway** on the same network
+- **Java 17 or later** (e.g. [Eclipse Temurin](https://adoptium.net/))
+- [The server JAR](https://github.com/roys/java-hdl-webserver/releases/latest/download/hdlserver-LATEST.jar)
 
 ```sh
 java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application
@@ -138,9 +143,9 @@ Check it with `systemctl status hdlserver`.
 **5. Open it to the Internet** (only needed for IFTTT and other outside callers):
 
 - Give the Pi a fixed IP address in your router.
-- Forward a port from the Internet to port 4567 on the Pi. Pick a high port number other than 4567.
+- Expose only `/api/`, preferably through an HTTPS reverse proxy. If you forward a port directly instead, forward a high
+  port number other than 4567 to port 4567 on the Pi.
 - Get a host name that follows your IP address, with dynamic DNS (many routers can do this themselves).
-- Using a reverse proxy, e.g. for HTTPS? Only pass on paths that start with `/api/`.
 
 Only the API needs to be reachable from the Internet. For anything else, like SSH or the web pages, use a VPN like
 [Tailscale](https://tailscale.com/) instead of forwarding more ports.
@@ -173,8 +178,9 @@ Google Assistant doesn't talk to the server directly, so [IFTTT](https://ifttt.c
 ### 1. Create an action
 
 On the server's **Actions** page, create a **custom action**. Give it a name, e.g. *Open the garage*, and pick what it
-should do. Pressing a panel button works great: choose the panel, **Panel control**, and **Control button** as parameter 1. Then
-set the button number as parameter 2, and 1 (on) or 0 (off) as parameter 3. Add more commands to do several things at once.
+should do. Pressing a panel button works great: choose the panel and **Panel control**, then set **Parameter 1** to `18` (Control
+button), **Parameter 2** to the button number, and **Parameter 3** to `1` (on) or `0` (off). Add more commands to do
+several things at once.
 
 Click **▶ Run** to try it. 🎯
 
@@ -213,9 +219,7 @@ curl -X POST -H 'Content-Type: application/json' -d '{"auth":"<your key>","value
 
 ---
 
-## 🔄 Updating
-
-### Updating the server
+## 🔄 Updating the server
 
 Run this inside `~/java-hdl-webserver`:
 
@@ -227,7 +231,7 @@ It checks that the new version runs on your Java *before* it changes anything, a
 actions and devices are kept (they're in `hdlserver.db`), so your IFTTT applets keep working.
 
 Didn't use `git clone`? Replace `hdlserver-LATEST.jar` with
-[the latest one](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar), and restart the server.
+[the latest one](https://github.com/roys/java-hdl-webserver/releases/latest/download/hdlserver-LATEST.jar), and restart the server.
 
 <details>
 <summary>🌐 Opening the pages by a host name with dots in it</summary>
@@ -245,19 +249,23 @@ java -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.royso
 Version 2 needs **Java 17 or later** (version 1 ran on Java 8). Everything else stays the same: the start command, port
 4567, the API your IFTTT applets call, and `hdlserver.db` with your key, actions and devices.
 
+Version 1 lives on in the `master` branch, so `git pull` keeps you on version 1 until you choose to switch.
+
 1. Check your Java with `java -version`. If it's older than 17, install a newer one first (see [the Raspberry Pi setup](#-set-it-up-on-a-raspberry-pi)).
-2. Update as before: `git pull` inside `~/java-hdl-webserver` (and from then on, `./update.sh`), or replace the JAR.
-3. Restart the server.
+2. Switch to version 2 inside `~/java-hdl-webserver`:
+   ```sh
+   git fetch origin
+   git checkout v2
+   ```
+   (Or, without Git: replace the JAR with [the latest one](https://github.com/roys/java-hdl-webserver/releases/latest/download/hdlserver-LATEST.jar).)
+3. Restart the server. From now on, `./update.sh` keeps you up to date.
 
-If the server is started on a Java older than 17, it says why, on the screen and in `logs/hdl-server.log`, and doesn't
-start. To go back to version 1.1.1, which runs on Java 8, run this inside `~/java-hdl-webserver`:
+Going back to version 1.1.1, which runs on Java 8, is just `git checkout master` and a restart (or download it from
+[the 1.1.1 release](https://github.com/roys/java-hdl-webserver/releases/tag/v1.1.1)). If the server is started on a Java
+older than 17, it says why, on the screen and in `logs/hdl-server.log`, and doesn't start.
 
-```sh
-git checkout v1.1.1 -- releases/hdlserver-LATEST.jar
-```
-
-Or download it from [the 1.1.1 release](https://github.com/roys/java-hdl-webserver/releases/tag/v1.1.1). Once you have
-Java 17, `git checkout -- releases/hdlserver-LATEST.jar` takes you back to the latest version.
+Using the service from [step 4](#-set-it-up-on-a-raspberry-pi)? It's new in version 2: set it up, and remove the old
+`@reboot` line from the crontab.
 
 <details>
 <summary>Small differences from version 1, if you call the server in other ways than described here</summary>
@@ -276,7 +284,7 @@ Java 17, `git checkout -- releases/hdlserver-LATEST.jar` takes you back to the l
   them away from home too.
 - 🔐 **Use HTTPS** if you can, e.g. through a reverse proxy. Without it, someone between IFTTT and you could pick up a
   command and send it again.
-- ⬆️ **Running version 1.0.3 or earlier?** [Update](#updating-the-server). Those versions have known security vulnerabilities.
+- ⬆️ **Running version 1.0.3 or earlier?** [Update](#-updating-the-server). Those versions have known security vulnerabilities.
 
 **Why is there no login on the web pages?** Anyone on your home network can already talk to HDL Buspro directly. It has no
 security of its own, and everything is sent in plain text. A login would only give a false sense of security.
