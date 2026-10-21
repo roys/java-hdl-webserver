@@ -14,9 +14,12 @@ import org.mapdb.DB;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -57,6 +60,8 @@ public class HdlService {
     private final ConcurrentMap components;
     private final DB database;
     private final BusStats busStats = new BusStats();
+    /** The modules that have answered a search since the server started, so the ones that no longer exist stand out. */
+    private final Set<String> answeredComponentIds = ConcurrentHashMap.newKeySet();
     /** One action at a time, so their commands don't interleave on the bus, and a bounded number waiting. */
     private final ExecutorService commandSender = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_ACTIONS), runnable -> {
         Thread thread = new Thread(runnable, "hdl-command-sender");
@@ -107,6 +112,7 @@ public class HdlService {
                             final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
                             if (isSearchResponse) {
                                 String componentId = HdlUtil.getComponentId(hdlComponent);
+                                answeredComponentIds.add(componentId);
                                 if (isNewOrChanged((HdlComponent) components.get(componentId), hdlComponent)) {
                                     components.put(componentId, hdlComponent);
                                     database.commit();
@@ -305,6 +311,10 @@ public class HdlService {
             return true;
         }
         return false;
+    }
+
+    public Set<String> getAnsweredComponentIds() {
+        return Collections.unmodifiableSet(answeredComponentIds);
     }
 
     /**

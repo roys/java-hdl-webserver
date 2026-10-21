@@ -220,9 +220,25 @@ class TemplatesTest {
         assertTrue(html.contains("data-parameter=\"3\" hidden"), "Scene control has no third parameter");
     }
 
+    @Test
+    void modulesThatHaveNotAnsweredCanBeRemoved() {
+        DimmerComponent answering = new DimmerComponent(1, 40, 600, "Kitchen", 2);
+        DimmerComponent gone = new DimmerComponent(1, 41, 600, "Old dimmer", 2);
+        Page page = new Page("index", "TOKEN", Arrays.asList(answering, gone), Collections.emptyList(), "host", null, null);
+
+        String html = render("index", page, "answered", Collections.singleton("1-40-600"));
+
+        assertEquals(1, html.split("No answer</span>").length - 1, "Only the one that hasn't answered");
+        assertTrue(html.indexOf("No answer</span>") > html.indexOf("Old dimmer"));
+        assertTrue(html.contains("data-open=\"removeComponent-1-41-600\""));
+        assertTrue(html.contains("<input type=\"hidden\" name=\"componentId\" value=\"1-41-600\"/>"));
+        assertTrue(html.contains("Remove Old dimmer (1/41)?"));
+    }
+
+    /** Like the server does it: with the parameters by name, so the template's other parameters get their defaults. */
     private String render(Page page) {
         StringOutput output = new StringOutput();
-        templateEngine.render(page.getName() + ".kte", page, output);
+        templateEngine.render(page.getName() + ".kte", Collections.singletonMap("page", page), output);
         return output.toString();
     }
 

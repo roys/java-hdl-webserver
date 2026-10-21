@@ -1,6 +1,7 @@
 package com.roysolberg.java.hdlserver;
 
 import com.roysolberg.java.hdlserver.hdl.Action;
+import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent;
 import com.roysolberg.java.hdlserver.service.HdlService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.Scanner;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -108,6 +110,13 @@ class ApiContractTest {
         assertEquals(403, postFormTo(lanAddress, "/run_action", "actionId=1", "http://evil.example.com").status, "Another origin");
         assertTrue(hdlService.calls.isEmpty());
 
+        Map<String, Object> components = components();
+        components.put("9-99-600", new DimmerComponent(9, 99, 600, "Fake dimmer", 1));
+        RawResponse remove = postFormTo(lanAddress, "/delete_component", "componentId=9-99-600", origin);
+        assertTrue(remove.text.contains("success=Removed"), remove.statusLine);
+        assertFalse(components.containsKey("9-99-600"));
+        assertTrue(postFormTo(lanAddress, "/delete_component", "componentId=9-99-600", origin).text.contains("error=Unable"));
+
         int actionsBefore = database.hashMap("actions").createOrOpen().size();
         RawResponse madeUp = postFormTo(lanAddress, "/create_custom_action",
                 "description=Made+up&components%5B%5D=1%3A20&operations%5B%5D=4660&parameters1%5B%5D=1", origin);
@@ -145,6 +154,11 @@ class ApiContractTest {
                 assertTrue(data.contains(path.startsWith("/status") ? "HDL bus" : "Nothing yet") || data.contains("activity-table"), data);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> components() {
+        return (Map<String, Object>) (Map<?, ?>) database.hashMap("components").createOrOpen();
     }
 
     /**
@@ -310,7 +324,7 @@ class ApiContractTest {
      * The tests reach the server from 127.0.0.1, which, like any address outside the local network, gets no web pages.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"GET /", "GET /actions", "GET /settings", "POST /update_settings", "POST /delete_action", "POST /search_for_components", "POST /create_custom_action", "POST /create_dimmer_action",
+    @ValueSource(strings = {"GET /", "GET /actions", "GET /settings", "POST /update_settings", "POST /delete_action", "POST /search_for_components", "POST /create_custom_action", "POST /create_dimmer_action", "POST /delete_component",
             "GET /activity", "GET /status", "POST /run_action"})
     void webPagesAreNotForNonLocalAddresses(String request) throws IOException {
         String[] methodAndPath = request.split(" ");

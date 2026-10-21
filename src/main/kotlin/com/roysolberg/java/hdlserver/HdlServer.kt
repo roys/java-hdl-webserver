@@ -118,9 +118,10 @@ class HdlServer(
                 }
             }
 
-            for (page in listOf("index", "actions", "security", "demo", "settings")) {
-                config.routes.get(if (page == "index") "/" else "/$page") { ctx -> render(ctx, page) }
+            for (page in listOf("actions", "security", "demo", "settings")) {
+                config.routes.get("/$page") { ctx -> render(ctx, page) }
             }
+            config.routes.get("/") { ctx -> render(ctx, "index", "answered" to hdlService.answeredComponentIds) }
             config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
             config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
@@ -177,6 +178,15 @@ class HdlServer(
                     ctx.redirectWithMessage("/actions", "Action was successfully deleted.", null)
                 } else {
                     ctx.redirectWithMessage("/actions", null, "Unable to find action.")
+                }
+            }
+            config.routes.post("/delete_component") { ctx ->
+                val component = ctx.formParam("componentId")?.let(componentsConcurrentMap::remove)
+                if (component != null) {
+                    database.commit()
+                    ctx.redirectWithMessage("/", "Removed ${component.remark.orEmpty().ifEmpty { "the module" }} (${component.subnet}/${component.deviceId}). If it's still on the bus, the next search finds it again.", null)
+                } else {
+                    ctx.redirectWithMessage("/", null, "Unable to find the module.")
                 }
             }
             config.routes.post("/search_for_components") { ctx ->

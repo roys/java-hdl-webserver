@@ -1,6 +1,8 @@
 @import com.roysolberg.java.hdlserver.Icon
 @import com.roysolberg.java.hdlserver.Page
+@import com.roysolberg.java.hdlserver.util.HdlUtil
 @param page: Page
+@param answered: Set<String> = setOf()
 @template.layout(page = page, content = @`
 <div class="page-header">
     <h1 class="title">Components</h1>
@@ -8,7 +10,8 @@
         <button type="submit" class="button is-primary is-light">@template.icon(icon = Icon.Search)<span>Search again</span></button>
     </form>
 </div>
-<p class="subtitle is-6 has-text-grey">${page.components.size} modules answered the search on the HDL bus.</p>
+<p class="subtitle is-6 has-text-grey">${page.components.size} modules found on the HDL bus. The ones marked <i>No answer</i> haven't answered since the
+    server started, like modules that have been replaced or removed.</p>
 <div class="table-container">
     <table class="table is-fullwidth is-hoverable is-striped">
         <thead>
@@ -16,14 +19,36 @@
             <th>Address</th>
             <th>Name</th>
             <th>Type</th>
+            <th><span class="is-sr-only">Remove</span></th>
         </tr>
         </thead>
         <tbody>
         @for(component in page.components)
+        !{val id = HdlUtil.getComponentId(component)}
+        !{val name = component.remark.orEmpty().ifEmpty { "this module" }}
         <tr>
             <td class="is-family-monospace">${component.subnet}/${component.deviceId}</td>
-            <th>${component.remark}</th>
+            <th>
+                ${component.remark}
+                @if(id !in answered)
+                <span class="tag is-warning is-light" title="Hasn't answered a search since the server started">No answer</span>
+                @endif
+            </th>
             <td>${component.description}</td>
+            <td class="has-text-right">
+                <button type="button" class="button is-small" title="Remove" aria-label="Remove ${name}" data-open="removeComponent-${id}">@template.icon(icon = Icon.Delete)</button>
+                <dialog id="removeComponent-${id}" class="box has-text-left">
+                    <form action="delete_component" method="post">
+                        <input type="hidden" name="componentId" value="${id}"/>
+                        <p class="title is-5">Remove ${name} (${component.subnet}/${component.deviceId})?</p>
+                        <p class="block">It's only removed from this list; your actions are unchanged. If it's still on the bus, the next search finds it again.</p>
+                        <div class="buttons is-right">
+                            <button type="button" class="button" data-close>Cancel</button>
+                            <button type="submit" class="button is-danger">Remove</button>
+                        </div>
+                    </form>
+                </dialog>
+            </td>
         </tr>
         @endfor
         </tbody>
