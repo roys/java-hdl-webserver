@@ -22,7 +22,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -57,11 +59,13 @@ public class HdlService {
 
     private static Logger logger = LogManager.getLogger("HDL");
     protected static final int MAX_QUEUED_ACTIONS = 50;
+    private static final int SEARCHES = 3;
+    private static final long SECONDS_BETWEEN_SEARCHES = 4;
     private final ConcurrentMap components;
     private final DB database;
     private final BusStats busStats = new BusStats();
-    /** The modules that have answered a search since the server started, so the ones that no longer exist stand out. */
-    private final Set<String> answeredComponentIds = ConcurrentHashMap.newKeySet();
+    /** The modules heard on the bus since the server started, so the ones that no longer exist stand out. */
+    private final Set<String> heardComponentIds = ConcurrentHashMap.newKeySet();
     /** One action at a time, so their commands don't interleave on the bus, and a bounded number waiting. */
     private final ExecutorService commandSender = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_ACTIONS), runnable -> {
         Thread thread = new Thread(runnable, "hdl-command-sender");
@@ -92,7 +96,22 @@ public class HdlService {
      */
     public void start() {
         run();
-        doOneTimeQuickSearchForComponents();
+        searchForComponents();
+    }
+
+    /**
+     * Searches a few times, a few seconds apart: with dozens of modules answering at once, some answers get lost.
+     */
+    public void searchForComponents() {
+        ScheduledExecutorService searcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "hdl-search");
+            thread.setDaemon(true);
+            return thread;
+        });
+        for (int i = 0; i < SEARCHES; i++) {
+            searcher.schedule(this::doOneTimeQuickSearchForComponents, i * SECONDS_BETWEEN_SEARCHES, TimeUnit.SECONDS);
+        }
+        searcher.shutdown(); // Ends the thread once the searches are sent
     }
 
     protected void run() {
@@ -110,9 +129,9 @@ public class HdlService {
                             //logger.info("Received package " + nicelyFormattedBytes + ".");
                             final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);
                             final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
+                            String componentId = HdlUtil.getComponentId(hdlComponent);
+                            heardComponentIds.add(componentId);
                             if (isSearchResponse) {
-                                String componentId = HdlUtil.getComponentId(hdlComponent);
-                                answeredComponentIds.add(componentId);
                                 if (isNewOrChanged((HdlComponent) components.get(componentId), hdlComponent)) {
                                     components.put(componentId, hdlComponent);
                                     database.commit();
@@ -313,8 +332,8 @@ public class HdlService {
         return false;
     }
 
-    public Set<String> getAnsweredComponentIds() {
-        return Collections.unmodifiableSet(answeredComponentIds);
+    public Set<String> getHeardComponentIds() {
+        return Collections.unmodifiableSet(heardComponentIds);
     }
 
     /**

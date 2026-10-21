@@ -2,7 +2,7 @@
 @import com.roysolberg.java.hdlserver.Page
 @import com.roysolberg.java.hdlserver.util.HdlUtil
 @param page: Page
-@param answered: Set<String> = setOf()
+@param heard: Set<String> = setOf()
 @template.layout(page = page, content = @`
 <div class="page-header">
     <h1 class="title">Components</h1>
@@ -10,8 +10,8 @@
         <button type="submit" class="button is-primary is-light">@template.icon(icon = Icon.Search)<span>Search again</span></button>
     </form>
 </div>
-<p class="subtitle is-6 has-text-grey">${page.components.size} modules found on the HDL bus. The ones marked <i>No answer</i> haven't answered since the
-    server started, like modules that have been replaced or removed.</p>
+<p class="subtitle is-6 has-text-grey">${page.components.size} modules found on the HDL bus. The ones marked <i>Not heard</i> haven't said anything since
+    the server started, like modules that have been replaced or removed. Give it a few minutes after a restart.</p>
 <div class="table-container">
     <table class="table is-fullwidth is-hoverable is-striped">
         <thead>
@@ -30,8 +30,8 @@
             <td class="is-family-monospace">${component.subnet}/${component.deviceId}</td>
             <th>
                 ${component.remark}
-                @if(id !in answered)
-                <span class="tag is-warning is-light" title="Hasn't answered a search since the server started">No answer</span>
+                @if(id !in heard)
+                <span class="tag is-warning is-light" title="Hasn't said anything on the bus since the server started">Not heard</span>
                 @endif
             </th>
             <td>${component.description}</td>

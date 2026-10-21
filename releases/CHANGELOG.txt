@@ -13,7 +13,8 @@ Version 2.1.0
  * Custom actions show what each parameter means for the chosen operation, e.g. Area and Scene number.
  * Bugfix: Single channel control in custom actions sent an incomplete command. Parameter 3 is now its run time in seconds.
  * "UV switch control" is now called universal switch control, like HDL calls it.
- + Modules can be removed from the Components page. Ones that haven't answered since the server started are marked, so old ones are easy to spot.
+ + Modules can be removed from the Components page. Ones that haven't been heard on the bus since the server started are marked, so old ones are easy to spot.
+ * The server searches for modules three times when it starts, since some answers get lost when dozens of modules answer at once.
  * IP modules are recognized, and a module renamed in HDL's setup tool gets its new name here on the next search.
  + The port can be changed with -Dhdlserver.port=<port>. See "Settings" in README.md.
  * The server sends to the bus as 11/252 with its own device type (0xFFFB), so it can be told apart from the Android/iOS app (11/253) in the bus log and in HDL's Setup Tool.

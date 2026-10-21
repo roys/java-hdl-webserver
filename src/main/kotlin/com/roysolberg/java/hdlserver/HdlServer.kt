@@ -121,7 +121,7 @@ class HdlServer(
             for (page in listOf("actions", "security", "demo", "settings")) {
                 config.routes.get("/$page") { ctx -> render(ctx, page) }
             }
-            config.routes.get("/") { ctx -> render(ctx, "index", "answered" to hdlService.answeredComponentIds) }
+            config.routes.get("/") { ctx -> render(ctx, "index", "heard" to hdlService.heardComponentIds) }
             config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
             config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
@@ -190,8 +190,8 @@ class HdlServer(
                 }
             }
             config.routes.post("/search_for_components") { ctx ->
-                hdlService.doOneTimeQuickSearchForComponents()
-                ctx.redirectWithMessage("/", "Performing search. Please refresh page to see any new components found.", null)
+                hdlService.searchForComponents()
+                ctx.redirectWithMessage("/", "Searching. Reload the page in about 10 seconds to see what was found.", null)
             }
             config.routes.post("/update_settings") { ctx ->
                 val authKey = ctx.formParam("authKey")?.trim()
