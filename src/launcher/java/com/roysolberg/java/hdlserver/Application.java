@@ -21,6 +21,7 @@ import java.util.Date;
 public final class Application {
 
     static final int REQUIRED_JAVA_VERSION = 17;
+    static final String NAME = "Busbridge for HDL Buspro";
     private static final String SERVER_CLASS = "com.roysolberg.java.hdlserver.HdlServer";
     private static final Path LOG_FILE = Paths.get("logs", "hdl-server.log");
 
@@ -41,7 +42,7 @@ public final class Application {
         }
         Class<?> server = Class.forName(SERVER_CLASS);
         if (args.length > 0 && "--version".equals(args[0])) {
-            System.out.println("HDL Buspro server " + version() + " on Java " + javaVersion);
+            System.out.println(NAME + " " + version() + " on Java " + javaVersion);
             return;
         }
         MethodHandles.publicLookup().findStatic(server, "main", MethodType.methodType(void.class, String[].class)).invoke(args);
@@ -64,7 +65,7 @@ public final class Application {
     }
 
     static String tooOldJavaMessage(String version, String javaVersion) {
-        return "HDL Buspro server " + version + " needs Java " + REQUIRED_JAVA_VERSION + " or later, but this is Java " + javaVersion + ".\n"
+        return NAME + " " + version + " needs Java " + REQUIRED_JAVA_VERSION + " or later, but this is Java " + javaVersion + ".\n"
                 + " - Install Java " + REQUIRED_JAVA_VERSION + " or later, e.g. on Raspberry Pi OS: sudo apt install openjdk-" + REQUIRED_JAVA_VERSION + "-jre-headless\n"
                 + " - Or go back to version 1.1.1, which runs on Java 8: in the folder you cloned the server to, run\n"
                 + "   git checkout v1.1.1 -- releases/hdlserver-LATEST.jar\n"

@@ -1,9 +1,10 @@
-Changelog for HDL Buspro server
+Changelog for Busbridge for HDL Buspro (until 2.1: HDL Buspro server)
 
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
 Version 2.1.0
+ * HDL Buspro server is now called Busbridge for HDL Buspro. How it's installed, run and updated stays the same.
  + A new look for the web pages. They work well on phones, follow your light or dark mode, and can be added to your home screen.
  + The Status and Activity pages update live, without reloading.
  * Your actions come first on the Actions page, each with a big Run button, and with how to call it folded away until you need it.

@@ -7,7 +7,7 @@ plugins {
 
 group = "com.roysolberg.java"
 version = "2.1.0-SNAPSHOT"
-description = "Web server for setting up and sending commands to an HDL Buspro smart home system."
+description = "Busbridge for HDL Buspro: a self-hosted bridge between an HDL Buspro smart home and web pages, voice assistants and anything else that can send a web request."
 
 val mainClassName = "com.roysolberg.java.hdlserver.Application"
 

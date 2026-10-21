@@ -1,5 +1,5 @@
 #!/bin/bash
-# Updates the HDL Buspro server to the latest release on GitHub, but only if the new version can run on the Java that
+# Updates Busbridge for HDL Buspro to the latest release on GitHub, but only if the new version can run on the Java that
 # runs the server. The server keeps running the current version until it's restarted, and isn't touched at all if the
 # check fails.
 set -euo pipefail

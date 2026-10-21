@@ -1,9 +1,10 @@
-# 🏠 HDL Buspro server
+# 🏠 Busbridge for HDL Buspro
 
 **Talk to your HDL Buspro smart home.** *"Hey Google, activate Screens up"*, and the screens go up.
 
-A small, self-hosted bridge from web requests to HDL Buspro commands. Control your house from its web pages, from Google
-Assistant through IFTTT, or from anything else that can send a web request. It runs happily on a Raspberry Pi.
+Busbridge is a small, self-hosted bridge between your HDL Buspro bus and everything else. Control your house from its web
+pages, from Google Assistant through IFTTT, or from anything else that can send a web request. It runs happily on a
+Raspberry Pi.
 
 [![Build](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml/badge.svg?branch=v2)](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/roys/java-hdl-webserver)](https://github.com/roys/java-hdl-webserver/releases)
@@ -114,7 +115,7 @@ user name and home folder):
 ```sh
 sudo tee /etc/systemd/system/hdlserver.service > /dev/null <<EOF
 [Unit]
-Description=HDL Buspro server
+Description=Busbridge for HDL Buspro
 Wants=network-online.target
 After=network-online.target
 

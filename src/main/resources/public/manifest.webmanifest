@@ -1,6 +1,6 @@
 {
-  "name": "HDL Buspro server",
-  "short_name": "Smart Home",
+  "name": "Busbridge for HDL Buspro",
+  "short_name": "Busbridge",
   "description": "Actions, activity and status for your HDL Buspro smart home.",
   "start_url": "/",
   "scope": "/",

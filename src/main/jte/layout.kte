@@ -9,7 +9,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${page.title} · HDL Buspro server</title>
+    <title>${page.title} · Busbridge</title>
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#00d1b2" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#006b5b" media="(prefers-color-scheme: dark)">
@@ -26,7 +26,7 @@
         <div class="navbar-brand">
             <a class="navbar-item brand" href="/">
                 @template.icon(icon = Icon.Home)
-                <span>Smart Home</span>
+                <span>Busbridge</span>
             </a>
             <a role="button" class="navbar-burger" aria-label="Menu" aria-expanded="false" aria-controls="menu" tabindex="0">
                 <span aria-hidden="true"></span>
