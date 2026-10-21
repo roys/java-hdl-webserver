@@ -7,7 +7,8 @@ the purpose of integrating with *Google Assistant* (Google Home and Google Pixel
 - [How it works](#how-it-works)
 - [Example commands](#example-commands)
 - [Running the server - quick and dirty](#running-the-server---quick-and-dirty)
-- [Running the server - complete setup on a Raspberry Pi](#running-the-server---complete-setup-on-a-raspberry-pi-running-raspbian-gnulinux)
+- [Running the server - complete setup on a Raspberry Pi](#running-the-server---complete-setup-on-a-raspberry-pi)
+- [Upgrading to version 2](#upgrading-to-version-2)
 - [Security](#security)
 - [Building from source](#building-from-source)
 - [Links](#links)
@@ -33,7 +34,7 @@ belonging HDL commands to the IP gateway.
 
 ## Running the server - quick and dirty
 Prerequisites:
- - Java 8 or later (e.g. [Eclipse Temurin](https://adoptium.net/))
+ - Java 17 or later (e.g. [Eclipse Temurin](https://adoptium.net/))
  - [The server JAR](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar)
 
 ### Un*x
@@ -56,25 +57,27 @@ You should now be able to go to the server in a browser from a computer on the l
 
 Next step is to [create some actions](#part-2-adding-commands-actions).
 
-## Running the server - complete setup on a Raspberry Pi running Raspbian GNU/Linux
+## Running the server - complete setup on a Raspberry Pi
 
 ### Part 1: Download and set up the server
 
 #### 1. Java setup
 
-First SSH into your Raspberry Pi.
+First SSH into your Raspberry Pi. Raspberry Pi OS 11 (Bullseye) or later can run Java 17.
 
-Type `java -version` to see which Java version you have. If it says something with `1.8` or later you are good to go. Just continue to the next step.
+Type `java -version` to see which Java version you have. If it says 17 or later you are good to go. Just continue to the next step.
 
-If you don't have Java installed or a Java version before version 1.8, run the following commands and follow the setup:  
-`sudo apt-get update`  
-`sudo apt-get upgrade`  
-`sudo apt install default-jdk` (old command: ~~`sudo apt-get install oracle-java8-jdk`~~)  
+Otherwise install Java 17:  
+`sudo apt update`  
+`sudo apt install openjdk-17-jre-headless`  
+(On Raspberry Pi OS 13, `default-jre-headless` gives Java 21, which works too.)
+
+On an older Raspberry Pi OS (or Raspbian), either upgrade it, or keep using [version 1.1.1](#upgrading-to-version-2), which runs on Java 8.
 
 #### 2. Install Git
 
 If you don't have the version-control system Git installed you can install it like this:  
-`sudo apt-get install git`  
+`sudo apt install git`  
 
 #### 3. Directory setup and getting the server
 
@@ -90,42 +93,50 @@ You should see some output confirming that the server is starting up ok. Please 
 
 Use `ctrl + c` to exit the application.
 
-#### 4a. Running the server in the background
+#### 4. Running the server on startup
 
-If you want to make the server run on startup then skip to **4b**. If you want to just run the server in the background (even after you log out) you can enter the following
-command:  
-`nohup java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application &`  
+Run the server as a systemd service, so it starts when the Raspberry Pi does (once the network is up) and restarts if it ever stops. Paste this
+as it is (it fills in your user name and home directory):
+```
+sudo tee /etc/systemd/system/hdlserver.service > /dev/null <<EOF
+[Unit]
+Description=HDL Buspro server
+Wants=network-online.target
+After=network-online.target
 
-The number that is printed out is the process number. You can use this number to stop the script.
+[Service]
+User=$USER
+WorkingDirectory=$HOME/java-hdl-webserver/releases
+ExecStart=/usr/bin/java -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=$HOME/java-hdl-webserver/releases
 
-If you don't have the process number you can find it using `ps aux | grep hdlserver`.
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now hdlserver
+```
 
-To kill/stop the script just enter the following command:
-`kill [process number]`  
+See that it's running:  
+`systemctl status hdlserver`
 
-#### 4b. Running the server on startup
-
-The server can be run as a cron job that starts on reboot of the Raspberry Pi.
-
-To edit the cron jobs:  
-`crontab -e`
-
-Add the following line at the end:  
-`@reboot /bin/sh ~/java-hdl-webserver/launcher.sh`
-
-Use `ctrl + x` to exit, press `Y` to save the cron setup and `enter` to confirm the filename.
-
-Restart the device using `sudo shutdown -r now` and check out if there's stuff going on in `releases/logs/hdl-bus.log`. `releases/logs/hdl-server.log` and `releases/logs/nohup.out` will also contain output and any error messages running the server. Please note that there is a delay of 30 seconds when running the server from the `launcher.sh` script (to ensure that network interfaces are up and IP address is assigned, etc).
+(Earlier versions of this guide started the server with `@reboot ~/java-hdl-webserver/launcher.sh` in the crontab. That still works, but
+remove it from the crontab if you switch to the service, so the server isn't started twice.)
 
 #### 5. Reading the logs
 
-You can easily tap in to what's going by running `tail`:  
+You can easily tap in to what's going by running `tail` inside `~/java-hdl-webserver/releases`:  
 `tail -f logs/hdl-bus.log`  
 `tail -f logs/hdl-server.log`  
 
 This will let you follow the file and the contents that's written to it. To end the session just press `ctrl + c`.
 
-The server starts a new log file every day, and deletes log files older than 30 days.
+The server starts a new log file every day, and deletes log files older than 30 days. With the service, its output (including
+any errors at startup) is also in `journalctl -u hdlserver`.
 
 #### 6. Remote access
 
@@ -136,6 +147,9 @@ To be able to have IFTTT access (described later) the server and run the command
  - Set up some kind of dynamic DNS (can often be done on the router itself, or you can use the computer running the server) to get a static hostname for IFTTT
  - Use the hostname and external port number when setting up IFTTT (described later)
 
+Only the API needs to be reachable from the Internet. For anything else, like SSH to the Raspberry Pi, use a VPN (e.g.
+[Tailscale](https://tailscale.com/)) rather than forwarding more ports.
+
 #### 7. Up and running
 You should now be able to go to the server in a browser from a computer on the local network. The server is running on port 4567, so go to `http://<server ip address>:4567`.
 
@@ -143,8 +157,8 @@ Next step is to [create some actions](#part-2-adding-commands-actions).
 
 #### Updating the server
 
-If you chose to do a `git clone` in the first step you can just run `git pull` inside the directory at `~/java-hdl-webserver`. If you run the script at boot
-time it is easiest to just reboot your Raspberry Pi using `sudo shutdown -r now` to ensure the latest version of the script is running.
+If you chose to do a `git clone` in the first step, run `./update.sh` inside `~/java-hdl-webserver`. It checks that the new version runs on
+your Java before updating anything, and restarts the service from step 4.
 
 Otherwise, replace `hdlserver-LATEST.jar` with [the latest one](https://github.com/roys/java-hdl-webserver/raw/master/releases/hdlserver-LATEST.jar)
 and restart the server. New versions keep your authorization key, actions and found components (they're in `hdlserver.db`), so your IFTTT applets keep
@@ -153,6 +167,26 @@ working.
 If you open the web pages by a host name with dots in it (e.g. `http://hdl.example.com:4567`) rather than by IP address or a local name like
 `raspberrypi`/`raspberrypi.local`, start the server with that name allowed:  
 `java -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application`
+
+#### Upgrading to version 2
+
+Version 2 needs **Java 17 or later** (version 1 ran on Java 8). Everything else stays the same: the start command, port 4567, the API your IFTTT
+applets call, and `hdlserver.db` with your authorization key, actions and found components.
+
+1. Check your Java with `java -version`. If it's older than 17, install a newer one first (see [Java setup](#1-java-setup)).
+2. Update as before: `git pull` inside `~/java-hdl-webserver` (from then on, `./update.sh`), or replace the JAR.
+3. Restart the server.
+
+If the server is started on a Java older than 17, it doesn't start, and says why on the screen and in `logs/hdl-server.log`. To go back to
+version 1.1.1, which runs on Java 8, run this inside `~/java-hdl-webserver`:  
+`git checkout v1.1.1 -- releases/hdlserver-LATEST.jar`  
+or download it from [the 1.1.1 release](https://github.com/roys/java-hdl-webserver/releases/tag/v1.1.1). Run `git checkout -- releases/hdlserver-LATEST.jar`
+once you have Java 17, to get back to the latest version.
+
+Small differences from version 1, should you call the server in other ways than the ones described here:
+ - The API no longer requires an `Accept: application/json` header (version 1 answered 404 to other values).
+ - The web pages' forms only read their fields from the request body, not from the URL.
+ - Requests with an `X-HTTP-Method-Override` header are refused (400), and so are ambiguous paths like `/api/%2e%2e/settings`.
 
 ### Part 2: Adding commands (actions)
 
