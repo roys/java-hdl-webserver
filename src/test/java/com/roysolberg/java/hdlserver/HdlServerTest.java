@@ -1,12 +1,17 @@
 package com.roysolberg.java.hdlserver;
 
+import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent;
+import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -92,6 +97,16 @@ class HdlServerTest {
     })
     void examplesUseHttpsWhenThePageWasOpenedOverHttps(String scheme, String xForwardedProto, String forwarded, String expected) {
         assertEquals(expected, HdlServer.shownScheme(scheme, xForwardedProto, forwarded));
+    }
+
+    @Test
+    void addressesThatTwoHeardDevicesAnswerAtAreShared() {
+        List<HdlComponent> components = Arrays.asList(new DimmerComponent(1, 40, 600, "Kitchen", 6), new DimmerComponent(1, 40, 601, "Hallway", 4),
+                new DimmerComponent(1, 41, 600, "Old", 6), new DimmerComponent(1, 41, 601, "New", 4));
+
+        Set<String> shared = HdlServer.sharedAddresses(components, new HashSet<>(Arrays.asList("1-40-600", "1-40-601", "1-41-601")));
+
+        assertEquals(Collections.singleton("1/40"), shared, "1/41's old one hasn't been heard, so it was replaced, not shared");
     }
 
     @Test

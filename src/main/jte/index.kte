@@ -3,6 +3,7 @@
 @import com.roysolberg.java.hdlserver.util.HdlUtil
 @param page: Page
 @param heard: Set<String> = setOf()
+@param conflicts: Set<String> = setOf()
 @template.layout(page = page, content = @`
 <div class="page-header">
     <h1 class="title">Devices</h1>
@@ -32,6 +33,9 @@
                 ${component.remark}
                 @if(id !in heard)
                 <span class="tag is-warning is-light" title="Hasn't said anything on the bus since the server started">Not heard</span>
+                @endif
+                @if("${component.subnet}/${component.deviceId}" in conflicts)
+                <span class="tag is-danger is-light" title="More than one device answers at this address. Give each its own in HDL's setup tool.">Address conflict</span>
                 @endif
             </th>
             <td>${component.description}</td>

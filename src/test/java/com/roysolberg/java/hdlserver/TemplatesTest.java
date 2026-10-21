@@ -234,6 +234,21 @@ class TemplatesTest {
         assertTrue(html.contains("data-open=\"removeComponent-1-41-600\""));
         assertTrue(html.contains("<input type=\"hidden\" name=\"componentId\" value=\"1-41-600\"/>"));
         assertTrue(html.contains("Remove Old dimmer (1/41)?"));
+        assertFalse(html.contains("Address conflict"));
+    }
+
+    @Test
+    void sharedAddressesAreShown() {
+        Page page = new Page("index", "TOKEN", Arrays.asList(new DimmerComponent(1, 40, 600, "Kitchen", 6), new DimmerComponent(1, 40, 601, "Hallway", 4)),
+                Collections.emptyList(), "host", null, null);
+        Map<String, Object> params = new HashMap<>();
+        params.put("page", page);
+        params.put("heard", new java.util.HashSet<>(Arrays.asList("1-40-600", "1-40-601")));
+        params.put("conflicts", Collections.singleton("1/40"));
+        StringOutput output = new StringOutput();
+        templateEngine.render("index.kte", params, output);
+
+        assertEquals(2, output.toString().split("Address conflict</span>").length - 1);
     }
 
     /** Like the server does it: with the parameters by name, so the template's other parameters get their defaults. */

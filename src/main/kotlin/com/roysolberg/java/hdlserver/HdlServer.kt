@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.roysolberg.java.hdlserver.hdl.Action
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent
 import com.roysolberg.java.hdlserver.service.HdlService
+import com.roysolberg.java.hdlserver.util.HdlUtil
 import gg.jte.ContentType
 import gg.jte.TemplateEngine
 import gg.jte.output.StringOutput
@@ -121,7 +122,10 @@ class HdlServer(
             for (page in listOf("actions", "security", "demo", "settings")) {
                 config.routes.get("/$page") { ctx -> render(ctx, page) }
             }
-            config.routes.get("/") { ctx -> render(ctx, "index", "heard" to hdlService.heardComponentIds) }
+            config.routes.get("/") { ctx ->
+                val heard = hdlService.heardComponentIds
+                render(ctx, "index", "heard" to heard, "conflicts" to sharedAddresses(componentsConcurrentMap.values, heard))
+            }
             config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
             // Live updates for open pages. A browser only says where a request comes from (Origin) when it's another
@@ -612,6 +616,16 @@ class HdlServer(
             val proxiedScheme = xForwardedProto?.substringBefore(',')?.trim() ?: forwarded?.let { FORWARDED_PROTO.find(it)?.groupValues?.get(1) }
             return if (scheme.equals("https", ignoreCase = true) || proxiedScheme.equals("https", ignoreCase = true)) "https" else "http"
         }
+
+        /**
+         * Addresses, like "1/40", that more than one device heard on the bus answers at: a mistake in their setup, which
+         * makes commands to that address reach both.
+         */
+        @JvmStatic
+        fun sharedAddresses(components: Collection<HdlComponent>, heard: Set<String>): Set<String> =
+            components.filter { HdlUtil.getComponentId(it) in heard }
+                .groupingBy { "${it.subnet}/${it.deviceId}" }.eachCount()
+                .filterValues { it > 1 }.keys
 
         @JvmStatic
         fun parseAllowedHosts(hosts: String?): Set<String> =

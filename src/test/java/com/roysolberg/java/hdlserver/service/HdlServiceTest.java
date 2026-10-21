@@ -87,23 +87,33 @@ class HdlServiceTest {
     void aDeviceAnsweringWithAnotherTypeReplacesWhatWasStored() {
         Map<String, HdlComponent> components = new HashMap<>();
         components.put("1-4-600", new DimmerComponent(1, 4, 600, "Not this one", 6));
-        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6)));
-        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6)), "Nothing new");
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet()));
+        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet()), "Nothing new");
 
-        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4)));
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4), Collections.singleton("1-40-601")));
 
         assertEquals(new HashSet<>(Arrays.asList("1-4-600", "1-40-601")), components.keySet());
+    }
+
+    @Test
+    void twoDevicesHeardAtTheSameAddressAreBothKept() {
+        Map<String, HdlComponent> components = new HashMap<>();
+        components.put("1-40-600", new DimmerComponent(1, 40, 600, "Kitchen", 6));
+
+        HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Hallway", 4), new HashSet<>(Arrays.asList("1-40-600", "1-40-601")));
+
+        assertEquals(new HashSet<>(Arrays.asList("1-40-600", "1-40-601")), components.keySet(), "Like HDL's setup tool, both are shown");
     }
 
     @Test
     void aReplacedDeviceIsStillReplacedAfterARestart(@TempDir Path folder) {
         String file = folder.resolve("hdlserver.db").toString();
         try (DB database = HdlServer.openDatabase(file)) {
-            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 600, "Kitchen", 6));
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet());
             database.commit();
         }
         try (DB database = HdlServer.openDatabase(file)) {
-            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 601, "Kitchen dimmer", 4));
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 601, "Kitchen dimmer", 4), Collections.emptySet());
             database.commit();
         }
 

@@ -145,7 +145,7 @@ public class HdlService {
                             final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
                             String componentId = HdlUtil.getComponentId(hdlComponent);
                             heardComponentIds.add(componentId);
-                            if (isSearchResponse && storeFoundDevice(components, hdlComponent)) {
+                            if (isSearchResponse && storeFoundDevice(components, hdlComponent, heardComponentIds)) {
                                 database.commit();
                             }
                             logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
@@ -349,16 +349,19 @@ public class HdlService {
 
     /**
      * Stores what a search reply says about a device: that it's new, renamed, or now known by its type. A device's key
-     * includes its type, so a device answering with another type than before replaces what's stored for its address.
+     * includes its type. If another type was stored for its address and hasn't been heard since the server started,
+     * the device was replaced, and the new one takes its place. If both are heard, two devices share an address, which
+     * is a mistake in their setup, so both are kept for the Devices page to show (like HDL's setup tool does).
      *
+     * @param heard the devices heard since the server started
      * @return whether anything was stored or removed
      */
-    protected static boolean storeFoundDevice(Map<String, HdlComponent> components, HdlComponent found) {
+    protected static boolean storeFoundDevice(Map<String, HdlComponent> components, HdlComponent found, Set<String> heard) {
         String componentId = HdlUtil.getComponentId(found);
         String addressPrefix = found.getSubnet() + "-" + found.getDeviceId() + "-";
         List<String> replaced = new ArrayList<>();
         for (String key : components.keySet()) {
-            if (key.startsWith(addressPrefix) && !key.equals(componentId)) {
+            if (key.startsWith(addressPrefix) && !key.equals(componentId) && !heard.contains(key)) {
                 replaced.add(key);
             }
         }

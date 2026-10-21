@@ -15,6 +15,7 @@ Version 2.1.0
  * "UV switch control" is now called universal switch control, like HDL calls it.
  * The Components page is now called Devices, like in the app and in HDL's own subnet and device IDs.
  + Devices can be removed from the Devices page. Ones that haven't been heard on the bus since the server started are marked, so old ones are easy to spot.
+ + Devices answering at the same address are marked "Address conflict" on the Devices page, like in HDL's setup tool, since commands to that address reach both.
  * The server searches for devices three times when it starts, since some answers get lost when dozens of devices answer at once.
  * Many more kinds of devices are recognized (238 types, up from 91), so fewer show up as unknown.
  * IP modules are recognized, and a device renamed in HDL's setup tool gets its new name here on the next search.

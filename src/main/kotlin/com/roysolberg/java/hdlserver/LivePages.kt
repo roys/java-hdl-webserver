@@ -52,8 +52,11 @@ internal class LivePages(private val render: (String) -> String) : AutoCloseable
             return false
         }
         client.keepAlive()
-        client.onClose { pages.remove(client) }
         pages[client] = LivePage(template)
+        client.onClose { pages.remove(client) }
+        if (client.terminated()) {
+            pages.remove(client) // Closed before onClose was set up
+        }
         return true
     }
 
@@ -67,11 +70,15 @@ internal class LivePages(private val render: (String) -> String) : AutoCloseable
             if (!page.isSending.compareAndSet(false, true)) {
                 continue // Still busy with the last one
             }
-            // An event's data ends at a blank line, and HTML doesn't need its line breaks
-            val html = rendered.getOrPut(page.template) { render(page.template).replace(LINE_BREAKS, " ") }
+            // Thrown out of here, an exception would stop the updates for good, also for the other pages
             try {
+                // An event's data ends at a blank line, and HTML doesn't need its line breaks
+                val html = rendered.getOrPut(page.template) { render(page.template).replace(LINE_BREAKS, " ") }
                 senders.execute { send(client, page, html) }
-            } catch (e: RejectedExecutionException) {
+            } catch (e: Exception) {
+                if (e !is RejectedExecutionException) {
+                    logger.error("Couldn't render {} for a live page.", page.template, e)
+                }
                 page.isSending.set(false)
             }
         }
