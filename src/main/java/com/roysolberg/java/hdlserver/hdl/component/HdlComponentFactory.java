@@ -39,6 +39,7 @@ public class HdlComponentFactory {
                 return new TouchPanelComponent(subnetId, deviceId, deviceType, remark, 4);
             case 234: // 0x00EA
             case 235: // 0x00EB
+            case 0x2580: // 9600, e.g. HDL-MBUS01IP.431
                 return new IpComponent(subnetId, deviceId, deviceType, remark);
             case 276: // 0x0114
             case 277: // 0x0115

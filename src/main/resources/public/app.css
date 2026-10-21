@@ -1,5 +1,10 @@
 /* What the pages need beyond Bulma. Bulma follows the system's light or dark mode by itself; so does everything here. */
 
+/* Bulma's columns would otherwise show hidden ones */
+[hidden] {
+    display: none !important;
+}
+
 :root {
     --app-alive: hsl(141, 53%, 53%);
     --app-silent: hsl(348, 86%, 61%);

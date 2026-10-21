@@ -108,6 +108,12 @@ class ApiContractTest {
         assertEquals(403, postFormTo(lanAddress, "/run_action", "actionId=1", "http://evil.example.com").status, "Another origin");
         assertTrue(hdlService.calls.isEmpty());
 
+        int actionsBefore = database.hashMap("actions").createOrOpen().size();
+        RawResponse madeUp = postFormTo(lanAddress, "/create_custom_action",
+                "description=Made+up&components%5B%5D=1%3A20&operations%5B%5D=4660&parameters1%5B%5D=1", origin);
+        assertTrue(madeUp.text.contains("error=Unknown"), "Only the operations the page offers");
+        assertEquals(actionsBefore, database.hashMap("actions").createOrOpen().size());
+
         RawResponse run = postFormTo(lanAddress, "/run_action", "actionId=1", origin);
         assertEquals(302, run.status);
         assertTrue(run.text.contains("success=Sent"));

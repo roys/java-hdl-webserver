@@ -39,8 +39,30 @@ function addRow(list) {
     const row = list.firstElementChild.cloneNode(true);
     row.querySelectorAll('input').forEach((input) => { input.value = ''; });
     row.querySelectorAll('select').forEach((select) => { select.selectedIndex = 0; });
+    row.querySelectorAll('[data-operation]').forEach(showParameters);
     list.append(row);
     row.querySelector('input, select')?.focus();
+}
+
+// A command's parameters are named by its operation, e.g. Area and Scene number, and hidden when it doesn't use them
+document.addEventListener('change', (event) => {
+    if (event.target.matches('[data-operation]')) {
+        showParameters(event.target);
+    }
+});
+
+function showParameters(select) {
+    const names = select.selectedOptions[0].dataset.parameters.split('|');
+    select.closest('.repeat-row').querySelectorAll('[data-parameter]').forEach((field) => {
+        const name = names[Number(field.dataset.parameter) - 1] ?? '';
+        const input = field.querySelector('input');
+        field.hidden = name === '';
+        field.querySelector('label').textContent = name;
+        input.setAttribute('aria-label', name);
+        if (name === '') {
+            input.value = '';
+        }
+    });
 }
 
 // Live parts of a page, e.g. the bus graph on Status: the server sends them again every few seconds while the page is

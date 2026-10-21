@@ -10,7 +10,7 @@ public class IpComponent extends HdlComponent {
 
     @Override
     public String getDescription() {
-        return "1 port switchboard";
+        return "IP module";
     }
 
     @Override

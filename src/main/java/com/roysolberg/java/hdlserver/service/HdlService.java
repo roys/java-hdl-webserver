@@ -14,6 +14,7 @@ import org.mapdb.DB;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -38,6 +39,7 @@ public class HdlService {
     protected final static int BYTE_POSITION_CONTENT = 25;
     protected final static int BYTE_POSITION_REMARK = 25;
     protected final static int OPERATE_CODE_SEARCH_RESPONSE = 0x000F;
+    protected static final int SINGLE_CHANNEL_CONTROL = 0x0031;
     protected final static byte OPERATE_CODE_SEARCH_BYTE_1 = (byte) 0x00;
     protected final static byte OPERATE_CODE_SEARCH_BYTE_2 = (byte) 0x0E;
     protected static final byte TARGET_SUBNET_ID_ALL = (byte) 0xFF;
@@ -105,7 +107,7 @@ public class HdlService {
                             final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
                             if (isSearchResponse) {
                                 String componentId = HdlUtil.getComponentId(hdlComponent);
-                                if (!components.containsKey(componentId)) {
+                                if (isNewOrChanged((HdlComponent) components.get(componentId), hdlComponent)) {
                                     components.put(componentId, hdlComponent);
                                     database.commit();
                                 }
@@ -303,6 +305,14 @@ public class HdlService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Whether a search reply says something new: a module not seen before, renamed, or now known by its type.
+     */
+    protected static boolean isNewOrChanged(HdlComponent stored, HdlComponent found) {
+        return stored == null || stored.getClass() != found.getClass() || stored.getDeviceType() != found.getDeviceType()
+                || !Objects.equals(stored.getRemark(), found.getRemark());
     }
 
     public static HdlComponent getComponentFromBytes(byte[] bytes, boolean includeRemark, String charset) {
@@ -514,6 +524,11 @@ public class HdlService {
      * A command with up to three parameters as its content.
      */
     protected static byte[] getCommandPackage(InetAddress localInetAddress, Action.Command command) {
+        if (command.getOperation() == SINGLE_CHANNEL_CONTROL) {
+            // The channel, the level and a run time in two bytes, which the third parameter gives in seconds
+            int runTime = command.getParameter3() != null ? command.getParameter3() : 0;
+            return getSingleChannelPackage(localInetAddress, command, command.getParameter2() != null ? command.getParameter2() : 0, runTime);
+        }
         byte[] bytesToSend = getDefaultPackage(localInetAddress);
         int messageLength = 11;
 
@@ -538,9 +553,16 @@ public class HdlService {
     }
 
     /**
-     * Single channel control (0x0031) of the command's channel (parameter 1) to the given level.
+     * A dimmer action's channel (parameter 1) to the given level, right away.
      */
     protected static byte[] getDimmerPackage(InetAddress localInetAddress, Action.Command command, int valueInPercent) {
+        return getSingleChannelPackage(localInetAddress, command, valueInPercent, 0);
+    }
+
+    /**
+     * Single channel control (0x0031) of the command's channel (parameter 1) to a level, over a run time in seconds.
+     */
+    protected static byte[] getSingleChannelPackage(InetAddress localInetAddress, Action.Command command, int valueInPercent, int runTimeInSeconds) {
         byte[] bytesToSend = getDefaultPackage(localInetAddress);
         // Channel
         if (command.getParameter1() != null) {
@@ -548,10 +570,9 @@ public class HdlService {
         }
         // Percent
         bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) valueInPercent;
-        // Running time (high)
-        bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) 0;
-        // Running time (low)
-        bytesToSend[BYTE_POSITION_CONTENT + 3] = (byte) 0;
+        // Running time (high and low)
+        bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) (runTimeInSeconds >> 8);
+        bytesToSend[BYTE_POSITION_CONTENT + 3] = (byte) runTimeInSeconds;
         // Not sure, but the DLP sends different values for a fifth field:
         bytesToSend[BYTE_POSITION_CONTENT + 4] = (byte) 0x0F;
 

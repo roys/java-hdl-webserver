@@ -39,6 +39,14 @@ public class HdlUtil {
                 return "Search";
             case 15: // 0x000F
                 return "Response search";
+            case 0x0002:
+                return "Scene control";
+            case 0x0003:
+                return "Response scene control";
+            case 0x001A:
+                return "Sequence control";
+            case 0x001B:
+                return "Response sequence control";
             case 49: // 0x0031
                 return "Single channel control";
             case 50: // 0x0032
@@ -82,11 +90,11 @@ public class HdlUtil {
             case 0xC103:
                 return "Response read signal strength";
             case 0xE017:
-                return "Broadcast status of UV switches";
+                return "Broadcast status of universal switches";
             case 0xE01C:
-                return "UV switch control";
+                return "Universal switch control";
             case 0xE01D:
-                return "Response UV switch control";
+                return "Response universal switch control";
             case 0xE3E0:
                 return "Curtain switch control";
             case 0xE3E1:

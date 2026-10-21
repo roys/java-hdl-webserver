@@ -1,4 +1,5 @@
 @import com.roysolberg.java.hdlserver.Icon
+@import com.roysolberg.java.hdlserver.Operation
 @import com.roysolberg.java.hdlserver.Page
 @import com.roysolberg.java.hdlserver.hdl.Action
 @import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent
@@ -116,7 +117,7 @@
     <div class="column">
         <div class="box">
             <h3 class="title is-5">Custom action</h3>
-            <p class="subtitle is-6 has-text-grey">Commands of your choice, like pressing a panel button for <i>Open the garage</i>.</p>
+            <p class="subtitle is-6 has-text-grey">Commands of your choice, like a scene for <i>Movie night</i>, or a panel button for <i>Open the garage</i>.</p>
             <form action="create_custom_action" method="post">
                 <div class="field">
                     <label class="label" for="input_description">Name</label>
@@ -142,28 +143,22 @@
                             <label class="label is-small">Operation</label>
                             <div class="control">
                                 <div class="select is-fullwidth">
-                                    <select name="operations[]" aria-label="Operation">
-                                        <option value="49">Single channel control (0x0031)</option>
-                                        <option value="57372">UV switch control (0xE01C)</option>
-                                        <option value="58328">Panel control (0xE3D8)</option>
-                                        <option value="58336">Curtain switch control (0xE3E0)</option>
+                                    <select name="operations[]" aria-label="Operation" data-operation>
+                                        @for(operation in Operation.entries)
+                                        <option value="${operation.code}" data-parameters="${operation.parameters.joinToString("|")}">${operation.title} (${operation.hex})</option>
+                                        @endfor
                                     </select>
                                 </div>
                             </div>
                         </div>
-                        <div class="columns is-mobile is-variable is-2">
-                            <div class="column field">
-                                <label class="label is-small">Parameter 1</label>
-                                <div class="control"><input list="parameters1" name="parameters1[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 1"/></div>
+                        <div class="columns is-mobile is-variable is-2 is-multiline">
+                            @for(index in 1..3)
+                            !{val parameter = Operation.entries.first().parameters[index - 1]}
+                            <div class="column is-one-third-tablet is-half-mobile field" data-parameter="${index}" hidden="${parameter.isEmpty()}">
+                                <label class="label is-small">${parameter.ifEmpty { "Parameter $index" }}</label>
+                                <div class="control"><input list="parameters${index}" name="parameters${index}[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="${parameter.ifEmpty { "Parameter $index" }}"/></div>
                             </div>
-                            <div class="column field">
-                                <label class="label is-small">Parameter 2</label>
-                                <div class="control"><input list="parameters2" name="parameters2[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 2"/></div>
-                            </div>
-                            <div class="column field">
-                                <label class="label is-small">Parameter 3</label>
-                                <div class="control"><input name="parameters3[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="Parameter 3"/></div>
-                            </div>
+                            @endfor
                         </div>
                     </div>
                 </div>
@@ -175,7 +170,9 @@
                     <option value="0">Curtain switch control - stop (0)</option>
                     <option value="1">Curtain switch control - open/forward (1)</option>
                     <option value="2">Curtain switch control - close/reverse (2)</option>
+                    <option value="255">Universal switch control - on (255)</option>
                 </datalist>
+                <datalist id="parameters3"></datalist>
                 <div class="buttons">
                     <button type="button" class="button is-light" data-add="custom-commands">@template.icon(icon = Icon.Add)<span>Add a command</span></button>
                     <button type="submit" class="button is-primary">Create action</button>

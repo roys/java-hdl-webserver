@@ -243,7 +243,8 @@ class HdlServer(
             val ids = componentId.split(":")
             val subnetId = ids.getOrNull(0)?.toIntOrNull()
             val deviceId = ids.getOrNull(1)?.toIntOrNull()
-            val operation = operations[i].toIntOrNull()
+            // Only the operations the page offers, so a made-up form can't send any operation code to the bus
+            val operation = operations[i].toIntOrNull()?.let(Operation::of)?.code
             if (ids.size != 2 || subnetId == null || deviceId == null || operation == null) {
                 return "Unknown component or operation in command ${i + 1}."
             }
@@ -286,7 +287,7 @@ class HdlServer(
                 return "Unknown dimmer channel in command ${i + 1}."
             }
             val (subnetId, deviceId, channel) = ids.filterNotNull()
-            action.addCommand(Action.Command(subnetId, deviceId, SINGLE_CHANNEL_CONTROL, channel, null, null))
+            action.addCommand(Action.Command(subnetId, deviceId, Operation.SingleChannelControl.code, channel, null, null))
         }
         actionsConcurrentMap[action.id] = action
         for (aliasKey in aliasKeys) {
@@ -487,7 +488,6 @@ class HdlServer(
         /** IFTTT's requests are well under 1 KiB; anything much bigger is someone trying to use up the memory. */
         const val MAX_API_BODY_BYTES = 16 * 1024
 
-        private const val SINGLE_CHANNEL_CONTROL = 0x0031
         private const val METHOD_OVERRIDE_HEADER = "X-HTTP-Method-Override"
         private const val TOO_BUSY_MESSAGE = "Too many actions are waiting to be sent. Try again shortly."
 

@@ -207,6 +207,19 @@ class TemplatesTest {
         assertTrue(html.contains("<script src=\"/assets/app.js\" defer></script>"));
     }
 
+    @Test
+    void commandsOfferTheOperationsWithTheirParameters() {
+        String html = render(new Page("actions", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null));
+
+        for (Operation operation : Operation.values()) {
+            assertTrue(html.contains("<option value=\"" + operation.getCode() + "\" data-parameters=\""), operation.name());
+        }
+        assertTrue(html.contains("Scene control (0x0002)"));
+        assertTrue(html.contains("data-parameters=\"Area|Scene number|\""));
+        assertTrue(html.contains("<label class=\"label is-small\">Area</label>"), "Named for the first operation");
+        assertTrue(html.contains("data-parameter=\"3\" hidden"), "Scene control has no third parameter");
+    }
+
     private String render(Page page) {
         StringOutput output = new StringOutput();
         templateEngine.render(page.getName() + ".kte", page, output);

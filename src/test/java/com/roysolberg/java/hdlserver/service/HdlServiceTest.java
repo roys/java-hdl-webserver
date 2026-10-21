@@ -45,6 +45,37 @@ class HdlServiceTest {
     }
 
     @Test
+    void singleChannelControlInACustomActionIsTheWholeCommand() {
+        Action.Command command = new Action.Command(1, 40, 0x0031, 3, 30, 300);
+
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, command);
+
+        // Channel 3 to 30 % over 300 seconds (01 2c), like a dimmer action's
+        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 10 0b fc ff fb 00 31 01 28 03 1e 01 2c 0f 10 00", bytes);
+    }
+
+    @Test
+    void sceneControl() {
+        Action.Command command = new Action.Command(1, 20, 0x0002, 1, 4, null);
+
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, command);
+
+        // Area 1, scene 4
+        assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 0d 0b fc ff fb 00 02 01 14 01 04 5f a4", bytes);
+    }
+
+    @Test
+    void searchRepliesUpdateModulesThatHaveChanged() {
+        HdlComponent stored = HdlService.getComponent(1, 0, 0x2580, null);
+
+        assertTrue(HdlService.isNewOrChanged(null, stored));
+        assertFalse(HdlService.isNewOrChanged(stored, HdlService.getComponent(1, 0, 0x2580, null)));
+        assertTrue(HdlService.isNewOrChanged(stored, HdlService.getComponent(1, 0, 0x2580, "Gateway")), "Renamed");
+        assertTrue(HdlService.isNewOrChanged(HdlService.getComponent(1, 0, 0x9999, null), stored), "Type now known");
+        assertEquals("IP module", stored.getDescription());
+    }
+
+    @Test
     void packagesAreValid() {
         byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, 18, 1, null));
 
