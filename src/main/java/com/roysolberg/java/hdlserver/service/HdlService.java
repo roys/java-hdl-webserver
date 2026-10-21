@@ -18,6 +18,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -52,7 +53,10 @@ public class HdlService {
         Thread thread = new Thread(runnable, "hdl-command-sender");
         thread.setDaemon(true);
         return thread;
-    }, (runnable, executor) -> logger.warn("Already {} actions waiting to be sent. Dropping this one.", MAX_QUEUED_ACTIONS));
+    }, (runnable, executor) -> {
+        logger.warn("Already {} actions waiting to be sent. Refusing this one.", MAX_QUEUED_ACTIONS);
+        throw new RejectedExecutionException("Already " + MAX_QUEUED_ACTIONS + " actions waiting to be sent");
+    });
 
     protected boolean isRunning;
     protected DatagramSocket datagramSocket;
@@ -469,6 +473,8 @@ public class HdlService {
 
     /**
      * Sends the commands of a custom action, e.g. "Open the garage".
+     *
+     * @throws RejectedExecutionException if too many actions are already waiting to be sent
      */
     public void performAction(final Action action) {
         sendCommands(action, command -> getCommandPackage(getIpAddress(), command));
@@ -476,6 +482,8 @@ public class HdlService {
 
     /**
      * Sets every channel of a dimmer action to the given level.
+     *
+     * @throws RejectedExecutionException if too many actions are already waiting to be sent
      */
     public void performDimmerAction(final Action action, final int valueInPercent) {
         sendCommands(action, command -> getDimmerPackage(getIpAddress(), command, valueInPercent));

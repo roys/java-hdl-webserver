@@ -27,6 +27,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.concurrent.ConcurrentMap
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * The web server: the API that IFTTT applets call, and the web pages for the local network.
@@ -56,6 +57,7 @@ class HdlServer(
 
     @JvmField
     internal val activityLog = ActivityLog()
+    private val apiCallsToday = DailyCounter()
 
     init {
         if (!configConcurrentMap.containsKey(AUTH_TOKEN_KEY)) {
@@ -118,6 +120,7 @@ class HdlServer(
                 ctx.redirectWithMessage("/actions", if (errorMessage == null) "Action was successfully created." else null, errorMessage)
             }
             config.routes.post("/api/actions/{actionId}") { ctx ->
+                apiCallsToday.increment()
                 val source = "API (${ctx.ip()})"
                 val what = "Action ${ctx.pathParam("actionId")}"
                 val json = parseJsonBody(ctx)
@@ -127,11 +130,11 @@ class HdlServer(
                     activityLog.record(source, what, "No such action", succeeded = false)
                     throw HaltException(404, "Action not found.")
                 }
-                hdlService.performAction(action)
-                activityLog.record(source, action.describe(), "Sent", succeeded = true)
+                sendOrRefuse(source, action.describe()) { hdlService.performAction(action) }
                 ctx.accepted()
             }
             config.routes.post("/api/actions/dimmer/{alias}") { ctx ->
+                apiCallsToday.increment()
                 val source = "API (${ctx.ip()})"
                 val areaAlias = ctx.pathParam("alias").trim().lowercase()
                 val what = "Dim \"$areaAlias\""
@@ -144,8 +147,7 @@ class HdlServer(
                     activityLog.record(source, what, "No such area", succeeded = false)
                     throw HaltException(404, "Action not found.")
                 }
-                hdlService.performDimmerAction(action, valueInPercent)
-                activityLog.record(source, "${action.describe()} to $valueInPercent%", "Sent", succeeded = true)
+                sendOrRefuse(source, "${action.describe()} to $valueInPercent%") { hdlService.performDimmerAction(action, valueInPercent) }
                 ctx.accepted()
             }
             config.routes.post("/delete_action") { ctx ->
@@ -369,20 +371,32 @@ class HdlServer(
      */
     fun runAction(hdlService: HdlService, actionId: String?, value: String?, source: String): Pair<String, Boolean> {
         val action = actionId?.let(::getAction) ?: return "Unable to find action." to false
-        when (action.actionType) {
-            Action.ActionType.Dimmer -> {
+        return try {
+            if (action.actionType == Action.ActionType.Dimmer) {
                 val valueInPercent = value?.trim()?.toIntOrNull()?.takeIf { it in 0..100 }
                     ?: return "The level must be a number from 0 to 100." to false
-                hdlService.performDimmerAction(action, valueInPercent)
-                activityLog.record(source, "${action.describe()} to $valueInPercent%", "Sent", succeeded = true)
-                return "Sent \"${action.describe()}\" to $valueInPercent%." to true
+                sendOrRefuse(source, "${action.describe()} to $valueInPercent%") { hdlService.performDimmerAction(action, valueInPercent) }
+                "Sent \"${action.describe()}\" to $valueInPercent%." to true
+            } else {
+                sendOrRefuse(source, action.describe()) { hdlService.performAction(action) }
+                "Sent \"${action.describe()}\"." to true
             }
-            else -> {
-                hdlService.performAction(action)
-                activityLog.record(source, action.describe(), "Sent", succeeded = true)
-                return "Sent \"${action.describe()}\"." to true
-            }
+        } catch (e: HaltException) {
+            TOO_BUSY_MESSAGE to false
         }
+    }
+
+    /**
+     * Sends an action and logs it, or, if too many are already waiting, logs that and answers 503.
+     */
+    private fun sendOrRefuse(source: String, what: String, send: () -> Unit) {
+        try {
+            send()
+        } catch (e: RejectedExecutionException) {
+            activityLog.record(source, what, "Too busy, not sent", succeeded = false)
+            throw HaltException(503, "{\"status\":\"error\",\"message\":\"$TOO_BUSY_MESSAGE\"}")
+        }
+        activityLog.record(source, what, "Sent", succeeded = true)
     }
 
     private fun status(hdlService: HdlService): Status {
@@ -400,7 +414,7 @@ class HdlServer(
             components = componentsConcurrentMap.size,
             actions = actionsConcurrentMap.size,
             lastApiCall = apiCalls.firstOrNull(),
-            apiCallsToday = Status.countToday(apiCalls),
+            apiCallsToday = apiCallsToday.today(),
             memoryUsedMb = (runtime.totalMemory() - runtime.freeMemory()) / 1_048_576,
             memoryMaxMb = runtime.maxMemory() / 1_048_576,
             cpuTemperature = Status.cpuTemperature(),
@@ -424,6 +438,7 @@ class HdlServer(
 
         private const val SINGLE_CHANNEL_CONTROL = 0x0031
         private const val METHOD_OVERRIDE_HEADER = "X-HTTP-Method-Override"
+        private const val TOO_BUSY_MESSAGE = "Too many actions are waiting to be sent. Try again shortly."
 
         /** Methods that can't change anything, so they need no same-origin check. */
         private val SAFE_METHODS = setOf("GET", "HEAD")

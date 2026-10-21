@@ -17,15 +17,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Scanner;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * The API as IFTTT applets set up for earlier versions call it, against a database written by 1.0.3.
@@ -55,6 +62,91 @@ class ApiContractTest {
     @BeforeEach
     void clearRecordedCalls() {
         hdlService.calls.clear();
+        hdlService.busy = false;
+    }
+
+    @Test
+    void tooManyWaitingActionsAreRefusedNotReportedAsSent() throws IOException {
+        hdlService.busy = true;
+
+        HttpResult result = post("/api/actions/1", "{\"auth\":\"" + LegacyDatabases.AUTH_TOKEN + "\"}");
+
+        assertEquals(503, result.status);
+        assertEquals("Too busy, not sent", application.activityLog.entries().get(0).getResult());
+        assertFalse(application.runAction(hdlService, "1", null, "Web page").getSecond());
+    }
+
+    /**
+     * The whole chain for a real browser on the local network: local address, Host and Origin. The test connects to this
+     * machine's own LAN address, which the server sees as local, as it would see a phone or PC at home.
+     */
+    @Test
+    void pagesAndRunWorkFromTheLocalNetwork() throws IOException {
+        String lanAddress = siteLocalAddress();
+        assumeTrue(lanAddress != null, "No LAN address on this machine");
+        String origin = "http://" + lanAddress + ":" + application.port();
+
+        assertEquals(200, sendTo(origin, "GET", "/status").status);
+        assertEquals(200, sendTo(origin, "GET", "/activity").status);
+        HttpResult actions = sendTo(origin, "GET", "/actions");
+        assertEquals(200, actions.status);
+        assertTrue(actions.body.contains("runActionModal-1"));
+
+        assertEquals(403, postFormTo(lanAddress, "/run_action", "actionId=1", null).status, "No Origin");
+        assertEquals(403, postFormTo(lanAddress, "/run_action", "actionId=1", "http://evil.example.com").status, "Another origin");
+        assertTrue(hdlService.calls.isEmpty());
+
+        RawResponse run = postFormTo(lanAddress, "/run_action", "actionId=1", origin);
+        assertEquals(302, run.status);
+        assertTrue(run.text.contains("success=Sent"));
+        assertEquals(Collections.singletonList("action 1"), hdlService.calls);
+        assertTrue(application.activityLog.entries().get(0).getSource().startsWith("Web page (" + lanAddress));
+    }
+
+    /**
+     * A form post as a browser sends it. Over a raw socket, since HttpURLConnection silently drops an Origin header.
+     */
+    private static RawResponse postFormTo(String address, String path, String form, String origin) throws IOException {
+        try (Socket socket = new Socket(address, application.port())) {
+            String request = "POST " + path + " HTTP/1.1\r\nHost: " + address + ":" + application.port() + "\r\n"
+                    + (origin != null ? "Origin: " + origin + "\r\n" : "")
+                    + "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: " + form.length() + "\r\nConnection: close\r\n\r\n" + form;
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+            ByteArrayOutputStream response = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            for (int read; (read = socket.getInputStream().read(buffer)) != -1; ) {
+                response.write(buffer, 0, read);
+            }
+            return new RawResponse(new String(response.toByteArray(), StandardCharsets.ISO_8859_1));
+        }
+    }
+
+    private static HttpResult sendTo(String origin, String method, String path) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(origin + path).openConnection();
+        connection.setRequestMethod(method);
+        connection.setInstanceFollowRedirects(false);
+        int status = connection.getResponseCode();
+        InputStream inputStream = status < 400 ? connection.getInputStream() : connection.getErrorStream();
+        String body = "";
+        if (inputStream != null) {
+            try (Scanner scanner = new Scanner(inputStream, "UTF-8").useDelimiter("\\A")) {
+                body = scanner.hasNext() ? scanner.next() : "";
+            }
+        }
+        return new HttpResult(status, connection.getContentType(), body);
+    }
+
+    private static String siteLocalAddress() throws IOException {
+        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+            if (networkInterface.isUp() && !networkInterface.isLoopback()) {
+                for (InetAddress address : Collections.list(networkInterface.getInetAddresses())) {
+                    if (address instanceof Inet4Address && address.isSiteLocalAddress()) {
+                        return address.getHostAddress();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Test
@@ -385,6 +477,7 @@ class ApiContractTest {
      */
     private static final class RecordingHdlService extends HdlService {
         final List<String> calls = new CopyOnWriteArrayList<>();
+        volatile boolean busy;
 
         RecordingHdlService(DB database) {
             super(database);
@@ -392,12 +485,20 @@ class ApiContractTest {
 
         @Override
         public void performAction(Action action) {
+            refuseIfBusy();
             calls.add("action " + action.getId());
         }
 
         @Override
         public void performDimmerAction(Action action, int valueInPercent) {
+            refuseIfBusy();
             calls.add("dimmer " + action.getId() + " to " + valueInPercent);
+        }
+
+        private void refuseIfBusy() {
+            if (busy) {
+                throw new RejectedExecutionException("Busy");
+            }
         }
 
         @Override

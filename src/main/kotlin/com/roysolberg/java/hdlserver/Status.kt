@@ -4,7 +4,6 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -84,11 +83,6 @@ class Status(
             Files.readAllLines(Paths.get("/sys/class/thermal/thermal_zone0/temp")).firstOrNull()?.trim()?.toDoubleOrNull()?.div(1000)
         } catch (e: Exception) {
             null
-        }
-
-        fun countToday(entries: List<ActivityLog.Entry>, zone: ZoneId = ZoneId.systemDefault()): Int {
-            val today = LocalDate.now(zone)
-            return entries.count { it.time.atZone(zone).toLocalDate() == today }
         }
     }
 }
