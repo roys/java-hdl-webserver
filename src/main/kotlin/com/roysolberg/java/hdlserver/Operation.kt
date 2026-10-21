@@ -19,7 +19,7 @@ enum class Operation(val code: Int, val title: String, val parameters: List<Para
     ),
     PanelControl(
         0xE3D8, "Panel control",
-        listOf(Parameter("Function", 0, 255), Parameter("Button number", 0, 255), Parameter("On (1) or off (0)", 0, 255, isRequired = false)),
+        listOf(Parameter("Function", 0, 255), Parameter("Button number", 0, 255), Parameter("Value (1 = on, 0 = off)", 0, 255, isRequired = false)),
     ),
     CurtainSwitchControl(
         0xE3E0, "Curtain switch control",

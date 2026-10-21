@@ -138,6 +138,7 @@ class HdlServer(
                     }
                 }
             }
+            // The check above answers most with a clear 503; this one also holds when several pages open at once
             config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
             config.routes.sse("/activity/events") { client -> livePages.add(client, "live/activity") }
             config.routes.post("/run_action") { ctx ->
