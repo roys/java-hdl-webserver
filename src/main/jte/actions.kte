@@ -145,7 +145,7 @@
                                 <div class="select is-fullwidth">
                                     <select name="operations[]" aria-label="Operation" data-operation>
                                         @for(operation in Operation.entries)
-                                        <option value="${operation.code}" data-parameters="${operation.parameters.joinToString("|")}">${operation.title} (${operation.hex})</option>
+                                        <option value="${operation.code}" data-parameters="${operation.parametersJson}">${operation.title} (${operation.hex})</option>
                                         @endfor
                                     </select>
                                 </div>
@@ -154,9 +154,9 @@
                         <div class="columns is-mobile is-variable is-2 is-multiline">
                             @for(index in 1..3)
                             !{val parameter = Operation.entries.first().parameters[index - 1]}
-                            <div class="column is-one-third-tablet is-half-mobile field" data-parameter="${index}" hidden="${parameter.isEmpty()}">
-                                <label class="label is-small">${parameter.ifEmpty { "Parameter $index" }}</label>
-                                <div class="control"><input list="parameters${index}" name="parameters${index}[]" min="0" max="255" type="number" class="input" placeholder="0-255" aria-label="${parameter.ifEmpty { "Parameter $index" }}"/></div>
+                            <div class="column is-one-third-tablet is-half-mobile field" data-parameter="${index}" hidden="${parameter == null}">
+                                <label class="label is-small">${parameter?.name ?: "Parameter $index"}</label>
+                                <div class="control"><input list="parameters${index}" name="parameters${index}[]" type="number" class="input" min="${parameter?.min ?: 0}" max="${parameter?.max ?: 255}" placeholder="${parameter?.let { "${it.min}-${it.max}" } ?: ""}" required="${parameter?.isRequired == true}" aria-label="${parameter?.name ?: "Parameter $index"}"/></div>
                             </div>
                             @endfor
                         </div>

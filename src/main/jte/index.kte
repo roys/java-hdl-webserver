@@ -37,10 +37,10 @@
             <td>${component.description}</td>
             <td class="has-text-right">
                 <button type="button" class="button is-small" title="Remove" aria-label="Remove ${name}" data-open="removeComponent-${id}">@template.icon(icon = Icon.Delete)</button>
-                <dialog id="removeComponent-${id}" class="box has-text-left">
+                <dialog id="removeComponent-${id}" class="box has-text-left" aria-labelledby="removeComponentLabel-${id}">
                     <form action="delete_component" method="post">
                         <input type="hidden" name="componentId" value="${id}"/>
-                        <p class="title is-5">Remove ${name} (${component.subnet}/${component.deviceId})?</p>
+                        <p class="title is-5" id="removeComponentLabel-${id}">Remove ${name} (${component.subnet}/${component.deviceId})?</p>
                         <p class="block">It's only removed from this list; your actions are unchanged. If it's still on the bus, the next search finds it again.</p>
                         <div class="buttons is-right">
                             <button type="button" class="button" data-close>Cancel</button>

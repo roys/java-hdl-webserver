@@ -14,7 +14,10 @@ import org.mapdb.DB;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -27,6 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 public class HdlService {
@@ -61,11 +65,17 @@ public class HdlService {
     protected static final int MAX_QUEUED_ACTIONS = 50;
     private static final int SEARCHES = 3;
     private static final long SECONDS_BETWEEN_SEARCHES = 4;
-    private final ConcurrentMap components;
+    private final ConcurrentMap<String, HdlComponent> components;
     private final DB database;
     private final BusStats busStats = new BusStats();
     /** The modules heard on the bus since the server started, so the ones that no longer exist stand out. */
     private final Set<String> heardComponentIds = ConcurrentHashMap.newKeySet();
+    private final ScheduledExecutorService searcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "hdl-search");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private final AtomicBoolean isSearching = new AtomicBoolean();
     /** One action at a time, so their commands don't interleave on the bus, and a bounded number waiting. */
     private final ExecutorService commandSender = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_ACTIONS), runnable -> {
         Thread thread = new Thread(runnable, "hdl-command-sender");
@@ -81,9 +91,10 @@ public class HdlService {
     protected InetAddress localInetAddress;
     protected InetAddress broadcastInetAddress;
 
+    @SuppressWarnings("unchecked") // The database stores devices by their component id
     public HdlService(DB database) {
         this.database = database;
-        components = database.hashMap("components").createOrOpen();
+        components = (ConcurrentMap<String, HdlComponent>) (ConcurrentMap<?, ?>) database.hashMap("components").createOrOpen();
         logger.info("components: {}", components.values());
     }
 
@@ -100,18 +111,21 @@ public class HdlService {
     }
 
     /**
-     * Searches a few times, a few seconds apart: with dozens of modules answering at once, some answers get lost.
+     * Searches a few times, a few seconds apart: with dozens of devices answering at once, some answers get lost. While
+     * a search is going on, another isn't started.
+     *
+     * @return whether a search was started
      */
-    public void searchForComponents() {
-        ScheduledExecutorService searcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "hdl-search");
-            thread.setDaemon(true);
-            return thread;
-        });
+    public boolean searchForComponents() {
+        if (!isSearching.compareAndSet(false, true)) {
+            return false;
+        }
         for (int i = 0; i < SEARCHES; i++) {
             searcher.schedule(this::doOneTimeQuickSearchForComponents, i * SECONDS_BETWEEN_SEARCHES, TimeUnit.SECONDS);
         }
-        searcher.shutdown(); // Ends the thread once the searches are sent
+        // Runs after the last search, since tasks due at the same time run in the order they were scheduled
+        searcher.schedule(() -> isSearching.set(false), (SEARCHES - 1) * SECONDS_BETWEEN_SEARCHES, TimeUnit.SECONDS);
+        return true;
     }
 
     protected void run() {
@@ -131,11 +145,8 @@ public class HdlService {
                             final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
                             String componentId = HdlUtil.getComponentId(hdlComponent);
                             heardComponentIds.add(componentId);
-                            if (isSearchResponse) {
-                                if (isNewOrChanged((HdlComponent) components.get(componentId), hdlComponent)) {
-                                    components.put(componentId, hdlComponent);
-                                    database.commit();
-                                }
+                            if (isSearchResponse && storeFoundDevice(components, hdlComponent)) {
+                                database.commit();
                             }
                             logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
                         } else {
@@ -337,11 +348,34 @@ public class HdlService {
     }
 
     /**
-     * Whether a search reply says something new: a module not seen before, renamed, or now known by its type.
+     * Stores what a search reply says about a device: that it's new, renamed, or now known by its type. A device's key
+     * includes its type, so a device answering with another type than before replaces what's stored for its address.
+     *
+     * @return whether anything was stored or removed
+     */
+    protected static boolean storeFoundDevice(Map<String, HdlComponent> components, HdlComponent found) {
+        String componentId = HdlUtil.getComponentId(found);
+        String addressPrefix = found.getSubnet() + "-" + found.getDeviceId() + "-";
+        List<String> replaced = new ArrayList<>();
+        for (String key : components.keySet()) {
+            if (key.startsWith(addressPrefix) && !key.equals(componentId)) {
+                replaced.add(key);
+            }
+        }
+        replaced.forEach(components::remove);
+        if (!replaced.isEmpty() || isNewOrChanged(components.get(componentId), found)) {
+            components.put(componentId, found);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Whether a search reply says something new about a device with the same key: not seen before, renamed, or now
+     * known by its type.
      */
     protected static boolean isNewOrChanged(HdlComponent stored, HdlComponent found) {
-        return stored == null || stored.getClass() != found.getClass() || stored.getDeviceType() != found.getDeviceType()
-                || !Objects.equals(stored.getRemark(), found.getRemark());
+        return stored == null || stored.getClass() != found.getClass() || !Objects.equals(stored.getRemark(), found.getRemark());
     }
 
     public static HdlComponent getComponentFromBytes(byte[] bytes, boolean includeRemark, String charset) {
@@ -561,18 +595,14 @@ public class HdlService {
         byte[] bytesToSend = getDefaultPackage(localInetAddress);
         int messageLength = 11;
 
-        // Content
-        if (command.getParameter1() != null) {
+        // Content: the parameters in order, up to the first one left out (actions saved before they were checked could
+        // have one missing in between, which would otherwise shift the rest into the wrong place)
+        for (Integer parameter : new Integer[]{command.getParameter1(), command.getParameter2(), command.getParameter3()}) {
+            if (parameter == null) {
+                break;
+            }
+            bytesToSend[BYTE_POSITION_CONTENT + messageLength - 11] = (byte) parameter.intValue();
             messageLength++;
-            bytesToSend[BYTE_POSITION_CONTENT] = (byte) command.getParameter1().intValue();
-        }
-        if (command.getParameter2() != null) {
-            messageLength++;
-            bytesToSend[BYTE_POSITION_CONTENT + 1] = (byte) command.getParameter2().intValue();
-        }
-        if (command.getParameter3() != null) {
-            messageLength++;
-            bytesToSend[BYTE_POSITION_CONTENT + 2] = (byte) command.getParameter3().intValue();
         }
 
         bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;

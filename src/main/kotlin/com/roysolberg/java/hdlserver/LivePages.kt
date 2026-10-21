@@ -30,24 +30,27 @@ internal class LivePages(private val render: (String) -> String) : AutoCloseable
         clients[client] = template
     }
 
-    val size: Int
-        get() = clients.size
+    /** Each open page costs a connection and an update every few seconds, so there's a limit. */
+    val isFull: Boolean
+        get() = clients.size >= MAX_CLIENTS
 
     /** All sending happens on the one scheduler thread, so a client is never written to by two threads at once. */
     private fun update() {
-        try {
-            val rendered = HashMap<String, String>()
-            for ((client, template) in clients) {
-                if (client.terminated()) {
-                    clients.remove(client)
-                    continue
-                }
+        val rendered = HashMap<String, String>()
+        for ((client, template) in clients) {
+            if (client.terminated()) {
+                clients.remove(client)
+                continue
+            }
+            // Thrown out of here, an exception would stop the updates for good, also for the other pages
+            try {
                 // An event's data ends at a blank line, and HTML doesn't need its line breaks
                 client.sendEvent(EVENT, rendered.getOrPut(template) { render(template).replace(LINE_BREAKS, " ") })
+            } catch (e: Exception) {
+                logger.warn("Couldn't update a live page, so it's dropped.", e)
+                clients.remove(client)
+                client.close()
             }
-        } catch (e: Exception) {
-            // Thrown out of here, it would stop the updates for good
-            logger.error("Couldn't update the live pages.", e)
         }
     }
 
@@ -58,6 +61,7 @@ internal class LivePages(private val render: (String) -> String) : AutoCloseable
 
     companion object {
         const val EVENT = "update"
+        const val MAX_CLIENTS = 20
         private const val UPDATE_SECONDS = 2L
         private val LINE_BREAKS = Regex("[\r\n]+")
         private val logger = LogManager.getLogger(LivePages::class.java)

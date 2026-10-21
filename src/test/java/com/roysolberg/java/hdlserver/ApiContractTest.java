@@ -118,16 +118,40 @@ class ApiContractTest {
         assertTrue(postFormTo(lanAddress, "/delete_component", "componentId=9-99-600", origin).text.contains("error=Unable"));
 
         int actionsBefore = database.hashMap("actions").createOrOpen().size();
-        RawResponse madeUp = postFormTo(lanAddress, "/create_custom_action",
-                "description=Made+up&components%5B%5D=1%3A20&operations%5B%5D=4660&parameters1%5B%5D=1", origin);
-        assertTrue(madeUp.text.contains("error=Unknown"), "Only the operations the page offers");
+        components.put("9-98-600", new DimmerComponent(9, 98, 600, "Known dimmer", 1));
+        String command = "description=Movie&components%5B%5D=9%3A98&operations%5B%5D=";
+        assertTrue(postFormTo(lanAddress, "/create_custom_action", command + "4660&parameters1%5B%5D=1", origin).text.contains("error=Unknown"),
+                "Only the operations the page offers");
+        assertTrue(postFormTo(lanAddress, "/create_custom_action", "description=Movie&components%5B%5D=9%3A97&operations%5B%5D=2&parameters1%5B%5D=1&parameters2%5B%5D=4", origin)
+                .text.contains("error=Unknown"), "Only known devices");
+        assertTrue(postFormTo(lanAddress, "/create_custom_action", command + "2&parameters1%5B%5D=&parameters2%5B%5D=4", origin)
+                .text.contains("error=Command+1%3A+Area+is+needed"), "Every parameter the operation needs");
+        assertTrue(postFormTo(lanAddress, "/create_custom_action", command + "2&parameters1%5B%5D=1&parameters2%5B%5D=300", origin)
+                .text.contains("error=Command+1%3A+Scene+number+must+be+0-255"));
         assertEquals(actionsBefore, database.hashMap("actions").createOrOpen().size());
+        RawResponse scene = postFormTo(lanAddress, "/create_custom_action", command + "2&parameters1%5B%5D=1&parameters2%5B%5D=4&parameters3%5B%5D=", origin);
+        assertTrue(scene.text.contains("success="), scene.statusLine);
+        assertEquals(actionsBefore + 1, database.hashMap("actions").createOrOpen().size());
 
         RawResponse run = postFormTo(lanAddress, "/run_action", "actionId=1", origin);
         assertEquals(302, run.status);
         assertTrue(run.text.contains("success=Sent"));
         assertEquals(Collections.singletonList("action 1"), hdlService.calls);
         assertTrue(application.activityLog.entries().get(0).getSource().startsWith("Web page (" + lanAddress));
+    }
+
+    @Test
+    void otherSitesCanNotOpenLivePages() throws IOException {
+        String lanAddress = siteLocalAddress();
+        assumeTrue(lanAddress != null, "No LAN address on this machine");
+        try (Socket socket = new Socket(lanAddress, application.port())) {
+            String request = "GET /status/events HTTP/1.1\r\nHost: " + lanAddress + ":" + application.port()
+                    + "\r\nOrigin: https://evil.example.com\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n";
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+            String statusLine = new Scanner(socket.getInputStream(), "UTF-8").nextLine();
+
+            assertTrue(statusLine.contains(" 403 "), statusLine);
+        }
     }
 
     @Test

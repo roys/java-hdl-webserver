@@ -28,12 +28,12 @@
                 @template.icon(icon = Icon.Home)
                 <span>Busbridge</span>
             </a>
-            <a role="button" class="navbar-burger" aria-label="Menu" aria-expanded="false" aria-controls="menu" tabindex="0">
+            <button type="button" class="navbar-burger" aria-label="Menu" aria-expanded="false" aria-controls="menu">
                 <span aria-hidden="true"></span>
                 <span aria-hidden="true"></span>
                 <span aria-hidden="true"></span>
                 <span aria-hidden="true"></span>
-            </a>
+            </button>
         </div>
         <div id="menu" class="navbar-menu">
             <div class="navbar-start">

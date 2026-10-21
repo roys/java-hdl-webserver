@@ -215,8 +215,9 @@ class TemplatesTest {
             assertTrue(html.contains("<option value=\"" + operation.getCode() + "\" data-parameters=\""), operation.name());
         }
         assertTrue(html.contains("Scene control (0x0002)"));
-        assertTrue(html.contains("data-parameters=\"Area|Scene number|\""));
+        assertTrue(html.contains("data-parameters=\"[{&#34;name&#34;:&#34;Area&#34;,&#34;min&#34;:1,&#34;max&#34;:255,&#34;required&#34;:true},"));
         assertTrue(html.contains("<label class=\"label is-small\">Area</label>"), "Named for the first operation");
+        assertTrue(html.contains("name=\"parameters1[]\" type=\"number\" class=\"input\" min=\"1\" max=\"255\" placeholder=\"1-255\" required"));
         assertTrue(html.contains("data-parameter=\"3\" hidden"), "Scene control has no third parameter");
     }
 

@@ -124,6 +124,20 @@ class HdlServer(
             config.routes.get("/") { ctx -> render(ctx, "index", "heard" to hdlService.heardComponentIds) }
             config.routes.get("/activity") { ctx -> render(ctx, "activity", "entries" to activityLog.entries()) }
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
+            // Live updates for open pages. A browser only says where a request comes from (Origin) when it's another
+            // site that asks, so that's refused, as is opening more than a handful.
+            for (path in listOf("/status/events", "/activity/events")) {
+                config.routes.before(path) { ctx ->
+                    ctx.header("Origin")?.let { origin ->
+                        if (!isSameOrigin(origin, ctx.host())) {
+                            throw HaltException(403, "Forbidden.")
+                        }
+                    }
+                    if (livePages.isFull) {
+                        throw HaltException(503, "Too many open pages.")
+                    }
+                }
+            }
             config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
             config.routes.sse("/activity/events") { client -> livePages.add(client, "live/activity") }
             config.routes.post("/run_action") { ctx ->
@@ -190,8 +204,8 @@ class HdlServer(
                 }
             }
             config.routes.post("/search_for_components") { ctx ->
-                hdlService.searchForComponents()
-                ctx.redirectWithMessage("/", "Searching. Reload the page in about 10 seconds to see what was found.", null)
+                val message = if (hdlService.searchForComponents()) "Searching." else "Already searching."
+                ctx.redirectWithMessage("/", "$message Reload the page in about 10 seconds to see what was found.", null)
             }
             config.routes.post("/update_settings") { ctx ->
                 val authKey = ctx.formParam("authKey")?.trim()
@@ -249,21 +263,22 @@ class HdlServer(
             return "An action needs at least one command."
         }
         val action = Action(Action.ActionType.Custom, getNextActionId(), description?.trim().orEmpty())
+        val knownAddresses = componentsConcurrentMap.values.map { it.subnet to it.deviceId }.toSet()
         for ((i, componentId) in componentIds.withIndex()) {
             val ids = componentId.split(":")
             val subnetId = ids.getOrNull(0)?.toIntOrNull()
             val deviceId = ids.getOrNull(1)?.toIntOrNull()
-            // Only the operations the page offers, so a made-up form can't send any operation code to the bus
-            val operation = operations[i].toIntOrNull()?.let(Operation::of)?.code
-            if (ids.size != 2 || subnetId == null || deviceId == null || operation == null) {
+            // Only devices and operations the page offers, with the values the operation takes, can reach the bus
+            val operation = operations[i].toIntOrNull()?.let(Operation::of)
+            if (ids.size != 2 || subnetId == null || deviceId == null || (subnetId to deviceId) !in knownAddresses || operation == null) {
                 return "Unknown device or operation in command ${i + 1}."
             }
-            action.addCommand(
-                Action.Command(
-                    subnetId, deviceId, operation,
-                    getCommandParameter(parameters1, i), getCommandParameter(parameters2, i), getCommandParameter(parameters3, i),
-                ),
-            )
+            val parameters = try {
+                operation.parse(listOf(parameters1.getOrNull(i), parameters2.getOrNull(i), parameters3.getOrNull(i)))
+            } catch (e: IllegalArgumentException) {
+                return "Command ${i + 1}: ${e.message}"
+            }
+            action.addCommand(Action.Command(subnetId, deviceId, operation.code, parameters[0], parameters[1], parameters[2]))
         }
         actionsConcurrentMap[action.id] = action
         database.commit()
@@ -313,18 +328,6 @@ class HdlServer(
             actionId++
         }
         return actionId
-    }
-
-    private fun getCommandParameter(parameters: List<String>, i: Int): Int? {
-        val parameter = parameters.getOrNull(i)?.trim()
-        if (parameter.isNullOrEmpty()) {
-            return null
-        }
-        return parameter.toIntOrNull().also {
-            if (it == null) {
-                logger.error("Got invalid parameter [{}]. Not adding it to the command.", parameter)
-            }
-        }
     }
 
     private fun getAction(actionId: String): Action? =

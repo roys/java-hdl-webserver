@@ -1,14 +1,23 @@
 package com.roysolberg.java.hdlserver.service;
 
+import com.roysolberg.java.hdlserver.HdlServer;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -62,6 +71,68 @@ class HdlServiceTest {
 
         // Area 1, scene 4
         assertFrame("c0 a8 01 0a 48 44 4c 4d 49 52 41 43 4c 45 aa aa 0d 0b fc ff fb 00 02 01 14 01 04 5f a4", bytes);
+    }
+
+    @Test
+    void aCommandStopsAtAParameterLeftOut() {
+        // Like an action saved before parameters were checked
+        Action.Command command = new Action.Command(1, 20, 0x0002, null, 4, null);
+
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, command);
+
+        assertEquals(11, bytes[HdlService.BYTE_POSITION_LENGTH], "Nothing shifted into the wrong place");
+    }
+
+    @Test
+    void aDeviceAnsweringWithAnotherTypeReplacesWhatWasStored() {
+        Map<String, HdlComponent> components = new HashMap<>();
+        components.put("1-4-600", new DimmerComponent(1, 4, 600, "Not this one", 6));
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6)));
+        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6)), "Nothing new");
+
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4)));
+
+        assertEquals(new HashSet<>(Arrays.asList("1-4-600", "1-40-601")), components.keySet());
+    }
+
+    @Test
+    void aReplacedDeviceIsStillReplacedAfterARestart(@TempDir Path folder) {
+        String file = folder.resolve("hdlserver.db").toString();
+        try (DB database = HdlServer.openDatabase(file)) {
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 600, "Kitchen", 6));
+            database.commit();
+        }
+        try (DB database = HdlServer.openDatabase(file)) {
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 601, "Kitchen dimmer", 4));
+            database.commit();
+        }
+
+        try (DB database = HdlServer.openDatabase(file)) {
+            Map<String, HdlComponent> devices = devices(database);
+            assertEquals(Collections.singleton("1-40-601"), devices.keySet());
+            assertEquals("Kitchen dimmer", devices.get("1-40-601").getRemark());
+            assertEquals(4, ((DimmerComponent) devices.get("1-40-601")).getNumOfChannels());
+        }
+    }
+
+    @Test
+    void aSearchIsNotStartedWhileOneIsGoingOn() {
+        try (DB database = DBMaker.memoryDB().make()) {
+            HdlService hdlService = new HdlService(database) {
+                @Override
+                public void doOneTimeQuickSearchForComponents() {
+                    // Nothing to send in a test
+                }
+            };
+
+            assertTrue(hdlService.searchForComponents());
+            assertFalse(hdlService.searchForComponents());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, HdlComponent> devices(DB database) {
+        return (Map<String, HdlComponent>) (Map<?, ?>) database.hashMap("components").createOrOpen();
     }
 
     @Test

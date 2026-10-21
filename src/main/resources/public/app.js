@@ -52,16 +52,22 @@ document.addEventListener('change', (event) => {
 });
 
 function showParameters(select) {
-    const names = select.selectedOptions[0].dataset.parameters.split('|');
+    const parameters = JSON.parse(select.selectedOptions[0].dataset.parameters);
     select.closest('.repeat-row').querySelectorAll('[data-parameter]').forEach((field) => {
-        const name = names[Number(field.dataset.parameter) - 1] ?? '';
+        const parameter = parameters[Number(field.dataset.parameter) - 1];
         const input = field.querySelector('input');
-        field.hidden = name === '';
-        field.querySelector('label').textContent = name;
-        input.setAttribute('aria-label', name);
-        if (name === '') {
+        field.hidden = parameter === null;
+        // Hidden ones are left out of the form, and must not block it
+        input.required = parameter?.required ?? false;
+        if (parameter === null) {
             input.value = '';
+            return;
         }
+        field.querySelector('label').textContent = parameter.name;
+        input.setAttribute('aria-label', parameter.name);
+        input.min = parameter.min;
+        input.max = parameter.max;
+        input.placeholder = `${parameter.min}-${parameter.max}`;
     });
 }
 
@@ -69,7 +75,14 @@ function showParameters(select) {
 // open. EventSource reconnects by itself, e.g. after the server restarts; the Live tag shows whether it's connected.
 document.querySelectorAll('[data-live]').forEach((element) => {
     const events = new EventSource(element.dataset.live);
-    events.addEventListener('update', (event) => { element.innerHTML = event.data; });
+    let shown = null;
+    events.addEventListener('update', (event) => {
+        // Only when something changed, so nothing flickers or is read out again by screen readers
+        if (event.data !== shown) {
+            element.innerHTML = event.data;
+            shown = event.data;
+        }
+    });
     events.addEventListener('open', () => document.body.classList.add('is-live'));
     events.addEventListener('error', () => document.body.classList.remove('is-live'));
 });

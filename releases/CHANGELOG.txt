@@ -10,7 +10,7 @@ Version 2.1.0
  * Your actions come first on the Actions page, each with a big Run button, and with how to call it folded away until you need it.
  * The pages' styles and scripts come from the server itself, so the pages also work when the Internet is down, and load nothing from other sites.
  + Custom actions can control scenes and sequences, e.g. "Movie night" or "Good night".
- * Custom actions show what each parameter means for the chosen operation, e.g. Area and Scene number.
+ * Custom actions show what each parameter means for the chosen operation, e.g. Area and Scene number, and check that the values fit before the action is saved.
  * Bugfix: Single channel control in custom actions sent an incomplete command. Parameter 3 is now its run time in seconds.
  * "UV switch control" is now called universal switch control, like HDL calls it.
  * The Components page is now called Devices, like in the app and in HDL's own subnet and device IDs.
