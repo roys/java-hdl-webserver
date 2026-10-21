@@ -16,3 +16,7 @@ out
 
 # Written by launcher.sh, which starts the server with nohup
 nohup.out
+
+# Gradle
+.gradle/
+build/

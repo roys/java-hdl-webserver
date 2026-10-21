@@ -238,10 +238,10 @@ If you want to learn a little more about security and HDL Buspro you can read my
 https://blog.roysolberg.com/2017/08/my-dumb-smart-home .
 
 ## Building from source
-You need Java 17 or later to build (the server itself still runs on Java 8):  
-`./mvnw verify`
+You need Java 17 or later:  
+`./gradlew build`
 
-This runs the tests and builds the runnable JAR at `target/hdlserver-<version>.jar`, which is what's released as
+This runs the tests and builds the runnable JAR at `build/libs/hdlserver-<version>.jar`, which is what's released as
 `releases/hdlserver-LATEST.jar`.
 
 ## Links

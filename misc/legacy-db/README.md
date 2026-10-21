@@ -17,5 +17,5 @@ gzip -9 -n -c /tmp/hdlserver-1.0.0.db > src/test/resources/legacy/hdlserver-1.0.
 To also check a real database, without adding it to the repo:
 
 ```sh
-./mvnw test -Dhdlserver.legacyDb=/path/to/hdlserver.db
+./gradlew test --rerun -Dhdlserver.legacyDb=/path/to/hdlserver.db
 ```
