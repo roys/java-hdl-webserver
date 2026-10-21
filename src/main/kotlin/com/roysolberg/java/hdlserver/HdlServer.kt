@@ -57,6 +57,10 @@ class HdlServer(
     private val startedAt = Instant.now()
     private var javalin: Javalin? = null
     private var livePages: LivePages? = null
+    private var updateCheck: UpdateCheck? = null
+
+    private val isCheckingForUpdates: Boolean
+        get() = configConcurrentMap[CHECK_FOR_UPDATES_KEY].toBoolean()
 
     @JvmField
     internal val activityLog = ActivityLog()
@@ -72,6 +76,7 @@ class HdlServer(
     fun start(port: Int): HdlServer {
         val hdlService = checkNotNull(hdlService) { "The server can't start without an HdlService" }
         val livePages = LivePages { template -> renderLive(template, hdlService) }.also { livePages = it }
+        val updateCheck = UpdateCheck(VERSION) { isCheckingForUpdates }.also { updateCheck = it }
         javalin = Javalin.create { config ->
             config.startup.showJavalinBanner = false
             config.startup.showOldJavalinVersionWarning = false
@@ -119,9 +124,10 @@ class HdlServer(
                 }
             }
 
-            for (page in listOf("actions", "security", "demo", "settings")) {
+            for (page in listOf("actions", "security", "demo")) {
                 config.routes.get("/$page") { ctx -> render(ctx, page) }
             }
+            config.routes.get("/settings") { ctx -> render(ctx, "settings", "checkForUpdates" to isCheckingForUpdates) }
             config.routes.get("/") { ctx ->
                 val heard = hdlService.heardComponentIds
                 render(ctx, "index", "heard" to heard, "conflicts" to sharedAddresses(componentsConcurrentMap.values, heard))
@@ -216,7 +222,12 @@ class HdlServer(
                 val authKey = ctx.formParam("authKey")?.trim()
                 if (authKey != null && authKey.length >= MIN_AUTH_TOKEN_LENGTH) {
                     configConcurrentMap[AUTH_TOKEN_KEY] = authKey
+                    val checkForUpdates = ctx.formParam("checkForUpdates") != null
+                    configConcurrentMap[CHECK_FOR_UPDATES_KEY] = checkForUpdates.toString()
                     database.commit()
+                    if (checkForUpdates) {
+                        updateCheck.checkSoon()
+                    }
                     ctx.redirectWithMessage("/settings", "Settings successfully updated", null)
                 } else {
                     ctx.redirectWithMessage("/settings", null, "Authorization key must be at least $MIN_AUTH_TOKEN_LENGTH characters.")
@@ -231,6 +242,8 @@ class HdlServer(
     fun stop() {
         livePages?.close()
         livePages = null
+        updateCheck?.close()
+        updateCheck = null
         javalin?.stop()
         javalin = null
     }
@@ -459,7 +472,7 @@ class HdlServer(
         val entries = activityLog.entries()
         val apiCalls = entries.filter { it.source.startsWith("API") }
         return Status(
-            version = HdlServer::class.java.`package`.implementationVersion ?: "(development build)",
+            version = VERSION ?: "(development build)",
             javaVersion = System.getProperty("java.version"),
             startedAt = startedAt,
             now = Instant.now(),
@@ -473,6 +486,7 @@ class HdlServer(
             memoryUsedMb = (runtime.totalMemory() - runtime.freeMemory()) / 1_048_576,
             memoryMaxMb = runtime.maxMemory() / 1_048_576,
             cpuTemperature = Status.cpuTemperature(),
+            newerVersion = updateCheck?.newerVersion,
         )
     }
 
@@ -486,6 +500,10 @@ class HdlServer(
         const val PORT_PROPERTY = "hdlserver.port"
         const val DATABASE_FILE = "hdlserver.db"
         const val AUTH_TOKEN_KEY = "authToken"
+        const val CHECK_FOR_UPDATES_KEY = "checkForUpdates"
+
+        /** The running version, e.g. "2.1.0"; null when not run from a built JAR. */
+        private val VERSION: String? = HdlServer::class.java.`package`.implementationVersion
         const val MIN_AUTH_TOKEN_LENGTH = 25
 
         /** Comma-separated host names, besides IP addresses and local names, that the web pages may be reached by. */

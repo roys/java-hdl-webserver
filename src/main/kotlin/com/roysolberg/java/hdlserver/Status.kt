@@ -11,7 +11,7 @@ import java.util.Locale
 /**
  * What the status page shows.
  */
-class Status(
+class Status @JvmOverloads constructor(
     val version: String,
     val javaVersion: String,
     val startedAt: Instant,
@@ -26,6 +26,8 @@ class Status(
     val memoryUsedMb: Long,
     val memoryMaxMb: Long,
     val cpuTemperature: Double?,
+    /** A newer version than this one, e.g. "2.2.0", if checking for updates is on and there is one. */
+    val newerVersion: String? = null,
 ) {
 
     val uptime: String

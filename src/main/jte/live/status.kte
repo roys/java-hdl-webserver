@@ -1,5 +1,12 @@
 @import com.roysolberg.java.hdlserver.Status
+@import com.roysolberg.java.hdlserver.UpdateCheck
 @param status: Status
+@if(status.newerVersion != null)
+<div class="notification is-info is-light">
+    <strong>Busbridge ${status.newerVersion} is out.</strong> Update with <code>./update.sh</code> in the server's folder.
+    <a href="${UpdateCheck.RELEASES_URL}/tag/v${status.newerVersion}" target="_blank" rel="noopener noreferrer">What's new</a>
+</div>
+@endif
 <div class="box">
     <p class="stat-label">HDL bus</p>
     <p class="title is-2 bus-state"><span class="dot ${if (status.busAlive) "is-alive" else "is-silent"}"></span>@if(status.busAlive)Alive@elseSilent@endif</p>

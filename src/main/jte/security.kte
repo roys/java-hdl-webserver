@@ -11,8 +11,15 @@
         <a href="https://tailscale.com/" target="_blank" rel="noopener noreferrer">Tailscale</a> network, so you can use them away from home too.</p>
     <p><strong>The API and the commands</strong> are guarded by a random key, made the first time the server started.
         Requests without the right key aren't run.</p>
-    <p>No software is perfect. There could be weaknesses in this server, the libraries it builds on, the computer it runs on, your router,
-        other network equipment, IFTTT or Google Assistant. If you want to stay completely safe, stay offline.</p>
+    <div class="notification is-warning is-light">
+        <strong>Use at your own risk.</strong> Busbridge is provided as is, without warranty of any kind (MIT license).
+        You decide how it's reachable, and you're responsible for that. Like all software, it and the libraries it builds on will
+        have weaknesses found over time, so keep it updated: run <code>./update.sh</code>, or turn on <a href="/settings">Check for updates</a>
+        to be told when there's a new version. And remember that anyone on your home network can control HDL Buspro directly, with or
+        without Busbridge.
+    </div>
+    <p>There could also be weaknesses in the computer it runs on, your router, other network equipment, IFTTT or Google Assistant.
+        If you want to stay completely safe, stay offline.</p>
     <p>Read more about security and HDL Buspro in
         <a href="https://blog.roysolberg.com/2017/08/my-dumb-smart-home" target="_blank" rel="noopener noreferrer">My dumb smart home</a>.</p>
 </div>

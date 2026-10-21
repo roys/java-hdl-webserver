@@ -245,7 +245,8 @@ Run this inside `~/java-hdl-webserver`:
 ./update.sh
 ```
 
-It checks that the new version runs on your Java *before* it changes anything, and then restarts the service. Your key,
+It checks that the new version runs on your Java *before* it changes anything, and then restarts the service. To be told
+when there's a new version, turn on **Check for updates** in Settings, and the Status page will say so. Your key,
 actions and devices are kept (they're in `hdlserver.db`), so your IFTTT applets keep working.
 
 Didn't use `git clone`? Replace `hdlserver-LATEST.jar` with
@@ -312,8 +313,13 @@ Using the service from [step 4](#-set-it-up-on-a-raspberry-pi)? It's new in vers
 **Why is there no login on the web pages?** Anyone on your home network can already talk to HDL Buspro directly. It has no
 security of its own, and everything is sent in plain text. A login would only give a false sense of security.
 
-No software is perfect. There could be weaknesses in this server, the libraries it builds on, your router, IFTTT or Google
-Assistant. Read more about security and HDL Buspro in
+> ⚠️ **Use at your own risk.** Busbridge is provided as is, without warranty of any kind (see the [MIT license](LICENSE)).
+> You decide how it's reachable, and you're responsible for that. Like all software, it and the libraries it builds on
+> will have weaknesses found over time, so keep it updated: run `./update.sh`, or turn on *Check for updates* in Settings
+> to be told when there's a new version. And remember that anyone on your home network can control HDL Buspro directly,
+> with or without Busbridge.
+
+There could also be weaknesses in your router, IFTTT or Google Assistant. Read more about security and HDL Buspro in
 [My dumb smart home](https://blog.roysolberg.com/2017/08/my-dumb-smart-home).
 
 ---

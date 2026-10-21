@@ -7,6 +7,8 @@ Version 2.1.0
  * HDL Buspro server is now called Busbridge for HDL Buspro. How it's installed, run and updated stays the same.
  + A new look for the web pages. They work well on phones, follow your light or dark mode, and can be added to your home screen.
  + The Status and Activity pages update live, without reloading.
+ + Settings can turn on checking for updates: once a day the server asks GitHub for the latest version, and the Status page says when there's a newer one. Off unless you turn it on.
+ * The Security page and README say plainly that Busbridge is used at your own risk, and how to keep it updated.
  * Your actions come first on the Actions page, each with a big Run button, and with how to call it folded away until you need it.
  * The pages' styles and scripts come from the server itself, so the pages also work when the Internet is down, and load nothing from other sites.
  + Custom actions can control scenes and sequences, e.g. "Movie night" or "Good night".

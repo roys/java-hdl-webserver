@@ -1,6 +1,7 @@
 @import com.roysolberg.java.hdlserver.HdlServer
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
+@param checkForUpdates: Boolean = false
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -11,6 +12,14 @@
                 <input type="text" name="authKey" class="input is-family-monospace" id="input_auth_key" placeholder="At least ${HdlServer.MIN_AUTH_TOKEN_LENGTH} characters" minlength="${HdlServer.MIN_AUTH_TOKEN_LENGTH}" aria-describedby="help_auth_key" value="${page.authToken}"/>
             </div>
             <p id="help_auth_key" class="help">The key every action call needs. If you change it, also change it in your IFTTT applets and anything else calling this server.</p>
+        </div>
+        <div class="field">
+            <label class="checkbox">
+                <input type="checkbox" name="checkForUpdates" aria-describedby="help_updates" checked="${checkForUpdates}">
+                Check for updates
+            </label>
+            <p id="help_updates" class="help">Once a day, asks GitHub for the latest version, and shows it on the Status page when there's a newer one.
+                GitHub sees this server's IP address when it does.</p>
         </div>
         <button type="submit" class="button is-primary">Save</button>
     </form>

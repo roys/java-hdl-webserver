@@ -238,6 +238,25 @@ class TemplatesTest {
     }
 
     @Test
+    void aNewerVersionIsShownOnStatus() {
+        java.time.Instant now = java.time.Instant.now();
+        Status status = new Status("2.1.0", "21.0.4", now, now, 0, null, Collections.nCopies(60, 0), 0, 0, null, 0, 10, 512, null, "2.2.0");
+
+        String html = render("status", new Page("status", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null), "status", status);
+
+        assertTrue(html.contains("Busbridge 2.2.0 is out."));
+        assertTrue(html.contains("href=\"https://github.com/roys/java-hdl-webserver/releases/tag/v2.2.0\""));
+    }
+
+    @Test
+    void checkingForUpdatesIsOffUntilTurnedOn() {
+        Page page = new Page("settings", "TOKEN0123456789ABCDEFGHIJKLMN", Collections.emptyList(), Collections.emptyList(), "host", null, null);
+
+        assertFalse(render(page).contains("name=\"checkForUpdates\" aria-describedby=\"help_updates\" checked"));
+        assertTrue(render("settings", page, "checkForUpdates", true).contains("name=\"checkForUpdates\" aria-describedby=\"help_updates\" checked"));
+    }
+
+    @Test
     void sharedAddressesAreShown() {
         Page page = new Page("index", "TOKEN", Arrays.asList(new DimmerComponent(1, 40, 600, "Kitchen", 6), new DimmerComponent(1, 40, 601, "Hallway", 4)),
                 Collections.emptyList(), "host", null, null);
