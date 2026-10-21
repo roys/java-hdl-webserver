@@ -10,7 +10,7 @@ public class UnknownComponent extends HdlComponent {
 
     @Override
     public String getDescription() {
-        return "Unknown component";
+        return "Unknown device";
     }
 
     @Override

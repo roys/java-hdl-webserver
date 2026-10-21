@@ -184,9 +184,9 @@ class HdlServer(
                 val component = ctx.formParam("componentId")?.let(componentsConcurrentMap::remove)
                 if (component != null) {
                     database.commit()
-                    ctx.redirectWithMessage("/", "Removed ${component.remark.orEmpty().ifEmpty { "the module" }} (${component.subnet}/${component.deviceId}). If it's still on the bus, the next search finds it again.", null)
+                    ctx.redirectWithMessage("/", "Removed ${component.remark.orEmpty().ifEmpty { "the device" }} (${component.subnet}/${component.deviceId}). If it's still on the bus, the next search finds it again.", null)
                 } else {
-                    ctx.redirectWithMessage("/", null, "Unable to find the module.")
+                    ctx.redirectWithMessage("/", null, "Unable to find the device.")
                 }
             }
             config.routes.post("/search_for_components") { ctx ->
@@ -256,7 +256,7 @@ class HdlServer(
             // Only the operations the page offers, so a made-up form can't send any operation code to the bus
             val operation = operations[i].toIntOrNull()?.let(Operation::of)?.code
             if (ids.size != 2 || subnetId == null || deviceId == null || operation == null) {
-                return "Unknown component or operation in command ${i + 1}."
+                return "Unknown device or operation in command ${i + 1}."
             }
             action.addCommand(
                 Action.Command(

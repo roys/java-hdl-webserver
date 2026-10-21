@@ -27,7 +27,7 @@ class Page(
     companion object {
         @JvmField
         val MENU = listOf(
-            MenuItem("index", "Components"),
+            MenuItem("index", "Devices"),
             MenuItem("actions", "Actions"),
             MenuItem("activity", "Activity"),
             MenuItem("status", "Status"),

@@ -5,13 +5,13 @@
 @param heard: Set<String> = setOf()
 @template.layout(page = page, content = @`
 <div class="page-header">
-    <h1 class="title">Components</h1>
+    <h1 class="title">Devices</h1>
     <form action="search_for_components" method="post">
         <button type="submit" class="button is-primary is-light">@template.icon(icon = Icon.Search)<span>Search again</span></button>
     </form>
 </div>
-<p class="subtitle is-6 has-text-grey">${page.components.size} modules found on the HDL bus. The ones marked <i>Not heard</i> haven't said anything since
-    the server started, like modules that have been replaced or removed. Give it a few minutes after a restart.</p>
+<p class="subtitle is-6 has-text-grey">${page.components.size} devices found on the HDL bus. The ones marked <i>Not heard</i> haven't said anything since
+    the server started, like devices that have been replaced or removed. Give it a few minutes after a restart.</p>
 <div class="table-container">
     <table class="table is-fullwidth is-hoverable is-striped">
         <thead>
@@ -25,7 +25,7 @@
         <tbody>
         @for(component in page.components)
         !{val id = HdlUtil.getComponentId(component)}
-        !{val name = component.remark.orEmpty().ifEmpty { "this module" }}
+        !{val name = component.remark.orEmpty().ifEmpty { "this device" }}
         <tr>
             <td class="is-family-monospace">${component.subnet}/${component.deviceId}</td>
             <th>

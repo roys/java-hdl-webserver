@@ -21,7 +21,7 @@ Raspberry Pi.
 
 ## ✨ What you get
 
-- 🔍 **Finds your devices.** Searches the bus and lists the modules that answer: dimmers, relays, curtains, panels, sensors.
+- 🔍 **Finds your devices.** Searches the bus and lists what answers: dimmers, relays, curtains, panels, sensors.
 - 🎛️ **Actions without code.** Set up dimmer and custom actions (panel buttons, curtains, switches) on a web page.
 - ▶️ **Run them right there.** Test an action with one click, or set a dimmer to any level.
 - 🎤 **Voice control.** Google Assistant through IFTTT, or Siri Shortcuts, Tasker, Home Assistant, `curl`…
@@ -32,11 +32,11 @@ Raspberry Pi.
 
 <table>
   <tr>
-    <td><img src="misc/screenshots/components.png" alt="The Components page lists every module found on the bus" /></td>
+    <td><img src="misc/screenshots/components.png" alt="The Devices page lists every device found on the bus" /></td>
     <td><img src="misc/screenshots/activity.png" alt="The Activity page lists what was done, when and from where" /></td>
   </tr>
   <tr>
-    <td align="center">The modules on the bus</td>
+    <td align="center">The devices on the bus</td>
     <td align="center">Recent actions and refusals</td>
   </tr>
 </table>

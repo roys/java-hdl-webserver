@@ -80,7 +80,7 @@ class HdlServiceTest {
         assertEquals("Ceiling Mount PIR Sensor", HdlService.getComponent(1, 31, 317, "Kitchen storage").getDescription());
         assertEquals("Touch panel with display", HdlService.getComponent(1, 32, 9104, null).getDescription());
         assertEquals("IP module", HdlService.getComponent(1, 0, 9600, null).getDescription());
-        assertEquals("Unknown component", HdlService.getComponent(1, 1, 0x7FFF, null).getDescription());
+        assertEquals("Unknown device", HdlService.getComponent(1, 1, 0x7FFF, null).getDescription());
     }
 
     @Test

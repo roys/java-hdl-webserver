@@ -49,7 +49,7 @@
             <table class="table is-fullwidth is-narrow commands-table">
                 <thead>
                 <tr>
-                    <th>Component</th>
+                    <th>Device</th>
                     <th>Operation</th>
                     <th><abbr title="Parameter 1">P1</abbr></th>
                     <th><abbr title="Parameter 2">P2</abbr></th>
@@ -128,10 +128,10 @@
                     <div class="repeat-row">
                         <button type="button" class="delete" aria-label="Remove this command" data-remove></button>
                         <div class="field">
-                            <label class="label is-small">Component</label>
+                            <label class="label is-small">Device</label>
                             <div class="control">
                                 <div class="select is-fullwidth">
-                                    <select name="components[]" aria-label="Component">
+                                    <select name="components[]" aria-label="Device">
                                         @for(component in page.components)
                                         <option value="${component.subnet}:${component.deviceId}">${component.remark} (${component.subnet}/${component.deviceId} - ${component.description})</option>
                                         @endfor
