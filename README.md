@@ -11,7 +11,10 @@ Raspberry Pi.
 ![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)
 [![MIT license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-<img src="misc/screenshots/status.png" alt="The Status page: the HDL bus is alive, with a graph of the last hour" width="800" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="misc/screenshots/status-dark.png">
+  <img src="misc/screenshots/status.png" alt="The Status page: the HDL bus is alive, with a graph of the last hour" width="800" />
+</picture>
 
 [What you get](#-what-you-get) · [How it works](#-how-it-works) · [Quick start](#-quick-start) ·
 [Raspberry Pi](#-set-it-up-on-a-raspberry-pi) · [Voice commands](#-voice-commands-with-ifttt) ·
@@ -21,23 +24,32 @@ Raspberry Pi.
 
 ## ✨ What you get
 
-- 🔍 **Finds your devices.** Searches the bus and lists what answers: dimmers, relays, curtains, panels, sensors.
-- 🎛️ **Actions without code.** Set up dimmer and custom actions (panel buttons, curtains, switches) on a web page.
+- 🔍 **Finds your devices.** Searches the bus and lists what answers: dimmers, relays, curtains, panels, sensors, and 230+ other types.
+- 🎛️ **Actions without code.** Set up scenes, dimmers, curtains, panel buttons and switches on a web page.
 - ▶️ **Run them right there.** Test an action with one click, or set a dimmer to any level.
 - 🎤 **Voice control.** Google Assistant through IFTTT, or Siri Shortcuts, Tasker, Home Assistant, `curl`…
-- 📋 **Recent activity.** The latest 100 actions run or refused, with when and from where.
-- 💓 **Status.** Is the HDL bus alive, how long has the server run, and how warm is the Pi (when it can tell).
+- 📋 **Live activity.** The latest 100 actions run or refused, with when and from where, as they happen.
+- 💓 **Live status.** Is the HDL bus alive, how busy is it, and how warm is the Pi.
+- 📱 **Made for your phone too.** Light or dark, like your phone, and on your home screen like an app.
 - 🔒 **Protected.** A random key guards the API. The pages only answer your home network, or [Tailscale](https://tailscale.com/) when you're away.
 - 🔄 **Safe updates.** One command checks that the new version runs on your Java before installing it, then restarts the server.
 
 <table>
   <tr>
-    <td><img src="misc/screenshots/components.png" alt="The Devices page lists every device found on the bus" /></td>
+    <td><img src="misc/screenshots/devices.png" alt="The Devices page lists every device found on the bus" /></td>
     <td><img src="misc/screenshots/activity.png" alt="The Activity page lists what was done, when and from where" /></td>
   </tr>
   <tr>
     <td align="center">The devices on the bus</td>
     <td align="center">Recent actions and refusals</td>
+  </tr>
+  <tr>
+    <td><img src="misc/screenshots/actions.png" alt="The Actions page with Run and Set buttons" /></td>
+    <td align="center"><img src="misc/screenshots/phone.png" alt="The Actions page on a phone, in dark mode" width="220" /></td>
+  </tr>
+  <tr>
+    <td align="center">Your actions, one click away</td>
+    <td align="center">On your phone, in the dark</td>
   </tr>
 </table>
 
@@ -178,14 +190,19 @@ Google Assistant doesn't talk to the server directly, so [IFTTT](https://ifttt.c
 
 ### 1. Create an action
 
-On the server's **Actions** page, create a **custom action**. Give it a name, e.g. *Open the garage*, and pick what it
-should do. Pressing a panel button works great: choose the panel and **Panel control**, then set **Parameter 1** to `18` (Control
-button), **Parameter 2** to the button number, and **Parameter 3** to `1` (on) or `0` (off). Add more commands to do
-several things at once.
+On the server's **Actions** page, create a **custom action**. Give it a name, e.g. *Movie night*, and pick what it
+should do. The form names each value the operation needs:
+
+- **A scene** is often the easiest: choose the device and **Scene control**, then the *Area* and *Scene number* (HDL's
+  setup tool shows them).
+- **A panel button** works great too: choose the panel and **Panel control**, then *Function* `18` (control button), the
+  *Button number*, and `1` (on) or `0` (off).
+
+Add more commands to do several things at once.
 
 Click **▶ Run** to try it. 🎯
 
-<img src="misc/screenshots/actions-run.png" alt="A custom action with its Run button and URL" width="700" />
+<img src="misc/screenshots/actions.png" alt="Actions with their Run and Set buttons" width="700" />
 
 ### 2. Create the IFTTT applet
 
