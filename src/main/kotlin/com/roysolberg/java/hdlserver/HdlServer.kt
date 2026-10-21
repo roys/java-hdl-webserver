@@ -89,6 +89,13 @@ class HdlServer(
             config.routes.exception(HaltException::class.java) { e, ctx -> ctx.status(e.status).result(e.body) }
             config.routes.before { ctx ->
                 logger.info("Request: {} - \"{} {} {}\" - \"{}\"", ctx.ip(), ctx.req().method, ctx.path(), ctx.req().protocol, ctx.userAgent())
+                // Every response, also errors and the API's: not to be guessed at, loaded by other sites, or stored.
+                // Pages hold the API key, so only the pages' CSS, scripts and icons may be cached.
+                ctx.header("X-Content-Type-Options", "nosniff")
+                ctx.header("Cross-Origin-Resource-Policy", "same-origin")
+                if (!ctx.path().startsWith("$ASSETS_PATH/")) {
+                    ctx.header("Cache-Control", "no-store")
+                }
                 // Javalin would otherwise route by this header instead of the request's own method
                 if (ctx.header(METHOD_OVERRIDE_HEADER) != null) {
                     logger.info("Got {} from [{}].", METHOD_OVERRIDE_HEADER, ctx.ip())
@@ -104,9 +111,10 @@ class HdlServer(
                         requireSameOrigin(ctx)
                     }
                     ctx.header("X-Frame-Options", "DENY")
-                    ctx.header("X-Content-Type-Options", "nosniff")
                     ctx.header("Referrer-Policy", "strict-origin-when-cross-origin") // YouTube embeds need the origin
                     ctx.header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+                    ctx.header("Permissions-Policy", PERMISSIONS_POLICY)
+                    ctx.header("Cross-Origin-Opener-Policy", "same-origin")
                 }
             }
 
@@ -471,6 +479,10 @@ class HdlServer(
          */
         const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
             "frame-src https://www.youtube-nocookie.com; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
+
+        /** The pages need none of the browser's sensitive features, so not even injected code could ask for them. */
+        const val PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), " +
+            "hid=(), midi=(), display-capture=(), screen-wake-lock=(), xr-spatial-tracking=(), browsing-topics=()"
 
         /** IFTTT's requests are well under 1 KiB; anything much bigger is someone trying to use up the memory. */
         const val MAX_API_BODY_BYTES = 16 * 1024

@@ -93,8 +93,13 @@ class ApiContractTest {
         assertTrue(css.contentType.startsWith("text/css"), css.contentType);
         assertTrue(css.body.contains("bulma.io v"));
         assertTrue(sendTo(origin, "GET", "/assets/manifest.webmanifest").contentType.startsWith("application/manifest+json"));
-        HttpURLConnection page = (HttpURLConnection) new URL(origin + "/").openConnection();
+        HttpURLConnection page = (HttpURLConnection) new URL(origin + "/settings").openConnection();
         assertEquals(HdlServer.CONTENT_SECURITY_POLICY, page.getHeaderField("Content-Security-Policy"));
+        assertEquals(HdlServer.PERMISSIONS_POLICY, page.getHeaderField("Permissions-Policy"));
+        assertEquals("same-origin", page.getHeaderField("Cross-Origin-Opener-Policy"));
+        assertEquals("no-store", page.getHeaderField("Cache-Control"), "Settings shows the API key");
+        HttpURLConnection asset = (HttpURLConnection) new URL(origin + "/assets/app.css").openConnection();
+        assertNotEquals("no-store", asset.getHeaderField("Cache-Control"));
         HttpResult actions = sendTo(origin, "GET", "/actions");
         assertEquals(200, actions.status);
         assertTrue(actions.body.contains("runActionModal-1"));
@@ -356,6 +361,22 @@ class ApiContractTest {
 
         assertEquals(401, result.status);
         assertFalse(result.body.contains("bulma"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"POST /api/actions/1", "GET /settings", "GET /assets/app.css"})
+    void everyResponseIsNotToBeSniffedOrUsedByOtherSites(String request) throws IOException {
+        String[] methodAndPath = request.split(" ");
+        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + application.port() + methodAndPath[1]).openConnection();
+        connection.setRequestMethod(methodAndPath[0]);
+        connection.getResponseCode();
+
+        assertEquals("nosniff", connection.getHeaderField("X-Content-Type-Options"));
+        assertEquals("same-origin", connection.getHeaderField("Cross-Origin-Resource-Policy"));
+        if (!methodAndPath[1].startsWith(HdlServer.ASSETS_PATH)) {
+            assertEquals("no-store", connection.getHeaderField("Cache-Control"));
+        }
+        assertNull(connection.getHeaderField("Server"));
     }
 
     @ParameterizedTest
