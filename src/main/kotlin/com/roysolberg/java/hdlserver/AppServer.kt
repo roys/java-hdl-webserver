@@ -1,6 +1,10 @@
 package com.roysolberg.java.hdlserver
 
+import com.fasterxml.jackson.core.JacksonException
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.javalin.Javalin
+import io.javalin.http.Context
 import org.apache.logging.log4j.LogManager
 import org.eclipse.jetty.http.HttpVersion
 import org.eclipse.jetty.io.Connection
@@ -26,14 +30,17 @@ import java.util.concurrent.ConcurrentHashMap
  * @param serverId stays the same for this server, so the app can tell it's the one it knows
  * @param version this server's version, or null for a development build
  * @param isAllowedAddress whether a connection from this address may be answered, the socket's own address
+ * @param pairing where the app asks to pair, which the user allows on Settings
  */
 class AppServer @JvmOverloads constructor(
     private val certificate: AppCertificate,
     private val serverId: String,
     private val version: String?,
     private val isAllowedAddress: (String) -> Boolean = HdlServer::isLocalAddress,
+    private val pairing: Pairing = Pairing(certificate.certificate.encoded),
 ) : AutoCloseable {
 
+    private val objectMapper = ObjectMapper()
     private var javalin: Javalin? = null
 
     /**
@@ -97,6 +104,36 @@ class AppServer @JvmOverloads constructor(
             config.routes.get(INFO_PATH) { ctx ->
                 ctx.json(mapOf("name" to NAME, "version" to (version ?: "development"), "serverId" to serverId))
             }
+            // Pairing, see Pairing. What's asked for and answered here is never logged: it holds the key.
+            config.routes.post(PAIR_PATH) { ctx ->
+                val json = readJson(ctx)
+                val name = json.text("name")?.let(Pairing::validName)
+                val commitment = Pairing.decode(json.text("commitment"), Pairing.NONCE_BYTES)
+                if (name == null || commitment == null) {
+                    throw badRequest(ctx)
+                }
+                when (val asked = pairing.ask(name, commitment)) {
+                    is Pairing.Asked.Created -> ctx.json(mapOf("requestId" to asked.requestId, "nonce" to Pairing.base64(asked.nonce)))
+                    Pairing.Asked.Closed -> ctx.status(409).json(mapOf("status" to "closed"))
+                    Pairing.Asked.Full -> ctx.status(409).json(mapOf("status" to "full"))
+                }
+            }
+            config.routes.post(PAIR_REVEAL_PATH) { ctx ->
+                val (requestId, nonce) = readRequest(ctx)
+                ctx.json(mapOf("status" to pairing.reveal(requestId, nonce).json))
+            }
+            config.routes.post(PAIR_POLL_PATH) { ctx ->
+                val (requestId, nonce) = readRequest(ctx)
+                val polled = pairing.poll(requestId, nonce)
+                val key = polled.key
+                ctx.json(
+                    if (key != null) {
+                        mapOf("status" to polled.status.json, "key" to Pairing.base64(key), "serverId" to serverId)
+                    } else {
+                        mapOf("status" to polled.status.json)
+                    }
+                )
+            }
         }
         try {
             app.start()
@@ -107,6 +144,33 @@ class AppServer @JvmOverloads constructor(
         javalin = app
         logger.info("The app port is open on {}, with the certificate {}.", app.port(), certificate.fingerprint)
         return this
+    }
+
+    private fun readJson(ctx: Context): JsonNode {
+        val json = try {
+            objectMapper.readTree(ctx.body())
+        } catch (e: JacksonException) {
+            null
+        }
+        return json?.takeIf { it.isObject } ?: throw badRequest(ctx)
+    }
+
+    /** The requestId and the phone's revealed nonce that the reveal and the poll send. */
+    private fun readRequest(ctx: Context): Pair<String, ByteArray> {
+        val json = readJson(ctx)
+        val requestId = json.text("requestId")
+        val nonce = Pairing.decode(json.text("nonce"), Pairing.NONCE_BYTES)
+        if (requestId == null || nonce == null) {
+            throw badRequest(ctx)
+        }
+        return requestId to nonce
+    }
+
+    private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isTextual }?.asText()
+
+    private fun badRequest(ctx: Context): HaltException {
+        logger.info("Got a request to {} on the app port that isn't valid, from [{}].", ctx.path(), ctx.ip())
+        return HaltException(400, "Bad request.")
     }
 
     @Synchronized
@@ -169,6 +233,9 @@ class AppServer @JvmOverloads constructor(
         /** The app port, if not [DEFAULT_PORT]. */
         const val PORT_PROPERTY = "hdlserver.appPort"
         const val INFO_PATH = "/relay/info"
+        const val PAIR_PATH = "/relay/pair"
+        const val PAIR_REVEAL_PATH = "/relay/pair/reveal"
+        const val PAIR_POLL_PATH = "/relay/pair/poll"
         const val NAME = "Busbridge"
         private const val MAX_REQUEST_BYTES = 16 * 1024L
         private const val IDLE_TIMEOUT_MILLIS = 30_000L

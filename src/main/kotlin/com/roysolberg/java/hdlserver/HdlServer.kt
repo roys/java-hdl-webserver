@@ -86,6 +86,10 @@ class HdlServer @JvmOverloads constructor(
     @Volatile
     private var appPortProblem: AppPortProblem? = null
 
+    /** Pairing phones on the app port, while it's open. */
+    @Volatile
+    private var pairing: Pairing? = null
+
     private val isCheckingForUpdates: Boolean
         get() = configConcurrentMap[CHECK_FOR_UPDATES_KEY].toBoolean()
 
@@ -170,6 +174,7 @@ class HdlServer @JvmOverloads constructor(
                     "appPort" to appPort,
                     "appFingerprint" to appCertificate?.takeIf { appServer != null }?.fingerprint,
                     "appPortProblem" to appPortProblem,
+                    "pairingWindow" to pairing?.window(),
                 )
             }
             config.routes.get("/") { ctx ->
@@ -262,6 +267,36 @@ class HdlServer @JvmOverloads constructor(
                 val message = if (hdlService.searchForComponents()) "Searching." else "Already searching."
                 ctx.redirectWithMessage("/", "$message Reload the page in about 10 seconds to see what was found.", null)
             }
+            config.routes.post("/open_pairing") { ctx ->
+                val pairing = pairing
+                if (pairing == null) {
+                    ctx.redirectWithMessage("/settings", null, "Turn on Let the Android app connect first.")
+                } else {
+                    pairing.open()
+                    ctx.redirectWithMessage("/settings", "Now tap Connect to Busbridge in the app, and type the code it shows here.", null)
+                }
+            }
+            config.routes.post("/pair_phone") { ctx ->
+                val source = "Settings (${ctx.ip()})"
+                val pairing = pairing
+                val code = ctx.formParam("code").orEmpty()
+                when (val typed = if (pairing == null) Pairing.Typed.Closed else pairing.type(code)) {
+                    null -> ctx.redirectWithMessage("/settings", null, "Type the 6 digits the app shows.")
+                    is Pairing.Typed.Allowed -> {
+                        activityLog.record(source, "Pair \"${typed.name}\"", "Allowed", succeeded = true)
+                        ctx.redirectWithMessage("/settings", "Allowed ${typed.name}. The app finishes connecting by itself.", null)
+                    }
+                    Pairing.Typed.WrongCode -> {
+                        activityLog.record(source, "Pair a phone", "Wrong code", succeeded = false)
+                        ctx.redirectWithMessage("/settings", null, "That code doesn't match, so pairing is closed. If you typed the code the app shows, someone may be in between. Otherwise press Connect a phone and try again.")
+                    }
+                    Pairing.Typed.Closed -> ctx.redirectWithMessage("/settings", null, "Pairing isn't open. Press Connect a phone first.")
+                }
+            }
+            config.routes.post("/cancel_pairing") { ctx ->
+                pairing?.cancel()
+                ctx.redirectWithMessage("/settings", "Pairing is closed.", null)
+            }
             config.routes.post("/update_settings") { ctx ->
                 val authKey = ctx.formParam("authKey")?.trim()
                 if (authKey != null && authKey.length >= MIN_AUTH_TOKEN_LENGTH) {
@@ -290,6 +325,7 @@ class HdlServer @JvmOverloads constructor(
         if (!isAppPortOn) {
             appServer?.close()
             appServer = null
+            pairing = null
             appPortProblem = null
             return
         }
@@ -306,8 +342,9 @@ class HdlServer @JvmOverloads constructor(
             configConcurrentMap[SERVER_ID_KEY] = it
             database.commit()
         }
+        val pairing = Pairing(certificate.certificate.encoded)
         appServer = try {
-            AppServer(certificate, serverId, VERSION).start(appPort)
+            AppServer(certificate, serverId, VERSION, HdlServer::isLocalAddress, pairing).start(appPort).also { this.pairing = pairing }
         } catch (e: RuntimeException) {
             logger.error("Couldn't open the app port {}.", appPort, e)
             null
@@ -325,6 +362,7 @@ class HdlServer @JvmOverloads constructor(
     fun stop() {
         appServer?.close()
         appServer = null
+        pairing = null
         livePages?.close()
         livePages = null
         updateCheck?.close()

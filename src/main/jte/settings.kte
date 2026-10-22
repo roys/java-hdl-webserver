@@ -1,12 +1,15 @@
 @import com.roysolberg.java.hdlserver.HdlServer
 @import com.roysolberg.java.hdlserver.HdlServer.AppPortProblem
 @import com.roysolberg.java.hdlserver.Page
+@import com.roysolberg.java.hdlserver.Pairing
+@import com.roysolberg.java.hdlserver.Status
 @param page: Page
 @param checkForUpdates: Boolean = false
 @param appPortOn: Boolean = false
 @param appPort: Int = 0
 @param appFingerprint: String? = null
 @param appPortProblem: AppPortProblem? = null
+@param pairingWindow: Pairing.Window? = null
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -47,4 +50,40 @@
         <button type="submit" class="button is-primary">Save</button>
     </form>
 </div>
+@if(appFingerprint != null)
+<div class="box">
+    <h2 class="title is-5">Connect a phone</h2>
+    @if(pairingWindow == null)
+        <p class="block">Pairs Smart Home for HDL Buspro with Busbridge. Do it at home, with the phone on the home network.</p>
+        <form action="open_pairing" method="post">
+            <button type="submit" class="button is-primary">Connect a phone</button>
+        </form>
+    @else
+        <p class="block">Open until ${Status.formatTime(pairingWindow.closesAt).substring(11)}. In the app, tap Connect to Busbridge, and type the
+            code it shows here.</p>
+        @if(pairingWindow.phones.isEmpty())
+            <p class="block has-text-grey">No phone has asked yet. Reload the page once the app shows a code.</p>
+        @else
+            <ul class="block">
+                @for(phone in pairingWindow.phones)
+                    <li>A phone calling itself “${phone}”</li>
+                @endfor
+            </ul>
+        @endif
+        <form action="pair_phone" method="post" class="block">
+            <div class="field">
+                <label class="label" for="input_pairing_code">Code shown in the app</label>
+                <div class="control">
+                    <input type="text" name="code" class="input is-family-monospace" id="input_pairing_code" inputmode="numeric" autocomplete="off" maxlength="7" required aria-describedby="help_pairing_code"/>
+                </div>
+                <p id="help_pairing_code" class="help">The name is only what the phone calls itself; the code is what shows it's your phone.</p>
+            </div>
+            <button type="submit" class="button is-primary">Allow</button>
+        </form>
+        <form action="cancel_pairing" method="post">
+            <button type="submit" class="button">Cancel</button>
+        </form>
+    @endif
+</div>
+@endif
 `)
