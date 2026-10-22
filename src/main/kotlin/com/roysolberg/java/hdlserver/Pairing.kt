@@ -75,7 +75,8 @@ class Pairing @JvmOverloads constructor(
      * A phone pairs with the link's token. That uses the token up and closes the window. A wrong token doesn't: at 128
      * bits it can't be guessed.
      *
-     * @return the phone's new key, which it uses for the relay, or null if no window is open or the token isn't its
+     * @return the phone's new key, which it uses for the relay, or null if no window is open, the token isn't its, or
+     * too many phones are waiting to connect
      * @throws IllegalArgumentException if the name isn't valid
      */
     @Synchronized
@@ -87,14 +88,15 @@ class Pairing @JvmOverloads constructor(
             logger.info("A phone calling itself [{}] tried to pair with a token that isn't the open one.", label)
             return null
         }
+        // Normally one. Anyone who can use the pages can pair, so not without end, and a key once given keeps its time.
+        if (allowed.size >= MAX_ALLOWED_KEPT) {
+            logger.warn("Didn't pair the phone calling itself [{}]: {} phones that paired haven't connected yet.", label, MAX_ALLOWED_KEPT)
+            return null
+        }
         this.token = null
         closesAt = null
         val key = randomBytes(KEY_BYTES)
         allowed.add(Allowed(label, key, clock.instant() + ALLOWED_TIMEOUT))
-        // Normally one; anyone who can use the pages can pair, so not without end
-        while (allowed.size > MAX_ALLOWED_KEPT) {
-            allowed.removeAt(0)
-        }
         logger.info("The phone calling itself [{}] paired with the link.", label)
         return key.copyOf()
     }
@@ -121,7 +123,10 @@ class Pairing @JvmOverloads constructor(
 
     /** Forgets a phone that has paired but not yet connected, when the app forgets it first. */
     @Synchronized
-    fun withdraw(key: ByteArray): Boolean = allowed.removeIf { MessageDigest.isEqual(it.key, key) }
+    fun withdraw(key: ByteArray): Boolean {
+        expire()
+        return allowed.removeIf { MessageDigest.isEqual(it.key, key) }
+    }
 
     /** Forgets what has run out. */
     private fun expire() {
@@ -150,7 +155,7 @@ class Pairing @JvmOverloads constructor(
 
         @JvmField
         val ALLOWED_TIMEOUT: Duration = Duration.ofMinutes(10)
-        private const val MAX_ALLOWED_KEPT = 3
+        const val MAX_ALLOWED_KEPT = Phones.MAX_PHONES
         private val logger = LogManager.getLogger(Pairing::class.java)
 
         /**

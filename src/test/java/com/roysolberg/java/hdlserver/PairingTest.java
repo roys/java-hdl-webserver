@@ -105,15 +105,27 @@ class PairingTest {
     }
 
     @Test
-    void pairingAgainAndAgainKeepsLittle() {
+    void anExpiredPairingCantBeWithdrawn() {
+        byte[] key = pairing.pair(token(pairing.open()), "Pixel 9");
+        now = now.plus(Pairing.ALLOWED_TIMEOUT);
+
+        assertFalse(pairing.withdraw(key), "Already gone, so forget answers 401");
+    }
+
+    @Test
+    void pairingAgainAndAgainKeepsLittleAndTakesNoKeyBack() {
         List<byte[]> keys = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < Pairing.MAX_ALLOWED_KEPT; i++) {
             keys.add(pairing.pair(token(pairing.open()), "Phone " + i));
         }
 
-        assertEquals(List.of("Phone 97", "Phone 98", "Phone 99"), pairing.connecting(), "Only the latest");
-        assertFalse(pairing.isAllowed(keys.get(0)));
-        assertTrue(pairing.isAllowed(keys.get(99)));
+        byte[] token = token(pairing.open());
+        assertNull(pairing.pair(token, "One more"), "Too many waiting to connect");
+        assertTrue(keys.stream().allMatch(pairing::isAllowed), "Every key given keeps its 10 minutes");
+        assertNotNull(pairing.window(), "The link still works once there's room");
+
+        pairing.withdraw(keys.get(0));
+        assertNotNull(pairing.pair(token, "One more"));
     }
 
     @Test

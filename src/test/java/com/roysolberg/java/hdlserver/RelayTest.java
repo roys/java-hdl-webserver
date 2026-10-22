@@ -314,6 +314,36 @@ class RelayTest {
         }
     }
 
+    @Test
+    void forgettingWhileConnectingTheFirstTimeLeavesNoPhone() throws Exception {
+        // A few rounds, as each takes two of the 8 connections an address may have until the server notices they're closed
+        for (int i = 0; i < 3; i++) {
+            byte[] key = pairWithLink("Pixel " + i);
+            java.util.concurrent.CompletableFuture<Integer> forgot = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                try {
+                    return forget(key);
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            try (TestWebSocket phone = connect(key)) {
+                assertEquals(204, forgot.get(), "Known either way: still waiting, or just paired");
+                if (phone.status == 101) {
+                    // Paired first and removed right after, or removed while connecting: closed as removed either way
+                    TestWebSocket.Frame frame = phone.read(TestWebSocket.TEXT, TestWebSocket.CLOSE);
+                    if (frame.opcode() == TestWebSocket.TEXT) {
+                        frame = phone.read(TestWebSocket.CLOSE);
+                    }
+                    assertEquals(Relay.REMOVED, frame.closeCode());
+                } else {
+                    assertEquals(401, phone.status);
+                }
+            }
+            assertTrue(phones.all().isEmpty(), "Round " + i);
+            assertFalse(pairing.isAllowed(key));
+        }
+    }
+
     private int forget(byte[] key) throws Exception {
         javax.net.ssl.HttpsURLConnection connection = (javax.net.ssl.HttpsURLConnection) new java.net.URL("https://127.0.0.1:" + server.port() + AppServer.FORGET_PATH).openConnection();
         connection.setSSLSocketFactory(AppServerTest.pinned().getSocketFactory());
@@ -442,8 +472,8 @@ class RelayTest {
             out.flush();
         }
 
-        /** The next frame, which must be of this kind. Pings are answered on the way. */
-        Frame read(int expectedOpcode) throws IOException {
+        /** The next frame, which must be of one of these kinds. Pings are answered on the way. */
+        Frame read(int... expectedOpcodes) throws IOException {
             while (true) {
                 int opcode = in.readUnsignedByte() & 0x0F;
                 int length = in.readUnsignedByte() & 0x7F;
@@ -458,7 +488,8 @@ class RelayTest {
                     send(PONG, payload);
                     continue;
                 }
-                assertEquals(expectedOpcode, opcode, "The kind of frame");
+                final int received = opcode;
+                assertTrue(java.util.Arrays.stream(expectedOpcodes).anyMatch(expected -> expected == received), "The kind of frame: " + opcode);
                 return new Frame(opcode, payload);
             }
         }

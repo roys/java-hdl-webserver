@@ -148,13 +148,15 @@ class ApiContractTest {
     void otherSitesCanNotOpenLivePages() throws IOException {
         String lanAddress = siteLocalAddress();
         assumeTrue(lanAddress != null, "No LAN address on this machine");
-        try (Socket socket = new Socket(lanAddress, application.port())) {
-            String request = "GET /status/events HTTP/1.1\r\nHost: " + lanAddress + ":" + application.port()
-                    + "\r\nOrigin: https://evil.example.com\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n";
-            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
-            String statusLine = new Scanner(socket.getInputStream(), "UTF-8").nextLine();
+        for (String path : new String[]{"/status/events", "/settings/events"}) {
+            try (Socket socket = new Socket(lanAddress, application.port())) {
+                String request = "GET " + path + " HTTP/1.1\r\nHost: " + lanAddress + ":" + application.port()
+                        + "\r\nOrigin: https://evil.example.com\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n";
+                socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+                String statusLine = new Scanner(socket.getInputStream(), "UTF-8").nextLine();
 
-            assertTrue(statusLine.contains(" 403 "), statusLine);
+                assertTrue(statusLine.contains(" 403 "), path + ": " + statusLine);
+            }
         }
     }
 
@@ -162,10 +164,11 @@ class ApiContractTest {
     void livePagesGetUpdatesOnTheLocalNetworkOnly() throws IOException {
         assertEquals(401, send("GET", "/status/events", null, null, null).status);
         assertEquals(401, send("GET", "/activity/events", null, null, null).status);
+        assertEquals(401, send("GET", "/settings/events", null, null, null).status);
         String lanAddress = siteLocalAddress();
         assumeTrue(lanAddress != null, "No LAN address on this machine");
 
-        for (String path : new String[]{"/status/events", "/activity/events"}) {
+        for (String path : new String[]{"/status/events", "/activity/events", "/settings/events"}) {
             try (Socket socket = new Socket(lanAddress, application.port())) {
                 socket.setSoTimeout(10_000);
                 String request = "GET " + path + " HTTP/1.1\r\nHost: " + lanAddress + ":" + application.port() + "\r\nAccept: text/event-stream\r\n\r\n";
@@ -179,7 +182,9 @@ class ApiContractTest {
                 } while (!line.startsWith("event: " + LivePages.EVENT));
                 String data = scanner.nextLine();
                 assertTrue(data.startsWith("data: "), data);
-                assertTrue(data.contains(path.startsWith("/status") ? "HDL bus" : "Nothing yet") || data.contains("activity-table"), data);
+                if (!path.startsWith("/settings")) { // With the app port closed and no phones, Settings' live part is empty
+                    assertTrue(data.contains(path.startsWith("/status") ? "HDL bus" : "Nothing yet") || data.contains("activity-table"), data);
+                }
             }
         }
     }
