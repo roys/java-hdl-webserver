@@ -68,8 +68,14 @@ public class HdlService {
     private static Logger logger = LogManager.getLogger("HDL");
     protected static final int MAX_QUEUED_ACTIONS = 50;
     private static final int MAX_QUEUED_PACKETS = 500;
-    /** The UDP header (16) and the longest frame its length byte can describe (255), plus room to notice longer ones. */
-    private static final int MAX_PACKAGE_SIZE = 512;
+    /** The most a UDP packet can carry, so a big frame is never cut short. */
+    private static final int MAX_PACKAGE_SIZE = 65_535;
+    /**
+     * More devices than a bus has, so that packets made up by someone else on the network can't make the server use
+     * ever more memory, or fill the Devices page.
+     */
+    private static final int MAX_HEARD_DEVICES = 4096;
+    private static final int MAX_STORED_DEVICES = 2000;
     private static final Duration BUS_NETWORK_MAX_AGE = Duration.ofMinutes(1);
     private static final int SEARCHES = 3;
     private static final long SECONDS_BETWEEN_SEARCHES = 4;
@@ -97,8 +103,13 @@ public class HdlService {
     protected boolean isRunning;
     protected DatagramSocket datagramSocket;
     private BusNetwork busNetwork;
-    /** When the bus network was last looked for, from System.nanoTime(), or null to look before the next package. */
-    private volatile Long busNetworkFoundAt;
+    /** Where a device on the bus was last heard from, which tells which network the bus is on. */
+    private InetAddress heardFrom;
+    // Only used on the receiver thread
+    private boolean hasWarnedAboutHeardDevices;
+    private boolean hasWarnedAboutStoredDevices;
+    /** When the bus network was last found, from System.nanoTime(), or null to look for it before the next package. */
+    private Long busNetworkFoundAt;
 
     @SuppressWarnings("unchecked") // The database stores devices by their component id
     public HdlService(DB database) {
@@ -141,20 +152,20 @@ public class HdlService {
         isRunning = true;
         // Packets are handled on their own thread, so the socket is read again right away and a burst, like dozens of
         // search replies at once, waits here instead of in the socket's small buffer
-        BlockingQueue<byte[]> blockingQueue = new ArrayBlockingQueue<>(MAX_QUEUED_PACKETS);
+        BlockingQueue<ReceivedPackage> blockingQueue = new ArrayBlockingQueue<>(MAX_QUEUED_PACKETS);
         new Thread(() -> {
             while (isRunning) {
-                byte[] bytes;
+                ReceivedPackage received;
                 try {
-                    bytes = blockingQueue.take();
+                    received = blockingQueue.take();
                 } catch (InterruptedException e) {
                     return;
                 }
                 try {
-                    handlePackage(bytes);
+                    handlePackage(received.bytes(), received.from());
                 } catch (RuntimeException e) {
                     // Thrown out of here, an exception would stop the server from hearing the bus
-                    logger.error("Couldn't handle the package {}.", NetworkUtil.getNicelyFormattedBytes(bytes), e);
+                    logger.error("Couldn't handle the package {}.", NetworkUtil.getNicelyFormattedBytes(received.bytes()), e);
                 }
             }
         }, "hdl-receiver").start();
@@ -167,7 +178,7 @@ public class HdlService {
                     if (datagramSocket != null) {
                         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         datagramSocket.receive(packet);
-                        if (blockingQueue.offer(Arrays.copyOf(buffer, packet.getLength()))) {
+                        if (blockingQueue.offer(new ReceivedPackage(Arrays.copyOf(buffer, packet.getLength()), packet.getAddress()))) {
                             isDropping = false;
                         } else if (!isDropping) {
                             isDropping = true;
@@ -200,7 +211,13 @@ public class HdlService {
         }).start();
     }
 
-    protected void handlePackage(byte[] bytes) {
+    private record ReceivedPackage(byte[] bytes, InetAddress from) {
+    }
+
+    /**
+     * @param from where the package came from
+     */
+    protected void handlePackage(byte[] bytes, InetAddress from) {
         HdlFrame.Validity validity = HdlFrame.validate(bytes);
         if (validity != HdlFrame.Validity.VALID) {
             logger.warn("Received an invalid package ({}): {}", validity, NetworkUtil.getNicelyFormattedBytes(bytes));
@@ -209,11 +226,41 @@ public class HdlService {
         busStats.record();
         final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);
         final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
-        heardComponentIds.add(HdlUtil.getComponentId(hdlComponent));
-        if (isSearchResponse && storeFoundDevice(components, hdlComponent, heardComponentIds)) {
-            database.commit();
+        if (hdlComponent.getDeviceType() != SENDER_DEVICE_TYPE) {
+            heardFrom(from);
+        }
+        String componentId = HdlUtil.getComponentId(hdlComponent);
+        if (heardComponentIds.size() < MAX_HEARD_DEVICES || heardComponentIds.contains(componentId)) {
+            heardComponentIds.add(componentId);
+        } else if (!hasWarnedAboutHeardDevices) {
+            hasWarnedAboutHeardDevices = true;
+            logger.warn("Heard more than {} devices, so new ones aren't noted as heard.", MAX_HEARD_DEVICES);
+        }
+        if (isSearchResponse) {
+            if (components.size() >= MAX_STORED_DEVICES && !components.containsKey(componentId)) {
+                if (!hasWarnedAboutStoredDevices) {
+                    hasWarnedAboutStoredDevices = true;
+                    logger.warn("Already {} devices stored, so new ones aren't. Remove old ones on the Devices page.", MAX_STORED_DEVICES);
+                }
+            } else if (storeFoundDevice(components, hdlComponent, heardComponentIds)) {
+                database.commit();
+            }
         }
         logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
+    }
+
+    /**
+     * A device on the bus was heard from this address. If it isn't on the network the bus was thought to be on, the
+     * network is looked for again before the next package is sent.
+     */
+    protected synchronized void heardFrom(InetAddress address) {
+        if (!(address instanceof Inet4Address)) {
+            return;
+        }
+        heardFrom = address;
+        if (busNetwork != null && !busNetwork.contains(address)) {
+            busNetworkFoundAt = null;
+        }
     }
 
     protected synchronized DatagramSocket getDatagramSocket() throws SocketException {
@@ -233,20 +280,21 @@ public class HdlService {
     }
 
     /**
-     * Looks for the bus network again now and then, since the computer's address on it can change.
+     * Looks for the bus network again now and then, since the computer's address on it can change. Until one is found,
+     * e.g. right after the computer started, it's looked for again before every package.
      */
     protected synchronized BusNetwork getBusNetwork() {
         long now = System.nanoTime();
         Long foundAt = busNetworkFoundAt;
         if (foundAt == null || now - foundAt > BUS_NETWORK_MAX_AGE.toNanos()) {
-            BusNetwork found = BusNetwork.find();
+            BusNetwork found = BusNetwork.find(heardFrom);
             if (found == null) {
                 logger.warn("Found no network with an IPv4 broadcast address to reach the bus on.");
             } else if (!found.equals(busNetwork)) {
                 logger.info("The bus is reached on {}.", found);
             }
             busNetwork = found;
-            busNetworkFoundAt = now;
+            busNetworkFoundAt = found != null ? now : null;
         }
         return busNetwork;
     }
@@ -389,7 +437,7 @@ public class HdlService {
         return busNetwork != null ? busNetwork.getBroadcast() : BusNetwork.LIMITED_BROADCAST;
     }
 
-    protected void closeSocket() {
+    protected synchronized void closeSocket() {
         busNetworkFoundAt = null;
         if (datagramSocket != null) {
             if (!datagramSocket.isClosed()) {

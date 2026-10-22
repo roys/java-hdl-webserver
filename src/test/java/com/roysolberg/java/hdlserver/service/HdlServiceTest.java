@@ -269,6 +269,26 @@ class HdlServiceTest {
     }
 
     @Test
+    void madeUpSearchRepliesCantFillTheDeviceListOrMemory() {
+        DB database = DBMaker.memoryDB().make();
+        HdlService hdlService = new HdlService(database);
+        try {
+            for (int i = 0; i < 4200; i++) {
+                byte[] reply = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(0, 0, 0x000F, null, null, null));
+                reply[17] = (byte) (i >> 8); // Subnet
+                reply[18] = (byte) i; // Device
+                HdlFrame.writeCrc(reply);
+                hdlService.handlePackage(reply, LOCAL_ADDRESS);
+            }
+
+            assertEquals(2000, devices(database).size());
+            assertEquals(4096, hdlService.getHeardComponentIds().size());
+        } finally {
+            database.close();
+        }
+    }
+
+    @Test
     void theServerTheAppAndTheSetupToolAreToldApart() {
         assertEquals("This server", HdlService.getComponent(11, 252, 0xFFFB, null).getDescription());
         assertEquals("Android/iOS app", HdlService.getComponent(11, 253, 0xFFFD, null).getDescription());

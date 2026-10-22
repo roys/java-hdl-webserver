@@ -2,6 +2,7 @@ package com.roysolberg.java.hdlserver
 
 import org.apache.logging.log4j.LogManager
 import java.net.Inet4Address
+import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.SocketException
 
@@ -10,9 +11,16 @@ import java.net.SocketException
  * reaches every device on it. Found from the computer's own network interfaces, so it stays the home network when a VPN
  * like Tailscale carries the rest of the traffic, and nothing is asked of the Internet.
  */
-data class BusNetwork(val interfaceName: String, val address: Inet4Address, val broadcast: Inet4Address) {
+data class BusNetwork(val interfaceName: String, val address: Inet4Address, val broadcast: Inet4Address, val prefixLength: Int) {
 
-    override fun toString() = "$interfaceName (${address.hostAddress}, broadcast ${broadcast.hostAddress})"
+    /** Whether [other] is an address on this network. */
+    fun contains(other: InetAddress): Boolean {
+        if (other !is Inet4Address) return false
+        val mask = if (prefixLength == 0) 0 else -1 shl (32 - prefixLength)
+        return address.toInt() and mask == other.toInt() and mask
+    }
+
+    override fun toString() = "$interfaceName (${address.hostAddress}/$prefixLength, broadcast ${broadcast.hostAddress})"
 
     companion object {
         /** 255.255.255.255, which reaches the devices on whichever network the computer picks. */
@@ -22,19 +30,26 @@ data class BusNetwork(val interfaceName: String, val address: Inet4Address, val 
         private val WIRED_OR_WIRELESS = Regex("(eth|en|wlan|wl).*")
         private val logger = LogManager.getLogger(BusNetwork::class.java)
 
-        /** @return the likeliest bus network, or null if no network interface has an IPv4 broadcast address */
-        @JvmStatic
-        fun find(): BusNetwork? = choose(candidates())
-
         /**
-         * Prefers wired and wireless interfaces, then private addresses. VPN addresses never reach the bus, and neither do
-         * the bridges that containers and virtual machines get (docker0, br-…, virbr0).
+         * @param heardFrom where a device on the bus was heard from, if one has been
+         * @return the likeliest bus network, or null if no network interface has an IPv4 broadcast address
          */
         @JvmStatic
-        fun choose(networks: List<BusNetwork>): BusNetwork? = networks
+        @JvmOverloads
+        fun find(heardFrom: InetAddress? = null): BusNetwork? = choose(candidates(), heardFrom)
+
+        /**
+         * Prefers the network a device on the bus was heard on, then wired and wireless interfaces, then private
+         * addresses. VPN addresses never reach the bus, and neither do the bridges that containers and virtual machines
+         * get (docker0, br-…, virbr0).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun choose(networks: List<BusNetwork>, heardFrom: InetAddress? = null): BusNetwork? = networks
             .filterNot { isVpnAddress(it.address) }
             .sortedWith(
-                compareByDescending<BusNetwork> { WIRED_OR_WIRELESS.matches(it.interfaceName) }
+                compareByDescending<BusNetwork> { heardFrom != null && it.contains(heardFrom) }
+                    .thenByDescending { WIRED_OR_WIRELESS.matches(it.interfaceName) }
                     .thenByDescending { it.address.isSiteLocalAddress }
             )
             .firstOrNull()
@@ -46,7 +61,11 @@ data class BusNetwork(val interfaceName: String, val address: Inet4Address, val 
                     networkInterface.interfaceAddresses.mapNotNull { interfaceAddress ->
                         val address = interfaceAddress.address as? Inet4Address
                         val broadcast = interfaceAddress.broadcast as? Inet4Address
-                        if (address != null && broadcast != null) BusNetwork(networkInterface.name, address, broadcast) else null
+                        if (address != null && broadcast != null) {
+                        BusNetwork(networkInterface.name, address, broadcast, interfaceAddress.networkPrefixLength.toInt())
+                    } else {
+                        null
+                    }
                     }
                 }
         } catch (e: SocketException) {
@@ -60,6 +79,8 @@ data class BusNetwork(val interfaceName: String, val address: Inet4Address, val 
         } catch (e: SocketException) {
             false // Gone while being looked at
         }
+
+        private fun Inet4Address.toInt(): Int = address.fold(0) { value, byte -> value shl 8 or (byte.toInt() and 0xFF) }
 
         /** 100.64.0.0/10, where Tailscale gives out addresses. */
         private fun isVpnAddress(address: Inet4Address): Boolean {
