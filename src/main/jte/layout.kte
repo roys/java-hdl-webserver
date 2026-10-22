@@ -63,7 +63,7 @@
 </main>
 <footer class="page-footer has-text-grey is-size-7">
     <div class="container">
-        <p class="app-link">📱 To control your HDL devices from your phone, there's also <a href="https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome" target="_blank" rel="noopener noreferrer">Smart Home for HDL Buspro</a>, an app for Android.</p>
+        <p class="app-link">📱 To control your HDL devices from your phone, there's also <a href="https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome&amp;referrer=utm_source%3Dbusbridge%26utm_medium%3Dreferral%26utm_campaign%3Dbusbridge%26utm_content%3Dfooter" target="_blank" rel="noopener noreferrer">Smart Home for HDL Buspro</a>, an app for Android.</p>
         <p>Independent project, not affiliated with or endorsed by HDL Automation. HDL, Buspro and other trademarks belong to their owners.</p>
     </div>
 </footer>

@@ -7,7 +7,7 @@ pages, from Google Assistant through IFTTT, or from anything else that can send 
 Raspberry Pi.
 
 📱 To control your HDL devices from your phone, there's also
-[Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome), an app for Android.
+[Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome&referrer=utm_source%3Dgithub%26utm_medium%3Dreferral%26utm_campaign%3Dbusbridge%26utm_content%3Dreadme_intro), an app for Android.
 
 [![Build](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml/badge.svg?branch=v2)](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/roys/java-hdl-webserver)](https://github.com/roys/java-hdl-webserver/releases)
@@ -342,7 +342,7 @@ This runs the tests and builds the runnable JAR at `build/libs/hdlserver-<versio
 
 ## 🔗 Links
 
-- 📱 [My Android app for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome)
+- 📱 [My Android app for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome&referrer=utm_source%3Dgithub%26utm_medium%3Dreferral%26utm_campaign%3Dbusbridge%26utm_content%3Dreadme_links)
 - ✍️ [My dumb smart home](https://blog.roysolberg.com/2017/08/my-dumb-smart-home), a blog post on HDL Buspro and security
 - 🎬 [The demo on YouTube](https://youtu.be/P6BgsM8IiW8)
 - 🏢 [HDL Automation](https://www.hdlautomation.com/)
