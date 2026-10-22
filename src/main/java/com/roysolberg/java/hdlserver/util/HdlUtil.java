@@ -1,5 +1,6 @@
 package com.roysolberg.java.hdlserver.util;
 
+import com.roysolberg.java.hdlserver.HdlFrame;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -229,21 +230,17 @@ public class HdlUtil {
         sb.append(HdlUtil.getNiceOperationCode(bytes));
         sb.append("), ");
         // Content
-        int contentLength = bytes[HdlUtil.BYTE_POSITION_LENGTH] & 0xFF;
         sb.append("content length: ");
-        sb.append(contentLength);
+        sb.append(HdlFrame.length(bytes));
         sb.append(", ");
-        if (contentLength > 11) { // Got content
-            contentLength = Math.min(contentLength, 78);
+        int contentLength = HdlFrame.contentLength(bytes);
+        if (contentLength > 0) {
             sb.append("content: ");
-            sb.append(NetworkUtil.getNicelyFormattedBytes(Arrays.copyOfRange(bytes, HdlUtil.BYTE_POSITION_CONTENT, HdlUtil.BYTE_POSITION_CONTENT + contentLength - 11)));
+            sb.append(NetworkUtil.getNicelyFormattedBytes(Arrays.copyOfRange(bytes, HdlUtil.BYTE_POSITION_CONTENT, HdlUtil.BYTE_POSITION_CONTENT + contentLength)));
             sb.append(", ");
         }
         // CRC
-        sb.append("crc: 0x");
-        sb.append(String.format("%02X", bytes[HdlUtil.BYTE_POSITION_LENGTH + contentLength] & 0xFF));
-        sb.append(String.format("%02X", bytes[HdlUtil.BYTE_POSITION_LENGTH + contentLength + 1] & 0xFF));
-        sb.append(", ");
+        sb.append(String.format("crc: 0x%04X, ", HdlFrame.crcOf(bytes)));
         // Target
         int targetDeviceId = bytes[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID] & 0xFF;
         sb.append("target: ");

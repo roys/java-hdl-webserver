@@ -1,6 +1,7 @@
 package com.roysolberg.java.hdlserver.service;
 
 import com.roysolberg.java.hdlserver.BusStats;
+import com.roysolberg.java.hdlserver.HdlFrame;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponentFactory;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ public class HdlService {
     protected final static int BYTE_POSITION_TARGET_DEVICE_ID = 24;
     protected final static int BYTE_POSITION_CONTENT = 25;
     protected final static int BYTE_POSITION_REMARK = 25;
+    private static final int REMARK_LENGTH = 20;
     protected final static int OPERATE_CODE_SEARCH_RESPONSE = 0x000F;
     protected static final int SINGLE_CHANNEL_CONTROL = 0x0031;
     protected final static byte OPERATE_CODE_SEARCH_BYTE_1 = (byte) 0x00;
@@ -63,6 +66,9 @@ public class HdlService {
 
     private static Logger logger = LogManager.getLogger("HDL");
     protected static final int MAX_QUEUED_ACTIONS = 50;
+    private static final int MAX_QUEUED_PACKETS = 500;
+    /** The UDP header (16) and the longest frame its length byte can describe (255), plus room to notice longer ones. */
+    private static final int MAX_PACKAGE_SIZE = 512;
     private static final int SEARCHES = 3;
     private static final long SECONDS_BETWEEN_SEARCHES = 4;
     private final ConcurrentMap<String, HdlComponent> components;
@@ -130,58 +136,39 @@ public class HdlService {
 
     protected void run() {
         isRunning = true;
-        BlockingQueue<byte[]> blockingQueue = new ArrayBlockingQueue<>(200);
+        // Packets are handled on their own thread, so the socket is read again right away and a burst, like dozens of
+        // search replies at once, waits here instead of in the socket's small buffer
+        BlockingQueue<byte[]> blockingQueue = new ArrayBlockingQueue<>(MAX_QUEUED_PACKETS);
         new Thread(() -> {
             while (isRunning) {
+                byte[] bytes;
                 try {
-                    while (!blockingQueue.isEmpty()) {
-                        byte[] bytes = blockingQueue.take();
-                        //System.out.println("Queue size: " + blockingQueue.size() + ", remaining capacity: " + blockingQueue.remainingCapacity());
-                        if (isPackageValid(bytes)) {
-                            busStats.record();
-                            // XXX: Comment out:
-                            //logger.info("Received package " + nicelyFormattedBytes + ".");
-                            final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);
-                            final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
-                            String componentId = HdlUtil.getComponentId(hdlComponent);
-                            heardComponentIds.add(componentId);
-                            if (isSearchResponse && storeFoundDevice(components, hdlComponent, heardComponentIds)) {
-                                database.commit();
-                            }
-                            logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
-                        } else {
-                            String nicelyFormattedBytes = NetworkUtil.getNicelyFormattedBytes(bytes);
-                            logger.warn("Received invalid package " + nicelyFormattedBytes);
-                        }
-                        try {
-                            Thread.sleep(50);
-                        } catch (InterruptedException e) {
-                    /* no-op */
-                            // XXX: Comment out:
-                            logger.info("InterruptedException.");
-                        }
-                    }
-                    Thread.sleep(500);
+                    bytes = blockingQueue.take();
                 } catch (InterruptedException e) {
-                    /* no-op */
+                    return;
+                }
+                try {
+                    handlePackage(bytes);
+                } catch (RuntimeException e) {
+                    // Thrown out of here, an exception would stop the server from hearing the bus
+                    logger.error("Couldn't handle the package {}.", NetworkUtil.getNicelyFormattedBytes(bytes), e);
                 }
             }
-        }).start();
+        }, "hdl-receiver").start();
         new Thread(() -> {
-            DatagramPacket packet;
+            byte[] buffer = new byte[MAX_PACKAGE_SIZE];
+            boolean isDropping = false;
             while (isRunning) {
                 try {
                     final DatagramSocket datagramSocket = getDatagramSocket();
                     if (datagramSocket != null) {
-                        //logger.info("Receiving...");
-                        byte[] bytes = new byte[105];
-                        packet = new DatagramPacket(bytes, bytes.length);
+                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         datagramSocket.receive(packet);
-                        try {
-                            blockingQueue.add(bytes);
-                        } catch (IllegalStateException e) {
-                            logger.error("Got IllegalStateException while trying to add packet to queue. Emptying queue.");
-                            blockingQueue.clear();
+                        if (blockingQueue.offer(Arrays.copyOf(buffer, packet.getLength()))) {
+                            isDropping = false;
+                        } else if (!isDropping) {
+                            isDropping = true;
+                            logger.warn("Already {} packages waiting to be handled. Dropping new ones until there's room.", MAX_QUEUED_PACKETS);
                         }
                     } else {
                         logger.error("Didn't get any datagram socket. Trying again soon...");
@@ -208,6 +195,22 @@ public class HdlService {
                 }
             }
         }).start();
+    }
+
+    protected void handlePackage(byte[] bytes) {
+        HdlFrame.Validity validity = HdlFrame.validate(bytes);
+        if (validity != HdlFrame.Validity.VALID) {
+            logger.warn("Received an invalid package ({}): {}", validity, NetworkUtil.getNicelyFormattedBytes(bytes));
+            return;
+        }
+        busStats.record();
+        final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);
+        final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
+        heardComponentIds.add(HdlUtil.getComponentId(hdlComponent));
+        if (isSearchResponse && storeFoundDevice(components, hdlComponent, heardComponentIds)) {
+            database.commit();
+        }
+        logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
     }
 
     protected synchronized DatagramSocket getDatagramSocket() throws SocketException {
@@ -303,46 +306,6 @@ public class HdlService {
         return bytes;
     }
 
-    protected static void generateCrc(byte[] bytesToSend) {
-        int length = bytesToSend[BYTE_POSITION_LENGTH] - 2; // Length minus CRC data
-        int crc = getCrc(bytesToSend, BYTE_POSITION_LENGTH, length);
-        bytesToSend[BYTE_POSITION_LENGTH + length + 1] = (byte) crc;
-        bytesToSend[BYTE_POSITION_LENGTH + length] = (byte) (crc >>> 8);
-    }
-
-    /**
-     * CRC-16/XMODEM (CCITT polynomial 0x1021, initial value 0), as HDL Buspro uses.
-     */
-    protected static int getCrc(byte[] bytes, int offset, int length) {
-        int polynomial = 0x1021;   // Represents x^16+x^12+x^5+1
-        int crc = 0x0000;
-        for (int j = offset; j < (offset + length); j++) {
-            byte b = bytes[j];
-            for (int i = 0; i < 8; i++) {
-                boolean bit = ((b >> (7 - i) & 1) == 1);
-                boolean c15 = ((crc >> 15 & 1) == 1);
-                crc <<= 1;
-                // If coefficient of bit and remainder polynomial = 1 xor crc with polynomial
-                if (c15 ^ bit) crc ^= polynomial;
-            }
-        }
-        return crc & 0xffff;
-    }
-
-    public static boolean isPackageValid(byte[] bytes) {
-        if (bytes != null && bytes.length >= 23) {
-            byte[] fixedBytes = new byte[]{'H', 'D', 'L', 'M', 'I', 'R', 'A', 'C', 'L', 'E', (byte) 0xAA, (byte) 0xAA}; // TODO: should be constant + used for default package creation + fix those 0xaa
-            for (int i = 0; i < fixedBytes.length; i++) {
-                if (bytes[i + 4] != fixedBytes[i]) {
-                    return false;
-                }
-                // TODO: Verify CRC
-            }
-            return true;
-        }
-        return false;
-    }
-
     public Set<String> getHeardComponentIds() {
         return Collections.unmodifiableSet(heardComponentIds);
     }
@@ -387,7 +350,8 @@ public class HdlService {
         int deviceId = (bytes[BYTE_POSITION_DEVICE_ID] & 0xFF);
         String remark = null;
         if (includeRemark) {
-            remark = getCleanRemark(bytes, BYTE_POSITION_REMARK, 20, charset);
+            // The remark is the first 20 bytes of the content, or what there is of it
+            remark = getCleanRemark(bytes, BYTE_POSITION_REMARK, Math.min(REMARK_LENGTH, HdlFrame.contentLength(bytes)), charset);
         }
         return getComponent(subnetId, deviceId, deviceType, remark);
     }
@@ -547,7 +511,7 @@ public class HdlService {
             // Target subnet and device ids:
             bytesToSend[BYTE_POSITION_TARGET_SUBNET_ID] = TARGET_SUBNET_ID_ALL;
             bytesToSend[BYTE_POSITION_TARGET_DEVICE_ID] = TARGET_DEVICE_ID_ALL;
-            generateCrc(bytesToSend);
+            HdlFrame.writeCrc(bytesToSend);
             sendBroadcastMessage(bytesToSend);
         } else {
             logger.warn("Couldn't get any local IP address. Unable to do a quick search for components.");
@@ -610,7 +574,7 @@ public class HdlService {
 
         bytesToSend[BYTE_POSITION_LENGTH] = (byte) messageLength;
         setTarget(bytesToSend, command);
-        generateCrc(bytesToSend);
+        HdlFrame.writeCrc(bytesToSend);
         return bytesToSend;
     }
 
@@ -640,7 +604,7 @@ public class HdlService {
 
         bytesToSend[BYTE_POSITION_LENGTH] = (byte) 16;
         setTarget(bytesToSend, command);
-        generateCrc(bytesToSend);
+        HdlFrame.writeCrc(bytesToSend);
         return bytesToSend;
     }
 

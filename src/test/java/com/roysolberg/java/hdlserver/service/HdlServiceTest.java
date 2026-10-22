@@ -1,9 +1,11 @@
 package com.roysolberg.java.hdlserver.service;
 
+import com.roysolberg.java.hdlserver.HdlFrame;
 import com.roysolberg.java.hdlserver.HdlServer;
 import com.roysolberg.java.hdlserver.hdl.Action;
 import com.roysolberg.java.hdlserver.hdl.component.DimmerComponent;
 import com.roysolberg.java.hdlserver.hdl.component.HdlComponent;
+import com.roysolberg.java.hdlserver.util.HdlUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mapdb.DB;
@@ -32,7 +34,7 @@ class HdlServiceTest {
     void crcIsXmodem() {
         byte[] bytes = "123456789".getBytes(StandardCharsets.US_ASCII);
 
-        assertEquals(0x31C3, HdlService.getCrc(bytes, 0, bytes.length)); // The standard check value
+        assertEquals(0x31C3, HdlFrame.crc(bytes, 0, bytes.length)); // The standard check value
     }
 
     @Test
@@ -168,11 +170,27 @@ class HdlServiceTest {
     void packagesAreValid() {
         byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, 18, 1, null));
 
-        assertTrue(HdlService.isPackageValid(bytes));
+        assertEquals(HdlFrame.Validity.VALID, HdlFrame.validate(bytes), "With the padding after the frame");
+        assertEquals(HdlFrame.Validity.VALID, HdlFrame.validate(Arrays.copyOf(bytes, 16 + 13)), "Just the frame");
+        assertEquals(HdlFrame.Validity.BAD_LENGTH, HdlFrame.validate(Arrays.copyOf(bytes, 16 + 12)), "Cut short");
+        bytes[26] ^= 1;
+        assertEquals(HdlFrame.Validity.BAD_CRC, HdlFrame.validate(bytes), "Damaged");
+        bytes[26] ^= 1;
+        bytes[16] = 10;
+        assertEquals(HdlFrame.Validity.BAD_LENGTH, HdlFrame.validate(bytes), "Shorter than a frame can be");
+        bytes[16] = 13;
         bytes[6] = 'X';
-        assertFalse(HdlService.isPackageValid(bytes));
-        assertFalse(HdlService.isPackageValid(new byte[22]));
-        assertFalse(HdlService.isPackageValid(null));
+        assertEquals(HdlFrame.Validity.NOT_HDL, HdlFrame.validate(bytes));
+        assertEquals(HdlFrame.Validity.NOT_HDL, HdlFrame.validate(new byte[26]));
+        assertEquals(HdlFrame.Validity.NOT_HDL, HdlFrame.validate(null));
+    }
+
+    @Test
+    void theCrcIsReadFromTheEndOfTheFrame() {
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, 18, 1, null));
+
+        assertEquals(0x9BE8, HdlFrame.crcOf(bytes));
+        assertEquals(2, HdlFrame.contentLength(bytes));
     }
 
     @Test
@@ -182,6 +200,7 @@ class HdlServiceTest {
         bytes[18] = 40; // Device
         bytes[19] = 0x02; // Type 600, a 6 channel dimmer
         bytes[20] = (byte) 0x58;
+        bytes[16] = 11 + 20; // The remark is 20 bytes
         byte[] remark = "Kitchen".getBytes(StandardCharsets.ISO_8859_1);
         System.arraycopy(remark, 0, bytes, 25, remark.length);
 
@@ -193,6 +212,25 @@ class HdlServiceTest {
         assertEquals(600, component.getDeviceType());
         assertEquals("Kitchen", component.getRemark());
         assertTrue(HdlService.isOperationCode(bytes, 0x000F));
+    }
+
+    @Test
+    void aShortSearchReplyHasTheRemarkThereIs() {
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 40, 0x000F, (int) 'H', (int) 'a', (int) 'l'));
+        byte[] packet = Arrays.copyOf(bytes, 16 + 14); // Exactly the frame, as it's received
+
+        assertEquals(HdlFrame.Validity.VALID, HdlFrame.validate(packet));
+        assertEquals("Hal", HdlService.getComponentFromBytes(packet, true, "ISO-8859-1").getRemark());
+    }
+
+    @Test
+    void theBusLogShowsTheFramesCrc() {
+        byte[] bytes = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, 18, 1, null));
+
+        String described = HdlUtil.getNicelyDescribedBytes(Arrays.copyOf(bytes, 16 + 13), HdlService.getComponentFromBytes(bytes, false, null));
+
+        assertTrue(described.contains("content: [12 01]"), described);
+        assertTrue(described.contains("crc: 0x9BE8"), described);
     }
 
     @Test
