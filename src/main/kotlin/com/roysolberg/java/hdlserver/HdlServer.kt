@@ -707,9 +707,10 @@ class HdlServer @JvmOverloads constructor(
             // Before anything is started, so a mistyped port stops the server instead of leaving it half running
             val port = parsePort(System.getProperty(PORT_PROPERTY))
             val appPort = parsePort(System.getProperty(AppServer.PORT_PROPERTY), AppServer.PORT_PROPERTY, AppServer.DEFAULT_PORT)
+            val busPort = parsePort(System.getProperty(HdlService.BUS_PORT_PROPERTY), HdlService.BUS_PORT_PROPERTY, HdlService.DEFAULT_BUS_PORT)
             val database = openDatabase(DATABASE_FILE)
             Runtime.getRuntime().addShutdownHook(Thread(database::close))
-            val hdlService = HdlService(database)
+            val hdlService = HdlService(database, busPort)
             hdlService.start()
             HdlServer(database, hdlService, Path.of(DATABASE_FILE)).start(port, appPort)
         }

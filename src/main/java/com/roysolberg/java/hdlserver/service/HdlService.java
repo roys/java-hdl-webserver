@@ -41,7 +41,9 @@ import java.util.function.Function;
 
 public class HdlService {
 
-    protected final static int MULTICAST_PORT = 6000;
+    public static final int DEFAULT_BUS_PORT = 6000;
+    /** Another UDP port than the bus's, e.g. to test without reaching a real bus. */
+    public static final String BUS_PORT_PROPERTY = "hdlserver.busPort";
     protected final static int BYTE_POSITION_LENGTH = 16;
     protected final static int BYTE_POSITION_SUBNET_ID = 17;
     protected final static int BYTE_POSITION_DEVICE_ID = 18;
@@ -106,6 +108,7 @@ public class HdlService {
     });
 
     protected boolean isRunning;
+    private final int busPort;
     protected DatagramSocket datagramSocket;
     private volatile Consumer<byte[]> packageListener;
     private BusNetwork busNetwork;
@@ -117,9 +120,20 @@ public class HdlService {
     /** When the bus network was last found, from System.nanoTime(), or null to look for it before the next package. */
     private Long busNetworkFoundAt;
 
-    @SuppressWarnings("unchecked") // The database stores devices by their component id
     public HdlService(DB database) {
+        this(database, DEFAULT_BUS_PORT);
+    }
+
+    /**
+     * @param busPort the UDP port the bus is heard and reached on
+     */
+    @SuppressWarnings("unchecked") // The database stores devices by their component id
+    public HdlService(DB database, int busPort) {
         this.database = database;
+        this.busPort = busPort;
+        if (busPort != DEFAULT_BUS_PORT) {
+            logger.warn("Hears and reaches the bus on UDP port {}, not {}.", busPort, DEFAULT_BUS_PORT);
+        }
         components = (ConcurrentMap<String, HdlComponent>) (ConcurrentMap<?, ?>) database.hashMap("components").createOrOpen();
         logger.info("components: {}", components.values());
     }
@@ -287,7 +301,7 @@ public class HdlService {
 
     protected synchronized DatagramSocket getDatagramSocket() throws SocketException {
         if (datagramSocket == null) {
-            datagramSocket = new DatagramSocket(MULTICAST_PORT);
+            datagramSocket = new DatagramSocket(busPort);
             datagramSocket.setBroadcast(true);
         }
         return datagramSocket;
@@ -475,7 +489,7 @@ public class HdlService {
 
     public void sendBroadcastMessage(byte[] bytesToSend) {
         try {
-            final DatagramPacket datagramPacket = new DatagramPacket(bytesToSend, bytesToSend.length, getBroadcastAddress(), MULTICAST_PORT);
+            final DatagramPacket datagramPacket = new DatagramPacket(bytesToSend, bytesToSend.length, getBroadcastAddress(), busPort);
             getDatagramSocket().send(datagramPacket);
             // XXX: Comment out:
 //            logger.debug("Package " + NetworkUtil.getNicelyFormattedBytes(bytesToSend) + " sent to [" + getBroadcastAddress() + "].");

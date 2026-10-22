@@ -256,6 +256,20 @@ class HdlServiceTest {
     }
 
     @Test
+    void theBusCanBeOnAnotherPort() throws Exception {
+        try (DB database = DBMaker.memoryDB().make(); java.net.DatagramSocket free = new java.net.DatagramSocket(0)) {
+            int port = free.getLocalPort();
+            free.close();
+            HdlService hdlService = new HdlService(database, port);
+            try {
+                assertEquals(port, hdlService.getDatagramSocket().getLocalPort());
+            } finally {
+                hdlService.closeSocket();
+            }
+        }
+    }
+
+    @Test
     void onlyValidPackagesArePassedOn() {
         try (DB database = DBMaker.memoryDB().make()) {
             HdlService hdlService = new HdlService(database);

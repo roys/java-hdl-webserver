@@ -265,6 +265,7 @@ and a restart):
 |---|---|
 | `-Dhdlserver.port=8080` | Listens on another port than 4567. Remember the port forwarding in your router, and your IFTTT applets' URLs. |
 | `-Dhdlserver.allowedHosts=hdl.example.com` | Lets you open the pages by a host name with dots in it. IP addresses and local names like `raspberrypi` or `raspberrypi.local` always work. |
+| `-Dhdlserver.busPort=6001` | Uses another UDP port than 6000, where HDL devices are, so nothing reaches the bus. For testing. |
 
 ```sh
 java -Dhdlserver.port=8080 -Dhdlserver.allowedHosts=hdl.example.com -cp hdlserver-LATEST.jar com.roysolberg.java.hdlserver.Application
