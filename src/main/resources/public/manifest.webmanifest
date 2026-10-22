@@ -7,6 +7,10 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#00d1b2",
+  "related_applications": [
+    { "platform": "play", "url": "https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome", "id": "com.roysolberg.android.smarthome" }
+  ],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },

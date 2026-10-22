@@ -309,6 +309,10 @@ dialog::backdrop {
     border-top: 1px solid var(--bulma-border-weak);
 }
 
+.page-footer .app-link {
+    margin-bottom: .5rem;
+}
+
 /* Demo */
 .video {
     max-width: 52rem;

@@ -62,7 +62,10 @@
     </div>
 </main>
 <footer class="page-footer has-text-grey is-size-7">
-    <div class="container">Independent project, not affiliated with or endorsed by HDL Automation. HDL, Buspro and other trademarks belong to their owners.</div>
+    <div class="container">
+        <p class="app-link">📱 On your phone: <a href="https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome" target="_blank" rel="noopener noreferrer">Smart Home for HDL Buspro</a>, the app for Android.</p>
+        <p>Independent project, not affiliated with or endorsed by HDL Automation. HDL, Buspro and other trademarks belong to their owners.</p>
+    </div>
 </footer>
 </body>
 </html>
