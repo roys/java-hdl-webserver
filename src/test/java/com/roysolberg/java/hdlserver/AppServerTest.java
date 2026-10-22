@@ -137,7 +137,7 @@ class AppServerTest {
     void aPortThatsTakenIsReportedAndLeavesNothingOpen() throws Exception {
         AppServer server = start(address -> true);
 
-        Pairing pairing = new Pairing(CERTIFICATE.getCertificate().getEncoded());
+        Pairing pairing = new Pairing();
         AppServer second = new AppServer(CERTIFICATE, "server-2", "2.2.0", pairing, relay(pairing));
         assertThrows(RuntimeException.class, () -> second.start(server.port()));
         assertEquals(200, connect(server, "/relay/info").getResponseCode(), "The first still answers");
@@ -156,84 +156,67 @@ class AppServerTest {
     }
 
     @Test
-    void aPhonePairsOverTheAppPort() throws Exception {
-        Pairing pairing = new Pairing(CERTIFICATE.getCertificate().getEncoded());
+    void aPhonePairsWithTheLinksToken() throws Exception {
+        Pairing pairing = new Pairing();
         AppServer server = start(address -> true, pairing);
-        byte[] nonce = new byte[32];
-        new SecureRandom().nextBytes(nonce);
-        String ask = "{\"name\":\"Pixel 9\",\"commitment\":\"" + Pairing.base64(Pairing.commitment(nonce)) + "\"}";
+        String closed = "{\"status\":\"closed\"}";
+        assertEquals(new Response(409, closed), post(server, AppServer.PAIR_PATH, pair(Pairing.base64Url(new byte[16]))), "Not opened on Settings");
 
-        assertEquals(new Response(409, "{\"status\":\"closed\"}"), post(server, AppServer.PAIR_PATH, ask), "Not opened on Settings");
+        String token = pairing.open().getToken();
+        assertEquals(new Response(409, closed), post(server, AppServer.PAIR_PATH, pair(Pairing.base64Url(new byte[16]))), "Not its token");
+        JsonNode paired = json(post(server, AppServer.PAIR_PATH, pair(token)), 200);
 
-        pairing.open();
-        JsonNode created = json(post(server, AppServer.PAIR_PATH, ask), 200);
-        String requestId = created.get("requestId").asText();
-        String revealed = "{\"requestId\":\"" + requestId + "\",\"nonce\":\"" + Pairing.base64(nonce) + "\"}";
-        assertEquals("waiting", json(post(server, AppServer.PAIR_REVEAL_PATH, revealed), 200).get("status").asText());
-        assertEquals(new Response(200, "{\"status\":\"waiting\"}"), post(server, AppServer.PAIR_POLL_PATH, revealed));
-
-        // What the app shows, worked out from the certificate it was shown
-        HttpsURLConnection info = connect(server, AppServer.INFO_PATH);
-        info.connect();
-        byte[] shownCertificate = info.getServerCertificates()[0].getEncoded();
-        info.disconnect();
-        String code = Pairing.code(nonce, Pairing.decode(created.get("nonce").asText(), 32), shownCertificate);
-        assertInstanceOf(Pairing.Typed.Allowed.class, pairing.type(code));
-
-        JsonNode allowed = json(post(server, AppServer.PAIR_POLL_PATH, revealed), 200);
-        assertEquals("allowed", allowed.get("status").asText());
-        assertEquals("server-1", allowed.get("serverId").asText());
-        assertNotNull(Pairing.decode(allowed.get("key").asText(), 32));
-        assertEquals(new Response(409, "{\"status\":\"closed\"}"), post(server, AppServer.PAIR_PATH, ask), "Closed again");
-    }
-
-    @Test
-    void aFullWindowIsSaidSo() throws Exception {
-        Pairing pairing = new Pairing(CERTIFICATE.getCertificate().getEncoded());
-        AppServer server = start(address -> true, pairing);
-        pairing.open();
-
-        for (int i = 0; i < Pairing.MAX_REQUESTS; i++) {
-            byte[] nonce = new byte[32];
-            new SecureRandom().nextBytes(nonce);
-            String ask = "{\"name\":\"Phone\",\"commitment\":\"" + Pairing.base64(Pairing.commitment(nonce)) + "\"}";
-            assertEquals(200, post(server, AppServer.PAIR_PATH, ask).status());
-        }
-        String ask = "{\"name\":\"Phone\",\"commitment\":\"" + Pairing.base64(new byte[32]) + "\"}";
-        assertEquals(new Response(409, "{\"status\":\"full\"}"), post(server, AppServer.PAIR_PATH, ask));
+        assertNotNull(Pairing.decode(paired.get("key").asText(), 32));
+        assertEquals("server-1", paired.get("serverId").asText());
+        assertEquals(2, paired.size());
+        assertEquals(new Response(409, closed), post(server, AppServer.PAIR_PATH, pair(token)), "Used up");
     }
 
     @Test
     void pairingRequestsThatArentValidAreRefused() throws Exception {
-        Pairing pairing = new Pairing(CERTIFICATE.getCertificate().getEncoded());
+        Pairing pairing = new Pairing();
         AppServer server = start(address -> true, pairing);
-        pairing.open();
-        String commitment = Pairing.base64(new byte[32]);
+        String token = pairing.open().getToken();
 
         for (String body : new String[]{
-                "", "not json", "[]", "{}", "{\"name\":\"Pixel\"}", "{\"name\":7,\"commitment\":\"" + commitment + "\"}",
-                "{\"name\":\"Pixel\\u202E9\",\"commitment\":\"" + commitment + "\"}",
-                "{\"name\":\"Pixel\",\"commitment\":\"" + Pairing.base64(new byte[31]) + "\"}",
+                "", "not json", "[]", "{}", "{\"name\":\"Pixel\"}", "{\"token\":\"" + token + "\"}",
+                "{\"name\":7,\"token\":\"" + token + "\"}",
+                "{\"name\":\"Pixel\\u202E9\",\"token\":\"" + token + "\"}",
+                "{\"name\":\"Pixel\",\"token\":\"" + token + "==\"}",
+                "{\"name\":\"Pixel\",\"token\":\"" + Pairing.base64Url(new byte[15]) + "\"}",
+                "{\"name\":\"Pixel\",\"token\":\"" + Pairing.base64(Pairing.decodeUrl(token, 16)) + "\"}",
         }) {
             assertEquals(400, post(server, AppServer.PAIR_PATH, body).status(), body);
         }
-        for (String path : new String[]{AppServer.PAIR_REVEAL_PATH, AppServer.PAIR_POLL_PATH}) {
-            String requestId = Pairing.base64(new byte[16]);
-            assertEquals(400, post(server, path, "{\"requestId\":\"" + requestId + "\"}").status(), path);
-            assertEquals(400, post(server, path, "{\"requestId\":\"" + requestId + "\",\"nonce\":\"AAAA\"}").status(), path);
-            assertEquals(400, post(server, path, "{\"requestId\":\"x\",\"nonce\":\"" + commitment + "\"}").status(), "Not a requestId");
-            assertEquals(new Response(200, "{\"status\":\"expired\"}"),
-                    post(server, path, "{\"requestId\":\"" + requestId + "\",\"nonce\":\"" + commitment + "\"}"), "Unknown");
-        }
-        assertEquals(Pairing.MAX_REQUESTS, pairing.window().getRequestsLeft(), "None of these counted");
+        assertEquals(token, pairing.window().getToken(), "Still open");
+    }
+
+    @Test
+    void forgettingNeedsAPairedPhonesKey() throws Exception {
+        AppServer server = start(address -> true);
+
+        assertEquals(401, post(server, AppServer.FORGET_PATH, "", null).status());
+        assertEquals(401, post(server, AppServer.FORGET_PATH, "", "Bearer " + Pairing.base64(new byte[32])).status(), "Unknown");
+        assertEquals(401, post(server, AppServer.FORGET_PATH, "", "Bearer x").status());
+    }
+
+    private static String pair(String token) {
+        return "{\"name\":\"Pixel 9\",\"token\":\"" + token + "\"}";
     }
 
     private record Response(int status, String body) {
     }
 
     private static Response post(AppServer server, String path, String body) throws Exception {
+        return post(server, path, body, null);
+    }
+
+    private static Response post(AppServer server, String path, String body, String authorization) throws Exception {
         HttpsURLConnection connection = connect(server, path);
         connection.setRequestMethod("POST");
+        if (authorization != null) {
+            connection.setRequestProperty("Authorization", authorization);
+        }
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
@@ -266,7 +249,7 @@ class AppServerTest {
     }
 
     private AppServer start(kotlin.jvm.functions.Function1<String, Boolean> isAllowedAddress) throws Exception {
-        return start(isAllowedAddress, new Pairing(CERTIFICATE.getCertificate().getEncoded()));
+        return start(isAllowedAddress, new Pairing());
     }
 
     private AppServer start(kotlin.jvm.functions.Function1<String, Boolean> isAllowedAddress, Pairing pairing) {

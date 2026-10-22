@@ -31,13 +31,17 @@ import java.util.HexFormat
 
 /**
  * The certificate the app port shows. No certificate authority vouches for a server at home, whose address changes, so
- * Busbridge makes its own on first use and keeps it. The app pins its [fingerprint] at pairing and trusts nothing else.
+ * Busbridge makes its own on first use and keeps it. The pairing link carries its [pin], and the app trusts nothing else.
  */
 class AppCertificate private constructor(val certificate: X509Certificate, private val privateKey: PrivateKey) {
 
-    /** SHA-256 of the certificate, e.g. "3F:A2:…", as the app pins it and the Settings page shows it. */
-    val fingerprint: String = HexFormat.ofDelimiter(":").withUpperCase()
-        .formatHex(MessageDigest.getInstance("SHA-256").digest(certificate.encoded))
+    private val hash = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+
+    /** SHA-256 of the certificate, e.g. "3F:A2:…", as the Settings page shows it. */
+    val fingerprint: String = HexFormat.ofDelimiter(":").withUpperCase().formatHex(hash)
+
+    /** SHA-256 of the certificate as base64url without padding, as the pairing link carries it for the app to pin. */
+    val pin: String = Pairing.base64Url(hash)
 
     /** The certificate and its key for the HTTPS server, protected by [password], which is only used in memory. */
     fun keyStore(password: CharArray): KeyStore = KeyStore.getInstance("PKCS12").apply {

@@ -86,3 +86,20 @@ document.querySelectorAll('[data-live]').forEach((element) => {
     events.addEventListener('open', () => document.body.classList.add('is-live'));
     events.addEventListener('error', () => document.body.classList.remove('is-live'));
 });
+
+// Copy buttons, also in live parts, which are replaced while the page is open. The clipboard API needs HTTPS, which the
+// pages may not have, so the text is selected first: if copying fails, it can still be copied by hand.
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-copy]');
+    if (!button) {
+        return;
+    }
+    const input = document.getElementById(button.dataset.copy);
+    input.select();
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(input.value).then(() => button.textContent = 'Copied', () => {
+        });
+    } else if (document.execCommand('copy')) {
+        button.textContent = 'Copied';
+    }
+});

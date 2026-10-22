@@ -180,8 +180,7 @@ class HdlServer @JvmOverloads constructor(
                     "appPort" to appPort,
                     "appFingerprint" to appCertificate?.takeIf { appServer != null }?.fingerprint,
                     "appPortProblem" to appPortProblem,
-                    "pairingWindow" to pairing?.window(),
-                    "phones" to phones.all(),
+                    *phonesParams().toList().toTypedArray(),
                 )
             }
             config.routes.get("/") { ctx ->
@@ -192,7 +191,7 @@ class HdlServer @JvmOverloads constructor(
             config.routes.get("/status") { ctx -> render(ctx, "status", "status" to status(hdlService)) }
             // Live updates for open pages. A browser only says where a request comes from (Origin) when it's another
             // site that asks, so that's refused, as is opening more than a handful.
-            for (path in listOf("/status/events", "/activity/events")) {
+            for (path in listOf("/status/events", "/activity/events", "/settings/events")) {
                 config.routes.before(path) { ctx ->
                     ctx.header("Origin")?.let { origin ->
                         if (!isSameOrigin(origin, ctx.host())) {
@@ -207,6 +206,7 @@ class HdlServer @JvmOverloads constructor(
             // The check above answers most with a clear 503; this one also holds when several pages open at once
             config.routes.sse("/status/events") { client -> livePages.add(client, "live/status") }
             config.routes.sse("/activity/events") { client -> livePages.add(client, "live/activity") }
+            config.routes.sse("/settings/events") { client -> livePages.add(client, "live/phones") }
             config.routes.post("/run_action") { ctx ->
                 val (message, succeeded) = runAction(hdlService, ctx.formParam("actionId"), ctx.formParam("value"), "Web page (${ctx.ip()})")
                 ctx.redirectWithMessage("/actions", message.takeIf { succeeded }, message.takeUnless { succeeded })
@@ -280,24 +280,7 @@ class HdlServer @JvmOverloads constructor(
                     ctx.redirectWithMessage("/settings", null, "Turn on Let the Android app connect first.")
                 } else {
                     pairing.open()
-                    ctx.redirectWithMessage("/settings", "Now tap Connect to Busbridge in the app, and type the code it shows here.", null)
-                }
-            }
-            config.routes.post("/pair_phone") { ctx ->
-                val source = "Settings (${ctx.ip()})"
-                val pairing = pairing
-                val code = ctx.formParam("code").orEmpty()
-                when (val typed = if (pairing == null) Pairing.Typed.Closed else pairing.type(code)) {
-                    null -> ctx.redirectWithMessage("/settings", null, "Type the 6 digits the app shows.")
-                    is Pairing.Typed.Allowed -> {
-                        activityLog.record(source, "Pair \"${typed.name}\"", "Allowed", succeeded = true)
-                        ctx.redirectWithMessage("/settings", "Allowed ${typed.name}. The app finishes connecting by itself.", null)
-                    }
-                    Pairing.Typed.WrongCode -> {
-                        activityLog.record(source, "Pair a phone", "Wrong code", succeeded = false)
-                        ctx.redirectWithMessage("/settings", null, "That code doesn't match, so pairing is closed. If you typed the code the app shows, someone may be in between. Otherwise press Connect a phone and try again.")
-                    }
-                    Pairing.Typed.Closed -> ctx.redirectWithMessage("/settings", null, "Pairing isn't open. Press Connect a phone first.")
+                    ctx.redirectWithMessage("/settings", "Scan the QR code with the app, at home.", null)
                 }
             }
             config.routes.post("/remove_phone") { ctx ->
@@ -320,13 +303,21 @@ class HdlServer @JvmOverloads constructor(
                     configConcurrentMap[AUTH_TOKEN_KEY] = authKey
                     val checkForUpdates = ctx.formParam("checkForUpdates") != null
                     configConcurrentMap[CHECK_FOR_UPDATES_KEY] = checkForUpdates.toString()
+                    val wasAppPortOn = isAppPortOn
                     configConcurrentMap[APP_PORT_ON_KEY] = (ctx.formParam("appPortOn") != null).toString()
                     database.commit()
                     if (checkForUpdates) {
                         updateCheck.checkSoon()
                     }
                     updateAppPort()
-                    ctx.redirectWithMessage("/settings", "Settings successfully updated", null)
+                    // Turned on to connect a phone, so the QR code is there right away
+                    val pairing = pairing
+                    if (!wasAppPortOn && pairing != null) {
+                        pairing.open()
+                        ctx.redirectWithMessage("/settings", "Settings successfully updated. Scan the QR code with the app, at home.", null)
+                    } else {
+                        ctx.redirectWithMessage("/settings", "Settings successfully updated", null)
+                    }
                 } else {
                     ctx.redirectWithMessage("/settings", null, "Authorization key must be at least $MIN_AUTH_TOKEN_LENGTH characters.")
                 }
@@ -358,7 +349,7 @@ class HdlServer @JvmOverloads constructor(
             database.commit()
         }
         val hdlService = checkNotNull(hdlService) { "The app port can't open without an HdlService" }
-        val pairing = Pairing(certificate.certificate.encoded)
+        val pairing = Pairing()
         val bus = object : Relay.Bus {
             override fun address(): InetAddress? = hdlService.ipAddress
             override fun broadcast(packet: ByteArray) = hdlService.sendBroadcastMessage(packet)
@@ -386,6 +377,30 @@ class HdlServer @JvmOverloads constructor(
         relay?.close()
         relay = null
         pairing = null
+    }
+
+    /** What Settings shows of pairing and the paired phones, which it keeps up to date. */
+    private fun phonesParams(): Map<String, Any?> {
+        val pairing = pairing
+        val window = pairing?.window()
+        val host = hdlService?.ipAddress?.hostAddress
+        val certificate = appCertificate
+        val port = appServer?.port()
+        val view = if (window != null && host != null && certificate != null && port != null) {
+            PairingView(
+                Pairing.link(host, port, certificate.pin, window.token),
+                Pairing.intentLink(host, port, certificate.pin, window.token),
+                window.closesAt,
+            )
+        } else {
+            null
+        }
+        return mapOf(
+            "pairingOpen" to (window != null),
+            "pairingView" to view,
+            "connecting" to pairing?.connecting().orEmpty(),
+            "phones" to phones.all(),
+        )
     }
 
     /** Where a phone can reach this server: at home, and on the VPN from away. */
@@ -533,6 +548,7 @@ class HdlServer @JvmOverloads constructor(
         val params = when (template) {
             "live/status" -> mapOf("status" to status(hdlService))
             "live/activity" -> mapOf("entries" to activityLog.entries())
+            "live/phones" -> phonesParams() + ("appPortOpen" to (appServer != null))
             else -> throw IllegalArgumentException("No live template $template")
         }
         val html = StringOutput()

@@ -272,20 +272,37 @@ class TemplatesTest {
 
     /** Like the server does it: with the parameters by name, so the template's other parameters get their defaults. */
     @Test
-    void aPhonesNameIsOnlyText() {
+    void thePairingLinkIsShownAsAQrCodeAndAsText() {
         Page page = new Page("settings", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null);
+        String link = Pairing.link("192.0.2.10", 4568, Pairing.base64Url(new byte[32]), Pairing.base64Url(new byte[16]));
         Map<String, Object> params = new HashMap<>();
         params.put("page", page);
         params.put("appFingerprint", "AB:CD");
-        params.put("pairingWindow", new Pairing.Window(java.time.Instant.now(), List.of(QUOTE_BREAKOUT + SCRIPT), 2));
+        params.put("pairingOpen", true);
+        params.put("pairingView", new PairingView(link, Pairing.intentLink("192.0.2.10", 4568, "x", "y"), java.time.Instant.now()));
         StringOutput output = new StringOutput();
         templateEngine.render("settings.kte", params, output);
         String html = output.toString();
 
-        assertTrue(html.contains("Code shown in the app"));
+        assertTrue(html.contains("<svg xmlns=\"http://www.w3.org/2000/svg\""), "The QR code");
+        assertTrue(html.contains("value=\"" + link.replace("&", "&amp;") + "\""), "The link to copy");
+        assertTrue(html.contains("href=\"intent://pair?v=1&amp;h=192.0.2.10"), "Open in the app");
+    }
+
+    @Test
+    void aConnectingPhonesNameIsOnlyText() {
+        Page page = new Page("settings", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null);
+        Map<String, Object> params = new HashMap<>();
+        params.put("page", page);
+        params.put("appFingerprint", "AB:CD");
+        params.put("connecting", List.of(QUOTE_BREAKOUT + SCRIPT));
+        StringOutput output = new StringOutput();
+        templateEngine.render("settings.kte", params, output);
+        String html = output.toString();
+
+        assertTrue(html.contains("Waiting for it to connect"));
         assertFalse(html.contains(SCRIPT));
         assertFalse(html.contains(QUOTE_BREAKOUT));
-        assertTrue(html.contains("&lt;script&gt;"));
     }
 
     @Test

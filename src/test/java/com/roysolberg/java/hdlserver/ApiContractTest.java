@@ -222,30 +222,33 @@ class ApiContractTest {
     }
 
     @Test
-    void settingsOpenPairingAndTakeTheCode() throws Exception {
+    void settingsShowAPairingLink() throws Exception {
         String lanAddress = siteLocalAddress();
         assumeTrue(lanAddress != null, "No LAN address on this machine");
         String origin = "http://" + lanAddress + ":" + application.port();
         assertTrue(postFormTo(lanAddress, "/open_pairing", "", origin).text.contains("error=Turn+on"), "The app port is closed");
         try {
             postFormTo(lanAddress, "/update_settings", "authKey=" + LegacyDatabases.AUTH_TOKEN + "&appPortOn=on", origin);
-            assertTrue(sendTo(origin, "GET", "/settings").body.contains("Connect a phone"));
+            String opened = sendTo(origin, "GET", "/settings").body;
+            assertTrue(opened.contains("busbridge://pair?v=1&amp;h=") || opened.contains("no address on the home network"), "Opened by turning it on");
+            assertTrue(opened.contains("Cancel"));
+            if (opened.contains("busbridge://pair")) {
+                AppCertificate stored = AppCertificate.loadOrCreate((Map<String, String>) (Map<?, ?>) database.hashMap("config").createOrOpen(), () -> {
+                });
+                assertTrue(opened.contains("&amp;fp=" + stored.getPin() + "&amp;t="), "The app port's certificate");
+                assertTrue(opened.contains("intent://pair?v=1"));
+                assertTrue(opened.contains("<svg"), "The QR code");
+            }
             assertEquals(403, postFormTo(lanAddress, "/open_pairing", "", null).status, "Only from the pages themselves");
             assertEquals(403, postFormTo(lanAddress, "/open_pairing", "", "https://evil.example.com").status);
-            assertTrue(postFormTo(lanAddress, "/pair_phone", "code=123456", origin).text.contains("error=Pairing+isn"), "Not open yet");
 
-            assertTrue(postFormTo(lanAddress, "/open_pairing", "", origin).text.contains("success="));
-            assertTrue(sendTo(origin, "GET", "/settings").body.contains("Code shown in the app"));
-            assertTrue(postFormTo(lanAddress, "/pair_phone", "code=12", origin).text.contains("error=Type+the+6+digits"));
             assertTrue(postFormTo(lanAddress, "/cancel_pairing", "", origin).text.contains("success="));
-            assertFalse(sendTo(origin, "GET", "/settings").body.contains("Code shown in the app"));
+            String cancelled = sendTo(origin, "GET", "/settings").body;
+            assertFalse(cancelled.contains("pair?v=1"));
+            assertTrue(cancelled.contains("Connect a phone"));
+            assertTrue(postFormTo(lanAddress, "/open_pairing", "", origin).text.contains("success="));
             assertEquals(403, postFormTo(lanAddress, "/remove_phone", "phoneId=x", null).status, "Only from the pages themselves");
             assertTrue(postFormTo(lanAddress, "/remove_phone", "phoneId=x", origin).text.contains("error=Unable+to+find+the+phone"));
-
-            postFormTo(lanAddress, "/open_pairing", "", origin);
-            assertTrue(postFormTo(lanAddress, "/pair_phone", "code=123+456", origin).text.contains("pairing+is+closed"), "No phone has that code");
-            assertTrue(sendTo(origin, "GET", "/activity").body.contains("Wrong code"));
-            assertFalse(sendTo(origin, "GET", "/settings").body.contains("Code shown in the app"));
         } finally {
             postFormTo(lanAddress, "/update_settings", "authKey=" + LegacyDatabases.AUTH_TOKEN, origin);
         }

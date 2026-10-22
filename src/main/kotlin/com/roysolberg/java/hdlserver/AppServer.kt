@@ -105,11 +105,10 @@ class AppServer @JvmOverloads constructor(
             // The relay's key is checked before the upgrade, so a wrong one gets a plain 401
             config.routes.wsBeforeUpgrade(RELAY_PATH) { ctx ->
                 refuseOthers(ctx)
-                val key = ctx.header("Authorization")?.takeIf { it.startsWith(BEARER) }?.let { Pairing.decode(it.removePrefix(BEARER), Pairing.KEY_BYTES) }
+                val key = bearerKey(ctx)
                 if (key == null || !relay.knows(key)) {
                     logger.info("Refused a relay connection without a paired phone's key, from [{}].", ctx.ip())
-                    ctx.header("WWW-Authenticate", "Bearer")
-                    throw HaltException(401, "Not a paired phone.")
+                    throw notPaired(ctx)
                 }
                 ctx.attribute(KEY_ATTRIBUTE, key)
             }
@@ -121,35 +120,28 @@ class AppServer @JvmOverloads constructor(
             config.routes.get(INFO_PATH) { ctx ->
                 ctx.json(mapOf("name" to NAME, "version" to (version ?: "development"), "serverId" to serverId))
             }
-            // Pairing, see Pairing. What's asked for and answered here is never logged: it holds the key.
+            // Pairing with the link's token, see Pairing. What's sent and answered is never logged: it holds the key.
             config.routes.post(PAIR_PATH) { ctx ->
                 val json = readJson(ctx)
                 val name = json.text("name")?.let(Pairing::validName)
-                val commitment = Pairing.decode(json.text("commitment"), Pairing.NONCE_BYTES)
-                if (name == null || commitment == null) {
+                val token = Pairing.decodeUrl(json.text("token"), Pairing.TOKEN_BYTES)
+                if (name == null || token == null) {
                     throw badRequest(ctx)
                 }
-                when (val asked = pairing.ask(name, commitment)) {
-                    is Pairing.Asked.Created -> ctx.json(mapOf("requestId" to asked.requestId, "nonce" to Pairing.base64(asked.nonce)))
-                    Pairing.Asked.Closed -> ctx.status(409).json(mapOf("status" to "closed"))
-                    Pairing.Asked.Full -> ctx.status(409).json(mapOf("status" to "full"))
+                val key = pairing.pair(token, name)
+                if (key == null) {
+                    ctx.status(409).json(mapOf("status" to "closed"))
+                } else {
+                    ctx.json(mapOf("key" to Pairing.base64(key), "serverId" to serverId))
                 }
             }
-            config.routes.post(PAIR_REVEAL_PATH) { ctx ->
-                val (requestId, nonce) = readRequest(ctx)
-                ctx.json(mapOf("status" to pairing.reveal(requestId, nonce).json))
-            }
-            config.routes.post(PAIR_POLL_PATH) { ctx ->
-                val (requestId, nonce) = readRequest(ctx)
-                val polled = pairing.poll(requestId, nonce)
-                val key = polled.key
-                ctx.json(
-                    if (key != null) {
-                        mapOf("status" to polled.status.json, "key" to Pairing.base64(key), "serverId" to serverId)
-                    } else {
-                        mapOf("status" to polled.status.json)
-                    }
-                )
+            // The app forgetting Busbridge: the phone is removed here too
+            config.routes.post(FORGET_PATH) { ctx ->
+                val key = bearerKey(ctx)
+                if (key == null || !relay.forget(key)) {
+                    throw notPaired(ctx)
+                }
+                ctx.status(204)
             }
         }
         try {
@@ -185,15 +177,13 @@ class AppServer @JvmOverloads constructor(
         return json?.takeIf { it.isObject } ?: throw badRequest(ctx)
     }
 
-    /** The requestId and the phone's revealed nonce that the reveal and the poll send. */
-    private fun readRequest(ctx: Context): Pair<String, ByteArray> {
-        val json = readJson(ctx)
-        val requestId = json.text("requestId")?.takeIf { Pairing.decode(it, Pairing.REQUEST_ID_BYTES) != null }
-        val nonce = Pairing.decode(json.text("nonce"), Pairing.NONCE_BYTES)
-        if (requestId == null || nonce == null) {
-            throw badRequest(ctx)
-        }
-        return requestId to nonce
+    /** The phone's key from `Authorization: Bearer <key>`, or null without a well-formed one. */
+    private fun bearerKey(ctx: Context): ByteArray? =
+        ctx.header("Authorization")?.takeIf { it.startsWith(BEARER) }?.let { Pairing.decode(it.removePrefix(BEARER), Pairing.KEY_BYTES) }
+
+    private fun notPaired(ctx: Context): HaltException {
+        ctx.header("WWW-Authenticate", "Bearer")
+        return HaltException(401, "Not a paired phone.")
     }
 
     private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isTextual }?.asText()
@@ -264,8 +254,7 @@ class AppServer @JvmOverloads constructor(
         const val PORT_PROPERTY = "hdlserver.appPort"
         const val INFO_PATH = "/relay/info"
         const val PAIR_PATH = "/relay/pair"
-        const val PAIR_REVEAL_PATH = "/relay/pair/reveal"
-        const val PAIR_POLL_PATH = "/relay/pair/poll"
+        const val FORGET_PATH = "/relay/forget"
         const val RELAY_PATH = "/relay"
         private const val BEARER = "Bearer "
         private const val KEY_ATTRIBUTE = "key"

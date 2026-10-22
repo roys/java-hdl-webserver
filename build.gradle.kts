@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.mapdb)
     implementation(libs.bouncycastle.pkix) // Makes the app port's certificate
+    implementation(libs.qrcodegen) // The pairing link's QR code on Settings
 
     testImplementation(launcher.output)
     testImplementation(platform(libs.junit.bom))

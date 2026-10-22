@@ -40,7 +40,7 @@ class RelayTest {
 
     @BeforeEach
     void start() throws Exception {
-        pairing = new Pairing(AppServerTest.CERTIFICATE.getCertificate().getEncoded());
+        pairing = new Pairing();
         Relay.Bus bus = new Relay.Bus() {
             @Override
             public InetAddress address() {
@@ -78,12 +78,7 @@ class RelayTest {
 
     @Test
     void theFirstConnectionCompletesThePairing() throws Exception {
-        pairing.open();
-        byte[] nonce = random(32);
-        Pairing.Asked.Created asked = (Pairing.Asked.Created) pairing.ask("Pixel 9", Pairing.commitment(nonce));
-        pairing.reveal(asked.getRequestId(), nonce);
-        pairing.type(Pairing.code(nonce, asked.getNonce(), AppServerTest.CERTIFICATE.getCertificate().getEncoded()));
-        byte[] key = pairing.poll(asked.getRequestId(), nonce).getKey();
+        byte[] key = pairWithLink("Pixel 9");
         assertTrue(phones.all().isEmpty(), "Not paired before it connects");
 
         try (TestWebSocket phone = connect(key)) {
@@ -92,7 +87,7 @@ class RelayTest {
         }
 
         assertEquals("Pixel 9", phones.all().get(0).getName());
-        assertEquals(Pairing.Status.EXPIRED, pairing.poll(asked.getRequestId(), nonce).getStatus(), "The key isn't kept any longer");
+        assertFalse(pairing.isAllowed(key), "The key isn't kept any longer");
         assertFalse(phoneMap.values().iterator().next().contains(Pairing.base64(key)), "Only its hash is saved");
         try (TestWebSocket again = connect(key)) {
             assertEquals(101, again.status, "And it connects again as a paired phone");
@@ -171,12 +166,7 @@ class RelayTest {
 
     @Test
     void aFailedUpgradeDoesntUseUpThePairing() throws Exception {
-        pairing.open();
-        byte[] nonce = random(32);
-        Pairing.Asked.Created asked = (Pairing.Asked.Created) pairing.ask("Pixel 9", Pairing.commitment(nonce));
-        pairing.reveal(asked.getRequestId(), nonce);
-        pairing.type(Pairing.code(nonce, asked.getNonce(), AppServerTest.CERTIFICATE.getCertificate().getEncoded()));
-        byte[] key = pairing.poll(asked.getRequestId(), nonce).getKey();
+        byte[] key = pairWithLink("Pixel 9");
 
         // A handshake Jetty refuses after Busbridge has checked the key: no Upgrade header and a WebSocket key that isn't one
         try (SSLSocket socket = (SSLSocket) AppServerTest.pinned().getSocketFactory().createSocket("127.0.0.1", server.port())) {
@@ -295,6 +285,51 @@ class RelayTest {
                 phone.close();
             }
         }
+    }
+
+    @Test
+    void aPhoneThatForgetsBusbridgeIsRemovedAndDisconnected() throws Exception {
+        byte[] key = pairedKey("Pixel 9");
+        try (TestWebSocket phone = connect(key)) {
+            phone.read(TestWebSocket.TEXT);
+
+            assertEquals(204, forget(key));
+
+            assertEquals(Relay.REMOVED, phone.read(TestWebSocket.CLOSE).closeCode());
+        }
+        assertTrue(phones.all().isEmpty());
+        assertEquals(401, forget(key), "Already gone");
+        assertTrue(activityLog.entries().stream().anyMatch(entry -> entry.getResult().equals("Removed by the app")));
+    }
+
+    @Test
+    void aPhoneThatForgetsBeforeItsFirstConnectionIsWithdrawn() throws Exception {
+        byte[] key = pairWithLink("Pixel 9");
+
+        assertEquals(204, forget(key));
+
+        assertFalse(pairing.isAllowed(key));
+        try (TestWebSocket phone = connect(key)) {
+            assertEquals(401, phone.status);
+        }
+    }
+
+    private int forget(byte[] key) throws Exception {
+        javax.net.ssl.HttpsURLConnection connection = (javax.net.ssl.HttpsURLConnection) new java.net.URL("https://127.0.0.1:" + server.port() + AppServer.FORGET_PATH).openConnection();
+        connection.setSSLSocketFactory(AppServerTest.pinned().getSocketFactory());
+        connection.setHostnameVerifier((hostname, session) -> true);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Authorization", "Bearer " + Pairing.base64(key));
+        try {
+            return connection.getResponseCode();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    /** Pairs as the app does with the link from Settings, without connecting yet. */
+    private byte[] pairWithLink(String name) {
+        return pairing.pair(Pairing.decodeUrl(pairing.open().getToken(), Pairing.TOKEN_BYTES), name);
     }
 
     private byte[] pairedKey(String name) {

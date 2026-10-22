@@ -1,16 +1,17 @@
 @import com.roysolberg.java.hdlserver.HdlServer
 @import com.roysolberg.java.hdlserver.HdlServer.AppPortProblem
 @import com.roysolberg.java.hdlserver.Page
-@import com.roysolberg.java.hdlserver.Pairing
+@import com.roysolberg.java.hdlserver.PairingView
 @import com.roysolberg.java.hdlserver.Phones
-@import com.roysolberg.java.hdlserver.Status
 @param page: Page
 @param checkForUpdates: Boolean = false
 @param appPortOn: Boolean = false
 @param appPort: Int = 0
 @param appFingerprint: String? = null
 @param appPortProblem: AppPortProblem? = null
-@param pairingWindow: Pairing.Window? = null
+@param pairingOpen: Boolean = false
+@param pairingView: PairingView? = null
+@param connecting: List<String> = emptyList()
 @param phones: List<Phones.Phone> = emptyList()
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
@@ -52,73 +53,7 @@
         <button type="submit" class="button is-primary">Save</button>
     </form>
 </div>
-@if(appFingerprint != null)
-<div class="box">
-    <h2 class="title is-5">Connect a phone</h2>
-    @if(pairingWindow == null)
-        <p class="block">Pairs Smart Home for HDL Buspro with Busbridge. Do it at home, with the phone on the home network.</p>
-        <form action="open_pairing" method="post">
-            <button type="submit" class="button is-primary">Connect a phone</button>
-        </form>
-    @else
-        <p class="block">Open until ${Status.formatTime(pairingWindow.closesAt).substring(11)}. In the app, tap Connect to Busbridge, and type the
-            code it shows here.</p>
-        @if(pairingWindow.phones.isEmpty())
-            <p class="block has-text-grey">No phone has asked yet. Reload the page once the app shows a code.</p>
-        @else
-            <ul class="block">
-                @for(phone in pairingWindow.phones)
-                    <li>A phone calling itself “${phone}”</li>
-                @endfor
-            </ul>
-        @endif
-        <form action="pair_phone" method="post" class="block">
-            <div class="field">
-                <label class="label" for="input_pairing_code">Code shown in the app</label>
-                <div class="control">
-                    <input type="text" name="code" class="input is-family-monospace" id="input_pairing_code" inputmode="numeric" autocomplete="off" maxlength="7" required aria-describedby="help_pairing_code"/>
-                </div>
-                <p id="help_pairing_code" class="help">The name is only what the phone calls itself; the code is what shows it's your phone.</p>
-            </div>
-            <button type="submit" class="button is-primary">Allow</button>
-        </form>
-        <form action="cancel_pairing" method="post">
-            <button type="submit" class="button">Cancel</button>
-        </form>
-    @endif
+<div data-live="/settings/events">
+    @template.live.phones(appPortOpen = appFingerprint != null, pairingOpen = pairingOpen, pairingView = pairingView, connecting = connecting, phones = phones)
 </div>
-@endif
-@if(phones.isNotEmpty())
-<div class="box">
-    <h2 class="title is-5">Paired phones</h2>
-    <p class="block">These phones can reach the bus through Busbridge, also away from home over your VPN.</p>
-    <div class="table-container">
-        <table class="table is-fullwidth">
-            <thead>
-            <tr>
-                <th>Name</th>
-                <th>Paired</th>
-                <th>Last seen</th>
-                <th><span class="is-sr-only">Remove</span></th>
-            </tr>
-            </thead>
-            <tbody>
-            @for(phone in phones)
-                <tr>
-                    <td>${phone.name}</td>
-                    <td>${Status.formatTime(phone.pairedAt)}</td>
-                    <td>@if(phone.lastSeen != null)${Status.formatTime(phone.lastSeen)}@endif</td>
-                    <td>
-                        <form action="remove_phone" method="post">
-                            <input type="hidden" name="phoneId" value="${phone.id}"/>
-                            <button type="submit" class="button is-danger is-small">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-            @endfor
-            </tbody>
-        </table>
-    </div>
-</div>
-@endif
 `)

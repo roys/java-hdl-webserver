@@ -148,6 +148,23 @@ class Relay @JvmOverloads constructor(
         }
     }
 
+    /**
+     * The app forgets Busbridge, so the phone with this key is removed and disconnected, or, if it hasn't connected
+     * yet, its pairing is withdrawn.
+     *
+     * @return false if no phone has this key
+     */
+    fun forget(key: ByteArray): Boolean {
+        if (pairing.withdraw(key)) {
+            return true
+        }
+        val phone = phones.find(key) ?: return false
+        phones.remove(phone.id)
+        disconnect(phone.id)
+        activityLog.record(source(phone, null), "Relay", "Removed by the app", succeeded = true)
+        return true
+    }
+
     /** Disconnects a removed phone, which the app shows as removed. */
     @Synchronized
     fun disconnect(phoneId: String) {

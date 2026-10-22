@@ -326,6 +326,17 @@ dialog::backdrop {
     border-radius: var(--bulma-radius-large);
 }
 
+/* The pairing link's QR code: big enough to scan from a screen, dark on light in either theme */
+.qr-code-box {
+    max-width: 16rem;
+}
+
+.qr-code {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
 /* A certificate fingerprint is one long word, which would otherwise run off a phone's screen */
 .fingerprint {
     overflow-wrap: anywhere;
