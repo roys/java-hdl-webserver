@@ -215,10 +215,12 @@ class AppServerTest {
             assertEquals(400, post(server, AppServer.PAIR_PATH, body).status(), body);
         }
         for (String path : new String[]{AppServer.PAIR_REVEAL_PATH, AppServer.PAIR_POLL_PATH}) {
-            assertEquals(400, post(server, path, "{\"requestId\":\"x\"}").status(), path);
-            assertEquals(400, post(server, path, "{\"requestId\":\"x\",\"nonce\":\"AAAA\"}").status(), path);
+            String requestId = Pairing.base64(new byte[16]);
+            assertEquals(400, post(server, path, "{\"requestId\":\"" + requestId + "\"}").status(), path);
+            assertEquals(400, post(server, path, "{\"requestId\":\"" + requestId + "\",\"nonce\":\"AAAA\"}").status(), path);
+            assertEquals(400, post(server, path, "{\"requestId\":\"x\",\"nonce\":\"" + commitment + "\"}").status(), "Not a requestId");
             assertEquals(new Response(200, "{\"status\":\"expired\"}"),
-                    post(server, path, "{\"requestId\":\"x\",\"nonce\":\"" + commitment + "\"}"), "Unknown");
+                    post(server, path, "{\"requestId\":\"" + requestId + "\",\"nonce\":\"" + commitment + "\"}"), "Unknown");
         }
         assertEquals(Pairing.MAX_REQUESTS, pairing.window().getRequestsLeft(), "None of these counted");
     }

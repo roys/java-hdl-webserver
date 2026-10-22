@@ -79,11 +79,17 @@ class Pairing @JvmOverloads constructor(
     /** Never accepted twice, so someone can't keep trying with another phone's commitment. */
     private val usedCommitments = LinkedHashSet<String>()
 
-    /** Opens the window, or keeps the one that's open as it is. */
+    /**
+     * Opens the window, or keeps the one that's open as it is. What earlier windows denied is forgotten, and of the
+     * phones allowed but not yet connected only the latest few are kept, so opening again and again can't fill memory.
+     */
     @Synchronized
     fun open() {
         expire()
         if (windowClosesAt != null) return
+        requests.values.removeIf { it.status == Status.DENIED }
+        val allowed = requests.values.filter { it.status == Status.ALLOWED }
+        allowed.take((allowed.size - MAX_ALLOWED_KEPT).coerceAtLeast(0)).forEach { requests.remove(it.id) }
         windowClosesAt = clock.instant() + WINDOW_DURATION
         requestsInWindow = 0
         logger.info("The pairing window is open.")
@@ -211,7 +217,7 @@ class Pairing @JvmOverloads constructor(
         logger.warn("Dropped the pairing request from the phone calling itself [{}]: {}.", request.name, why)
     }
 
-    /** Forgets what has run out, and closes a window that has. */
+    /** Forgets what has run out, and closes a window that has. Phones waiting in it then get expired, not denied. */
     private fun expire() {
         val now = clock.instant()
         windowClosesAt?.let { closesAt ->
@@ -242,7 +248,9 @@ class Pairing @JvmOverloads constructor(
         /** How long a denied phone's polls are told so, before they get expired. */
         private val DENIED_KEPT_FOR = Duration.ofMinutes(2)
         private const val KEY_BYTES = 32
-        private const val REQUEST_ID_BYTES = 16
+        const val REQUEST_ID_BYTES = 16
+        /** Phones allowed but not yet connected, which is normally one. */
+        private const val MAX_ALLOWED_KEPT = 3
         private const val MAX_USED_COMMITMENTS = 64
         private val COMMIT_LABEL = "busbridge-pair-v1/app-commit".toByteArray(Charsets.US_ASCII)
         private val CODE_LABEL = "busbridge-pair-v1/code".toByteArray(Charsets.US_ASCII)

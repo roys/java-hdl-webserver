@@ -158,7 +158,7 @@ class AppServer @JvmOverloads constructor(
     /** The requestId and the phone's revealed nonce that the reveal and the poll send. */
     private fun readRequest(ctx: Context): Pair<String, ByteArray> {
         val json = readJson(ctx)
-        val requestId = json.text("requestId")
+        val requestId = json.text("requestId")?.takeIf { Pairing.decode(it, Pairing.REQUEST_ID_BYTES) != null }
         val nonce = Pairing.decode(json.text("nonce"), Pairing.NONCE_BYTES)
         if (requestId == null || nonce == null) {
             throw badRequest(ctx)

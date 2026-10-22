@@ -271,6 +271,23 @@ class TemplatesTest {
     }
 
     /** Like the server does it: with the parameters by name, so the template's other parameters get their defaults. */
+    @Test
+    void aPhonesNameIsOnlyText() {
+        Page page = new Page("settings", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null);
+        Map<String, Object> params = new HashMap<>();
+        params.put("page", page);
+        params.put("appFingerprint", "AB:CD");
+        params.put("pairingWindow", new Pairing.Window(java.time.Instant.now(), List.of(QUOTE_BREAKOUT + SCRIPT), 2));
+        StringOutput output = new StringOutput();
+        templateEngine.render("settings.kte", params, output);
+        String html = output.toString();
+
+        assertTrue(html.contains("Code shown in the app"));
+        assertFalse(html.contains(SCRIPT));
+        assertFalse(html.contains(QUOTE_BREAKOUT));
+        assertTrue(html.contains("&lt;script&gt;"));
+    }
+
     private String render(Page page) {
         StringOutput output = new StringOutput();
         templateEngine.render(page.getName() + ".kte", Collections.singletonMap("page", page), output);

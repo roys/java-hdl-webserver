@@ -238,6 +238,49 @@ class PairingTest {
     }
 
     @Test
+    void openingAgainAndAgainKeepsLittle() {
+        List<Phone> allowed = new java.util.ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            pairing.open();
+            Phone phone = ask("Phone " + i);
+            ask("Other " + i);
+            pairing.reveal(phone.requestId(), phone.nonce());
+            pairing.type(phone.code());
+            allowed.add(phone);
+        }
+        pairing.open();
+        Phone denied = ask("Denied");
+        pairing.cancel();
+        pairing.open();
+
+        long kept = allowed.stream().filter(phone -> pairing.poll(phone.requestId(), phone.nonce()).getStatus() == Pairing.Status.ALLOWED).count();
+        assertEquals(3, kept, "Only the latest allowed");
+        assertEquals(Pairing.Status.ALLOWED, pairing.poll(allowed.get(99).requestId(), allowed.get(99).nonce()).getStatus());
+        assertEquals(Pairing.Status.EXPIRED, pairing.poll(denied.requestId(), denied.nonce()).getStatus(), "Forgotten");
+    }
+
+    @Test
+    void phonesAskingAtOnceGetNoMoreThanThree() throws Exception {
+        pairing.open();
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            List<java.util.concurrent.Future<Phone>> asked = new java.util.ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                asked.add(executor.submit(() -> ask("Phone")));
+            }
+            int created = 0;
+            for (java.util.concurrent.Future<Phone> phone : asked) {
+                if (phone.get().asked() instanceof Pairing.Asked.Created) {
+                    created++;
+                }
+            }
+            assertEquals(Pairing.MAX_REQUESTS, created);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void eachRequestGetsItsOwnIdAndNonce() {
         pairing.open();
         Phone first = ask("One");
