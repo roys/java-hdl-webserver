@@ -89,10 +89,10 @@ class HdlServiceTest {
     void aDeviceAnsweringWithAnotherTypeReplacesWhatWasStored() {
         Map<String, HdlComponent> components = new HashMap<>();
         components.put("1-4-600", new DimmerComponent(1, 4, 600, "Not this one", 6));
-        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet()));
-        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet()), "Nothing new");
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet(), Integer.MAX_VALUE));
+        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet(), Integer.MAX_VALUE), "Nothing new");
 
-        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4), Collections.singleton("1-40-601")));
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4), Collections.singleton("1-40-601"), Integer.MAX_VALUE));
 
         assertEquals(new HashSet<>(Arrays.asList("1-4-600", "1-40-601")), components.keySet());
     }
@@ -102,7 +102,7 @@ class HdlServiceTest {
         Map<String, HdlComponent> components = new HashMap<>();
         components.put("1-40-600", new DimmerComponent(1, 40, 600, "Kitchen", 6));
 
-        HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Hallway", 4), new HashSet<>(Arrays.asList("1-40-600", "1-40-601")));
+        HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Hallway", 4), new HashSet<>(Arrays.asList("1-40-600", "1-40-601")), Integer.MAX_VALUE);
 
         assertEquals(new HashSet<>(Arrays.asList("1-40-600", "1-40-601")), components.keySet(), "Like HDL's setup tool, both are shown");
     }
@@ -111,11 +111,11 @@ class HdlServiceTest {
     void aReplacedDeviceIsStillReplacedAfterARestart(@TempDir Path folder) {
         String file = folder.resolve("hdlserver.db").toString();
         try (DB database = HdlServer.openDatabase(file)) {
-            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet());
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet(), Integer.MAX_VALUE);
             database.commit();
         }
         try (DB database = HdlServer.openDatabase(file)) {
-            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 601, "Kitchen dimmer", 4), Collections.emptySet());
+            HdlService.storeFoundDevice(devices(database), new DimmerComponent(1, 40, 601, "Kitchen dimmer", 4), Collections.emptySet(), Integer.MAX_VALUE);
             database.commit();
         }
 
@@ -266,6 +266,17 @@ class HdlServiceTest {
             bytes[27 + i] = (byte) (i + 1);
         }
         return bytes;
+    }
+
+    @Test
+    void aReplacedDeviceTakesTheOldOnesPlaceAlsoWhenTheListIsFull() {
+        Map<String, HdlComponent> components = new HashMap<>();
+        HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 600, "Kitchen", 6), Collections.emptySet(), 2);
+        HdlService.storeFoundDevice(components, new DimmerComponent(1, 41, 600, "Hallway", 6), Collections.emptySet(), 2);
+
+        assertFalse(HdlService.storeFoundDevice(components, new DimmerComponent(1, 42, 600, "Bedroom", 6), Collections.emptySet(), 2), "Full");
+        assertTrue(HdlService.storeFoundDevice(components, new DimmerComponent(1, 40, 601, "Kitchen", 4), Collections.singleton("1-40-601"), 2));
+        assertEquals(new HashSet<>(Arrays.asList("1-40-601", "1-41-600")), components.keySet());
     }
 
     @Test

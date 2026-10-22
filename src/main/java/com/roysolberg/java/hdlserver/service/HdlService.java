@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class HdlService {
@@ -68,6 +69,8 @@ public class HdlService {
     private static Logger logger = LogManager.getLogger("HDL");
     protected static final int MAX_QUEUED_ACTIONS = 50;
     private static final int MAX_QUEUED_PACKETS = 500;
+    /** Bus frames are small, so this is only reached by someone sending big packets to fill the computer's memory. */
+    private static final long MAX_QUEUED_BYTES = 2 * 1024 * 1024;
     /** The most a UDP packet can carry, so a big frame is never cut short. */
     private static final int MAX_PACKAGE_SIZE = 65_535;
     /**
@@ -82,6 +85,7 @@ public class HdlService {
     private final ConcurrentMap<String, HdlComponent> components;
     private final DB database;
     private final BusStats busStats = new BusStats();
+    private final AtomicLong queuedBytes = new AtomicLong();
     /** The modules heard on the bus since the server started, so the ones that no longer exist stand out. */
     private final Set<String> heardComponentIds = ConcurrentHashMap.newKeySet();
     private final ScheduledExecutorService searcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -161,6 +165,7 @@ public class HdlService {
                 } catch (InterruptedException e) {
                     return;
                 }
+                queuedBytes.addAndGet(-received.bytes().length);
                 try {
                     handlePackage(received.bytes(), received.from());
                 } catch (RuntimeException e) {
@@ -178,11 +183,16 @@ public class HdlService {
                     if (datagramSocket != null) {
                         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         datagramSocket.receive(packet);
-                        if (blockingQueue.offer(new ReceivedPackage(Arrays.copyOf(buffer, packet.getLength()), packet.getAddress()))) {
+                        int length = packet.getLength();
+                        // Checked before copying, so a flood that's dropped doesn't use memory either. Only this thread
+                        // adds to the queue, so there's still room when it's added.
+                        if (blockingQueue.remainingCapacity() > 0 && queuedBytes.get() + length <= MAX_QUEUED_BYTES) {
+                            queuedBytes.addAndGet(length);
+                            blockingQueue.add(new ReceivedPackage(Arrays.copyOf(buffer, length), packet.getAddress()));
                             isDropping = false;
                         } else if (!isDropping) {
                             isDropping = true;
-                            logger.warn("Already {} packages waiting to be handled. Dropping new ones until there's room.", MAX_QUEUED_PACKETS);
+                            logger.warn("Too many packages waiting to be handled. Dropping new ones until there's room.");
                         }
                     } else {
                         logger.error("Didn't get any datagram socket. Trying again soon...");
@@ -237,13 +247,11 @@ public class HdlService {
             logger.warn("Heard more than {} devices, so new ones aren't noted as heard.", MAX_HEARD_DEVICES);
         }
         if (isSearchResponse) {
-            if (components.size() >= MAX_STORED_DEVICES && !components.containsKey(componentId)) {
-                if (!hasWarnedAboutStoredDevices) {
-                    hasWarnedAboutStoredDevices = true;
-                    logger.warn("Already {} devices stored, so new ones aren't. Remove old ones on the Devices page.", MAX_STORED_DEVICES);
-                }
-            } else if (storeFoundDevice(components, hdlComponent, heardComponentIds)) {
+            if (storeFoundDevice(components, hdlComponent, heardComponentIds, MAX_STORED_DEVICES)) {
                 database.commit();
+            } else if (!hasWarnedAboutStoredDevices && components.size() >= MAX_STORED_DEVICES && !components.containsKey(componentId)) {
+                hasWarnedAboutStoredDevices = true;
+                logger.warn("Already {} devices stored, so new ones aren't. Remove old ones on the Devices page.", MAX_STORED_DEVICES);
             }
         }
         logger.info(HdlUtil.getNicelyDescribedBytes(bytes, hdlComponent));
@@ -346,9 +354,10 @@ public class HdlService {
      * is a mistake in their setup, so both are kept for the Devices page to show (like HDL's setup tool does).
      *
      * @param heard the devices heard since the server started
+     * @param maxDevices the most devices to store; a new one that doesn't replace another isn't stored beyond that
      * @return whether anything was stored or removed
      */
-    protected static boolean storeFoundDevice(Map<String, HdlComponent> components, HdlComponent found, Set<String> heard) {
+    protected static boolean storeFoundDevice(Map<String, HdlComponent> components, HdlComponent found, Set<String> heard, int maxDevices) {
         String componentId = HdlUtil.getComponentId(found);
         String addressPrefix = found.getSubnet() + "-" + found.getDeviceId() + "-";
         List<String> replaced = new ArrayList<>();
@@ -356,6 +365,9 @@ public class HdlService {
             if (key.startsWith(addressPrefix) && !key.equals(componentId) && !heard.contains(key)) {
                 replaced.add(key);
             }
+        }
+        if (!components.containsKey(componentId) && components.size() - replaced.size() >= maxDevices) {
+            return false;
         }
         replaced.forEach(components::remove);
         if (!replaced.isEmpty() || isNewOrChanged(components.get(componentId), found)) {

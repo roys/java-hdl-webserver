@@ -48,7 +48,8 @@ data class BusNetwork(val interfaceName: String, val address: Inet4Address, val 
         fun choose(networks: List<BusNetwork>, heardFrom: InetAddress? = null): BusNetwork? = networks
             .filterNot { isVpnAddress(it.address) }
             .sortedWith(
-                compareByDescending<BusNetwork> { heardFrom != null && it.contains(heardFrom) }
+                // Of networks that overlap, like a /8 and a /24 in it, the device is on the narrowest
+                compareByDescending<BusNetwork> { if (heardFrom != null && it.contains(heardFrom)) it.prefixLength else -1 }
                     .thenByDescending { WIRED_OR_WIRELESS.matches(it.interfaceName) }
                     .thenByDescending { it.address.isSiteLocalAddress }
             )

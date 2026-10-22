@@ -48,6 +48,15 @@ class BusNetworkTest {
     }
 
     @Test
+    void ofOverlappingNetworksTheNarrowestIsPicked() {
+        BusNetwork wide = network("eth0", "10.0.0.5", "10.255.255.255", 8);
+        BusNetwork narrow = network("wlan0", "10.1.2.5", "10.1.2.255", 24);
+
+        assertEquals(narrow, BusNetwork.choose(List.of(wide, narrow), ipv4("10.1.2.40")));
+        assertEquals(wide, BusNetwork.choose(List.of(narrow, wide), ipv4("10.9.0.40")));
+    }
+
+    @Test
     void anAddressIsOnANetworkByItsPrefix() {
         assertTrue(WIRED.contains(ipv4("10.0.0.255")));
         assertFalse(WIRED.contains(ipv4("10.0.1.1")));
