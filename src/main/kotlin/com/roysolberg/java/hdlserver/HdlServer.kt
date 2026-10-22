@@ -354,7 +354,11 @@ class HdlServer @JvmOverloads constructor(
             override fun address(): InetAddress? = hdlService.ipAddress
             override fun broadcast(packet: ByteArray) = hdlService.sendBroadcastMessage(packet)
         }
-        val relay = Relay(serverId, VERSION, phones, pairing, bus, activityLog, { relayAddresses(hdlService) })
+        val relay = Relay(
+            serverId, VERSION, phones, pairing, bus, activityLog,
+            addresses = { relayAddresses(hdlService) },
+            deviceType = { subnet, device -> componentsConcurrentMap.values.firstOrNull { it.subnet == subnet && it.deviceId == device }?.deviceType },
+        )
         appServer = try {
             AppServer(certificate, serverId, VERSION, pairing, relay).start(appPort)
         } catch (e: RuntimeException) {

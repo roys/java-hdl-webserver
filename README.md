@@ -323,6 +323,8 @@ today, your home network is the lock.
   can pass for Busbridge.
 - 🔗 **Each phone has its own key.** The pairing link works once, for 5 minutes. You see every paired phone on Settings,
   and *Remove* stops it at once.
+- 🧰 **A paired phone can control and read your devices, but not reprogram them.** Busbridge passes on only what the app
+  sends to switch, read and find devices, and refuses changing modules' addresses, names, logic or settings.
 - 🗄️ **The database is readable only by the user Busbridge runs as**, since it holds the keys. Where Busbridge can't make
   it so, as on Windows, the app's port stays closed.
 
@@ -333,8 +335,8 @@ today, your home network is the lock.
   can read the pages too.
 - 🌐 **The API over plain HTTP from the Internet:** someone between IFTTT and you can read the key and send the request
   again. Use HTTPS, e.g. through a reverse proxy.
-- 📡 **A paired phone can send anything to the bus**, as the app on the home network can. Keep phones' screens locked,
-  and remove a lost one on Settings.
+- 📡 **A paired phone can switch everything the app can.** Keep phones' screens locked, and remove a lost one on
+  Settings. On the home network, the app talks to the bus directly, so Busbridge's limits only apply through the relay.
 
 **What you should do**, most important first:
 

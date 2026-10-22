@@ -35,6 +35,7 @@ class RelayTest {
     private Pairing pairing;
     private final BlockingQueue<byte[]> sentToBus = new LinkedBlockingQueue<>();
     private final ActivityLog activityLog = new ActivityLog();
+    private final Map<String, Integer> deviceTypes = new ConcurrentHashMap<>();
     private Relay relay;
     private AppServer server;
 
@@ -52,7 +53,8 @@ class RelayTest {
                 sentToBus.add(packet);
             }
         };
-        relay = new Relay("server-1", "2.2.0", phones, pairing, bus, activityLog, () -> List.of("192.0.2.10", "100.64.0.10"));
+        relay = new Relay("server-1", "2.2.0", phones, pairing, bus, activityLog, () -> List.of("192.0.2.10", "100.64.0.10"),
+                (subnet, device) -> deviceTypes.get(subnet + "/" + device));
         server = new AppServer(AppServerTest.CERTIFICATE, "server-1", "2.2.0", pairing, relay, address -> true).start(0);
     }
 
@@ -208,6 +210,46 @@ class RelayTest {
             for (TestWebSocket phone : connected) {
                 phone.close();
             }
+        }
+    }
+
+    @Test
+    void aPhoneCanControlAndReadButNotReprogram() throws Exception {
+        try (TestWebSocket phone = connect(pairedKey("Pixel 9"))) {
+            phone.read(TestWebSocket.TEXT);
+
+            for (int reprogramming : new int[]{0xF116, 0xDA42, 0x0104, 0xE41E, 0x1C1A}) {
+                phone.send(TestWebSocket.BINARY, packet(reprogramming));
+            }
+            phone.send(TestWebSocket.BINARY, packet(0x0031));
+            phone.send(TestWebSocket.BINARY, packet(0x000E));
+            phone.send(TestWebSocket.BINARY, bigPacket(0xC100, 64));
+
+            assertEquals(0x0031, RelayAllowList.INSTANCE.operationCode(sentToBus.poll(5, TimeUnit.SECONDS)));
+            assertEquals(0x000E, RelayAllowList.INSTANCE.operationCode(sentToBus.poll(5, TimeUnit.SECONDS)));
+            byte[] big = sentToBus.poll(5, TimeUnit.SECONDS);
+            assertEquals(0xC100, RelayAllowList.INSTANCE.operationCode(big), "SMS reads are big frames");
+            assertEquals(27 + 64, big.length);
+            assertNull(sentToBus.poll(200, TimeUnit.MILLISECONDS), "Nothing that reprograms");
+        }
+    }
+
+    @Test
+    void irCodesNeverReachAPowerMeter() throws Exception {
+        deviceTypes.put("1/50", 0x0380); // A power meter
+        deviceTypes.put("1/51", 0x013F); // An IR emitter
+        try (TestWebSocket phone = connect(pairedKey("Pixel 9"))) {
+            phone.read(TestWebSocket.TEXT);
+
+            phone.send(TestWebSocket.BINARY, packet(0xD912, 1, 50));
+            phone.send(TestWebSocket.BINARY, packet(0xD914, 255, 255));
+            phone.send(TestWebSocket.BINARY, packet(0xD916, 1, 255));
+            phone.send(TestWebSocket.BINARY, packet(0xD912, 1, 51));
+            phone.send(TestWebSocket.BINARY, packet(0xD914, 1, 52)); // Not found yet
+
+            assertArrayEquals(new byte[]{1, 51}, Arrays.copyOfRange(sentToBus.poll(5, TimeUnit.SECONDS), 23, 25));
+            assertArrayEquals(new byte[]{1, 52}, Arrays.copyOfRange(sentToBus.poll(5, TimeUnit.SECONDS), 23, 25));
+            assertNull(sentToBus.poll(200, TimeUnit.MILLISECONDS));
         }
     }
 
@@ -374,6 +416,19 @@ class RelayTest {
 
     /** A valid packet from the app, 11/253, to every device. */
     private static byte[] packet(int operationCode) {
+        return packet(operationCode, 255, 255);
+    }
+
+    /** A big frame, as an SMS module's: 255 in the length byte, the content's length after the header, and no CRC. */
+    private static byte[] bigPacket(int operationCode, int contentLength) {
+        byte[] packet = Arrays.copyOf(packet(operationCode), 27 + contentLength);
+        packet[16] = (byte) 0xFF;
+        packet[25] = (byte) (contentLength >> 8);
+        packet[26] = (byte) contentLength;
+        return packet;
+    }
+
+    private static byte[] packet(int operationCode, int targetSubnet, int targetDevice) {
         byte[] packet = new byte[16 + 11];
         System.arraycopy("HDLMIRACLE".getBytes(StandardCharsets.US_ASCII), 0, packet, 4, 10);
         packet[14] = (byte) 0xAA;
@@ -385,8 +440,8 @@ class RelayTest {
         packet[20] = (byte) 0xFD;
         packet[21] = (byte) (operationCode >> 8);
         packet[22] = (byte) operationCode;
-        packet[23] = (byte) 0xFF;
-        packet[24] = (byte) 0xFF;
+        packet[23] = (byte) targetSubnet;
+        packet[24] = (byte) targetDevice;
         HdlFrame.writeCrc(packet);
         return packet;
     }

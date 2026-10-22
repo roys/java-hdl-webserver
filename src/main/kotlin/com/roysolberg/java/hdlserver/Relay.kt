@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong
  * HDL UDP packets, as the app sends and reads them at home.
  *
  * @param addresses where the app can reach Busbridge, sent to it on every connection
+ * @param deviceType the type of the device with this address, if Busbridge has found it
  */
 class Relay @JvmOverloads constructor(
     private val serverId: String,
@@ -33,6 +34,7 @@ class Relay @JvmOverloads constructor(
     private val bus: Bus,
     private val activityLog: ActivityLog,
     private val addresses: () -> List<String>,
+    private val deviceType: (subnet: Int, device: Int) -> Int?,
     private val clock: InstantSource = InstantSource.system(),
 ) : AutoCloseable {
 
@@ -50,6 +52,8 @@ class Relay @JvmOverloads constructor(
         /** Bytes waiting to go to the phone. */
         val toPhoneBytes = AtomicLong()
         val sentToBus = AtomicLong()
+        /** Operation codes refused, each logged the first time only. */
+        val refused: MutableSet<Int> = ConcurrentHashMap.newKeySet()
         @Volatile
         var isDropping = false
     }
@@ -106,6 +110,17 @@ class Relay @JvmOverloads constructor(
         val validity = HdlFrame.validate(packet)
         if (validity != HdlFrame.Validity.VALID) {
             logger.info("Dropped a packet ({}) from the phone calling itself [{}].", validity, connection.phone.name)
+            return
+        }
+        RelayAllowList.refusal(packet, deviceType)?.let { why ->
+            val operationCode = RelayAllowList.operationCode(packet)
+            if (connection.refused.add(operationCode)) {
+                logger.warn(
+                    "Refused packets with operation code {} from the phone calling itself [{}], to {}/{}: {}.", "0x%04X".format(operationCode),
+                    connection.phone.name, packet[HdlUtil.BYTE_POSITION_TARGET_SUBNET_ID].toInt() and 0xFF,
+                    packet[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID].toInt() and 0xFF, why,
+                )
+            }
             return
         }
         // Always from the app, so the bus log shows it, and a phone can't pass itself off as a device on the bus
