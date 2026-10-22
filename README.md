@@ -6,7 +6,8 @@ Busbridge is a small, self-hosted bridge between your HDL Buspro bus and everyth
 pages, from Google Assistant through IFTTT, or from anything else that can send a web request. It runs happily on a
 Raspberry Pi.
 
-📱 On your phone, pair it with [Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome), the app for Android.
+📱 To control your HDL devices from your phone, there's also
+[Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome), an app for Android.
 
 [![Build](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml/badge.svg?branch=v2)](https://github.com/roys/java-hdl-webserver/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/roys/java-hdl-webserver)](https://github.com/roys/java-hdl-webserver/releases)
