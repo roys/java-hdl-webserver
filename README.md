@@ -307,15 +307,51 @@ Using the service from [step 4](#-set-it-up-on-a-raspberry-pi)? It's new in vers
 
 ## 🔒 Security
 
-- 🔑 **The API is guarded by a key**, a random one made the first time the server starts. Requests without it are refused.
-- 🏠 **The web pages only answer your local network**, or your [Tailscale](https://tailscale.com/) network, so you can use
-  them away from home too.
-- 🔐 **Use HTTPS** if you can, e.g. through a reverse proxy. Without it, someone between IFTTT and you could pick up a
-  command and send it again.
-- ⬆️ **Running version 1.0.3 or earlier?** [Update](#-updating-the-server). Those versions have known security vulnerabilities.
+**The one thing to know first:** HDL Buspro has no security of its own. Anyone on the network HDL's IP module is on can
+switch, read and reprogram every device on the bus, with or without Busbridge, since HDL doesn't check who is asking and
+sends everything in plain text. Busbridge can't change that while the IP module is on your ordinary home network. So
+today, your home network is the lock.
 
-**Why is there no login on the web pages?** Anyone on your home network can already talk to HDL Buspro directly. It has no
-security of its own, and everything is sent in plain text. A login would only give a false sense of security.
+**What Busbridge protects:**
+
+- 🔑 **The API needs a key**, a random one made the first time the server starts. Requests without it are refused, and
+  it only runs the actions you set up.
+- 🏠 **The web pages only answer your local network** or your [Tailscale](https://tailscale.com/) network. Other web
+  sites can't make your browser change anything on them.
+- 📱 **The Android app's port is off until you turn it on**, uses HTTPS, and only answers your local network or VPN.
+  The app trusts only Busbridge's own certificate, which it gets from the QR code it's paired with, so no one in between
+  can pass for Busbridge.
+- 🔗 **Each phone has its own key.** The pairing link works once, for 5 minutes. You see every paired phone on Settings,
+  and *Remove* stops it at once.
+- 🗄️ **The database is readable only by the user Busbridge runs as**, since it holds the keys. Where Busbridge can't make
+  it so, as on Windows, the app's port stays closed.
+
+**What it doesn't protect:**
+
+- 🔓 **The web pages have no login, and use plain HTTP.** Anyone who can reach them, on your home network or your
+  tailnet, can read the API key, change actions, and pair a phone of their own. Someone who can listen on your network
+  can read the pages too.
+- 🌐 **The API over plain HTTP from the Internet:** someone between IFTTT and you can read the key and send the request
+  again. Use HTTPS, e.g. through a reverse proxy.
+- 📡 **A paired phone can send anything to the bus**, as the app on the home network can. Keep phones' screens locked,
+  and remove a lost one on Settings.
+
+**What you should do**, most important first:
+
+1. 🔐 **Treat the Wi-Fi password as the key to the house.** Use WPA2 or WPA3 with a strong password, and put visitors and
+   smart gadgets on a guest network that can't reach your home network.
+2. 🚪 **Open no ports to the Internet but the API, and only if IFTTT needs it.** Use Tailscale for everything else, and
+   turn off UPnP on the router.
+3. 👥 **Keep your tailnet to your own devices.** Tailscale's access rules can let only your phones reach the Pi's port
+   4568.
+4. ⬆️ **Keep Busbridge, Java and the Pi updated.** Run `./update.sh`, or turn on *Check for updates* in Settings. Running
+   version 1.0.3 or earlier? [Update](#-updating-the-server): those versions have known security vulnerabilities.
+
+**For the careful: put HDL on its own network.** With HDL's IP module on a network of its own, and Busbridge the only way
+in, Busbridge becomes the lock. That needs a login and HTTPS on the web pages, which are planned but not built yet.
+Until then, a separate network still keeps gadgets and visitors away from the bus.
+
+**Found a vulnerability?** Please report it privately, as [SECURITY.md](SECURITY.md) describes.
 
 > ⚠️ **Use at your own risk.** Busbridge is provided as is, without warranty of any kind (see the [MIT license](LICENSE)).
 > You decide how it's reachable, and you're responsible for that. Like all software, it and the libraries it builds on
