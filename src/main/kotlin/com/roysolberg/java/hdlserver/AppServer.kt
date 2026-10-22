@@ -71,7 +71,8 @@ class AppServer @JvmOverloads constructor(
             config.jetty.modifyWebSocketServletFactory { factory ->
                 factory.maxBinaryMessageSize = MAX_PACKET_BYTES
                 factory.maxTextMessageSize = MAX_REQUEST_BYTES
-                factory.idleTimeout = RELAY_IDLE_TIMEOUT // Kept alive by the pings
+                // The app pings, so a phone that's gone quiet is closed. Busbridge doesn't: what it sends keeps it open.
+                factory.idleTimeout = RELAY_IDLE_TIMEOUT
             }
             config.jetty.addConnector { server, httpConfiguration ->
                 val httpsConfiguration = HttpConfiguration(httpConfiguration).apply {
@@ -105,16 +106,15 @@ class AppServer @JvmOverloads constructor(
             config.routes.wsBeforeUpgrade(RELAY_PATH) { ctx ->
                 refuseOthers(ctx)
                 val key = ctx.header("Authorization")?.takeIf { it.startsWith(BEARER) }?.let { Pairing.decode(it.removePrefix(BEARER), Pairing.KEY_BYTES) }
-                val phone = key?.let(relay::authenticate)
-                if (phone == null) {
+                if (key == null || !relay.knows(key)) {
                     logger.info("Refused a relay connection without a paired phone's key, from [{}].", ctx.ip())
                     ctx.header("WWW-Authenticate", "Bearer")
                     throw HaltException(401, "Not a paired phone.")
                 }
-                ctx.attribute(PHONE_ATTRIBUTE, phone)
+                ctx.attribute(KEY_ATTRIBUTE, key)
             }
             config.routes.ws(RELAY_PATH) { ws ->
-                ws.onConnect { ctx -> relay.connected(ctx, checkNotNull(ctx.attribute<Phones.Phone>(PHONE_ATTRIBUTE))) }
+                ws.onConnect { ctx -> relay.connected(ctx, checkNotNull(ctx.attribute<ByteArray>(KEY_ATTRIBUTE))) }
                 ws.onBinaryMessage(relay::received)
                 ws.onClose(relay::closed)
             }
@@ -268,7 +268,7 @@ class AppServer @JvmOverloads constructor(
         const val PAIR_POLL_PATH = "/relay/pair/poll"
         const val RELAY_PATH = "/relay"
         private const val BEARER = "Bearer "
-        private const val PHONE_ATTRIBUTE = "phone"
+        private const val KEY_ATTRIBUTE = "key"
         /** The largest UDP packet, as the bus code takes. */
         private const val MAX_PACKET_BYTES = 65_535L
         private val RELAY_IDLE_TIMEOUT = Duration.ofSeconds(75)

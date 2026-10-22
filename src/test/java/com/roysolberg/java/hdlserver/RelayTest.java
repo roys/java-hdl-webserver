@@ -88,6 +88,7 @@ class RelayTest {
 
         try (TestWebSocket phone = connect(key)) {
             assertEquals(101, phone.status);
+            phone.read(TestWebSocket.TEXT); // Sent once the connection is set up, and the pairing completed
         }
 
         assertEquals("Pixel 9", phones.all().get(0).getName());
@@ -135,6 +136,88 @@ class RelayTest {
             assertArrayEquals(BUSBRIDGE_ADDRESS.getAddress(), Arrays.copyOf(sent, 4), "Busbridge's address, so devices answer it");
             assertArrayEquals(Arrays.copyOfRange(packet, 4, packet.length), Arrays.copyOfRange(sent, 4, sent.length), "Without what came after the frame");
             assertNull(sentToBus.poll(200, TimeUnit.MILLISECONDS), "The damaged packets weren't sent");
+        }
+    }
+
+    @Test
+    void aPhoneAlwaysSendsAsTheApp() throws Exception {
+        try (TestWebSocket phone = connect(pairedKey("Pixel 9"))) {
+            phone.read(TestWebSocket.TEXT);
+            byte[] posingAsADevice = packet(0x0031);
+            posingAsADevice[17] = 1;
+            posingAsADevice[18] = 50;
+            posingAsADevice[19] = 0x12;
+            posingAsADevice[20] = 0x34;
+            HdlFrame.writeCrc(posingAsADevice);
+
+            phone.send(TestWebSocket.BINARY, posingAsADevice);
+
+            byte[] sent = sentToBus.poll(5, TimeUnit.SECONDS);
+            assertArrayEquals(new byte[]{11, (byte) 253, (byte) 0xFF, (byte) 0xFD}, Arrays.copyOfRange(sent, 17, 21));
+            assertEquals(HdlFrame.Validity.VALID, HdlFrame.validate(sent), "With the CRC made again");
+        }
+    }
+
+    @Test
+    void aMessageBiggerThanAnyPacketClosesTheConnection() throws Exception {
+        try (TestWebSocket phone = connect(pairedKey("Pixel 9"))) {
+            phone.read(TestWebSocket.TEXT);
+
+            phone.send(TestWebSocket.BINARY, new byte[70_000]);
+
+            assertEquals(1009, phone.read(TestWebSocket.CLOSE).closeCode(), "Too big");
+        }
+    }
+
+    @Test
+    void aFailedUpgradeDoesntUseUpThePairing() throws Exception {
+        pairing.open();
+        byte[] nonce = random(32);
+        Pairing.Asked.Created asked = (Pairing.Asked.Created) pairing.ask("Pixel 9", Pairing.commitment(nonce));
+        pairing.reveal(asked.getRequestId(), nonce);
+        pairing.type(Pairing.code(nonce, asked.getNonce(), AppServerTest.CERTIFICATE.getCertificate().getEncoded()));
+        byte[] key = pairing.poll(asked.getRequestId(), nonce).getKey();
+
+        // A handshake Jetty refuses after Busbridge has checked the key: no Upgrade header and a WebSocket key that isn't one
+        try (SSLSocket socket = (SSLSocket) AppServerTest.pinned().getSocketFactory().createSocket("127.0.0.1", server.port())) {
+            socket.setSoTimeout(5000);
+            String request = "GET " + AppServer.RELAY_PATH + " HTTP/1.1\r\nHost: busbridge\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: x\r\n"
+                    + "Authorization: Bearer " + Pairing.base64(key) + "\r\nConnection: close\r\n\r\n";
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+            String response = new String(socket.getInputStream().readAllBytes(), StandardCharsets.ISO_8859_1);
+            assertFalse(response.startsWith("HTTP/1.1 101"), response);
+        }
+
+        assertTrue(phones.all().isEmpty());
+        assertTrue(pairing.isAllowed(key), "Still waiting for its first connection");
+        try (TestWebSocket phone = connect(key)) {
+            assertEquals(101, phone.status);
+            phone.read(TestWebSocket.TEXT);
+        }
+        assertEquals(1, phones.all().size());
+    }
+
+    @Test
+    void aClosedConnectionMakesRoom() throws Exception {
+        List<TestWebSocket> connected = new ArrayList<>();
+        try {
+            for (int i = 0; i < 5; i++) {
+                TestWebSocket phone = connect(pairedKey("Phone " + i));
+                phone.read(TestWebSocket.TEXT);
+                connected.add(phone);
+            }
+            TestWebSocket leaving = connected.remove(0);
+            leaving.send(TestWebSocket.CLOSE, new byte[]{0x03, (byte) 0xE8});
+            leaving.read(TestWebSocket.CLOSE);
+            leaving.close();
+
+            try (TestWebSocket sixth = connect(pairedKey("Phone 6"))) {
+                assertEquals("server-1", new ObjectMapper().readTree(sixth.read(TestWebSocket.TEXT).text()).get("serverId").asText());
+            }
+        } finally {
+            for (TestWebSocket phone : connected) {
+                phone.close();
+            }
         }
     }
 
@@ -308,10 +391,15 @@ class RelayTest {
             frame.write(0x80 | opcode);
             if (payload.length < 126) {
                 frame.write(0x80 | payload.length);
-            } else {
+            } else if (payload.length < 65536) {
                 frame.write(0x80 | 126);
                 frame.write(payload.length >> 8);
                 frame.write(payload.length);
+            } else {
+                frame.write(0x80 | 127);
+                for (int shift = 56; shift >= 0; shift -= 8) {
+                    frame.write((int) ((long) payload.length >> shift));
+                }
             }
             frame.write(new byte[4]);
             frame.write(payload);

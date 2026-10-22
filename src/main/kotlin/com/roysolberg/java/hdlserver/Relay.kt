@@ -1,6 +1,8 @@
 package com.roysolberg.java.hdlserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.roysolberg.java.hdlserver.service.HdlService
+import com.roysolberg.java.hdlserver.util.HdlUtil
 import io.javalin.websocket.WsBinaryMessageContext
 import io.javalin.websocket.WsCloseContext
 import io.javalin.websocket.WsConnectContext
@@ -63,23 +65,22 @@ class Relay @JvmOverloads constructor(
     val isFull: Boolean
         get() = connections.size >= MAX_CONNECTIONS
 
-    /**
-     * The phone with this key. The first time an allowed phone connects, this completes its pairing.
-     *
-     * @return null for a key no phone has
-     */
-    fun authenticate(key: ByteArray): Phones.Phone? = phones.find(key)
-        ?: pairing.complete(key) { name -> phones.add(name, key, clock.instant()) }?.also { phone ->
-            activityLog.record(source(phone, null), "Pairing", "Paired", succeeded = true)
-        }
-        // Two first connections at once: the one that didn't complete it finds the phone the other saved
-        ?: phones.find(key)
+    /** Whether a paired phone, or one allowed to pair, has this key. Checked before the upgrade. */
+    fun knows(key: ByteArray): Boolean = phones.find(key) != null || pairing.isAllowed(key)
 
+    /**
+     * A phone connected with [key], which [knows] said yes to. The first time an allowed phone connects, this completes
+     * its pairing: only once the upgrade has succeeded, so a connection that fails before doesn't use it up.
+     */
     @Synchronized
-    fun connected(ws: WsConnectContext, phone: Phones.Phone) {
+    fun connected(ws: WsConnectContext, key: ByteArray) {
         val from = (ws.session.remoteSocketAddress as? InetSocketAddress)?.address?.hostAddress
-        if (!phones.contains(phone.id)) {
-            ws.closeSession(REMOVED, "Removed from Busbridge") // While it was connecting
+        val phone = phones.find(key)
+            ?: pairing.complete(key) { name -> phones.add(name, key, clock.instant()) }?.also { phone ->
+                activityLog.record(source(phone, from), "Pairing", "Paired", succeeded = true)
+            }
+        if (phone == null) {
+            ws.closeSession(REMOVED, "Removed from Busbridge") // Or expired, while it was connecting
             return
         }
         if (connections.size >= MAX_CONNECTIONS && !connections.containsKey(phone.id)) {
@@ -88,7 +89,6 @@ class Relay @JvmOverloads constructor(
         }
         // A phone has one connection; a new one means the old is gone, even if it hasn't been noticed yet
         connections.put(phone.id, Connection(phone, ws, from))?.ws?.closeSession(NORMAL, "Replaced by a newer connection")
-        ws.enableAutomaticPings(PING_INTERVAL_SECONDS, TimeUnit.SECONDS)
         ws.session.sendText(
             objectMapper.writeValueAsString(mapOf("version" to (version ?: "development"), "serverId" to serverId, "addresses" to addresses())),
             Callback.NOOP,
@@ -100,7 +100,7 @@ class Relay @JvmOverloads constructor(
 
     /** A packet from a phone, which is checked and sent on to the bus in turn. */
     fun received(ws: WsBinaryMessageContext) {
-        val connection = connections.values.firstOrNull { it.ws == ws } ?: return
+        val connection = connectionOf(ws) ?: return
         val data = ws.data()
         val packet = ByteArray(data.remaining()).also(data::get)
         val validity = HdlFrame.validate(packet)
@@ -108,7 +108,15 @@ class Relay @JvmOverloads constructor(
             logger.info("Dropped a packet ({}) from the phone calling itself [{}].", validity, connection.phone.name)
             return
         }
-        if (connection.toBus.offer(packet.copyOf(HdlFrame.packetLength(packet)))) {
+        // Always from the app, so the bus log shows it, and a phone can't pass itself off as a device on the bus
+        val fromApp = packet.copyOf(HdlFrame.packetLength(packet)).apply {
+            this[HdlUtil.BYTE_POSITION_SUBNET_ID] = HdlService.SENDER_SUBNET_ID.toByte()
+            this[HdlUtil.BYTE_POSITION_DEVICE_ID] = APP_DEVICE_ID.toByte()
+            this[HdlUtil.BYTE_POSITION_DEVICE_TYPE_BYTE_1] = (HdlService.APP_DEVICE_TYPE shr 8).toByte()
+            this[HdlUtil.BYTE_POSITION_DEVICE_TYPE_BYTE_1 + 1] = HdlService.APP_DEVICE_TYPE.toByte()
+            if (!HdlFrame.isBig(this)) HdlFrame.writeCrc(this)
+        }
+        if (connection.toBus.offer(fromApp)) {
             connection.isDropping = false
         } else if (!connection.isDropping) {
             connection.isDropping = true
@@ -118,8 +126,7 @@ class Relay @JvmOverloads constructor(
 
     @Synchronized
     fun closed(ws: WsCloseContext) {
-        ws.disableAutomaticPings()
-        val connection = connections.values.firstOrNull { it.ws == ws } ?: return // Replaced or removed already
+        val connection = connectionOf(ws) ?: return // Replaced or removed already
         connections.remove(connection.phone.id, connection)
         phones.seen(connection.phone.id, clock.instant())
         activityLog.record(source(connection.phone, connection.from), "Relay", "Disconnected after ${connection.sentToBus.get()} packets to the bus", succeeded = true)
@@ -166,6 +173,9 @@ class Relay @JvmOverloads constructor(
         }
     }
 
+    /** Javalin makes a new context for every event on a connection, so it's found by its session. */
+    private fun connectionOf(ws: WsContext): Connection? = connections.values.firstOrNull { it.ws.session === ws.session }
+
     private fun source(phone: Phones.Phone, from: String?) = "Phone \"${phone.name}\"" + (from?.let { " ($it)" } ?: "")
 
     companion object {
@@ -176,7 +186,8 @@ class Relay @JvmOverloads constructor(
         private const val MAX_QUEUED_PACKETS = 200
         /** 20 packets a second from each phone. */
         private const val SEND_INTERVAL_MILLIS = 50L
-        private const val PING_INTERVAL_SECONDS = 30L
+        /** Busbridge's own address on the bus is 11/252; the app's is 11/253. */
+        private const val APP_DEVICE_ID = 253
         private const val MAX_BYTES_TO_PHONE = 1024 * 1024L
         private val logger = LogManager.getLogger(Relay::class.java)
     }

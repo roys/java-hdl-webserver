@@ -200,6 +200,13 @@ class Pairing @JvmOverloads constructor(
         return Polled(request.status, request.key?.copyOf())
     }
 
+    /** Whether a phone allowed to pair, which hasn't connected yet, has this key. */
+    @Synchronized
+    fun isAllowed(key: ByteArray): Boolean {
+        expire()
+        return requests.values.any { request -> request.status == Status.ALLOWED && request.key?.let { MessageDigest.isEqual(it, key) } == true }
+    }
+
     /**
      * The phone allowed with this key connects for the first time, which completes its pairing: [add] saves the phone,
      * and the key is no longer kept here, so polls get expired. If [add] can't, nothing changes.
