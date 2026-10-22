@@ -10,9 +10,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mapdb.DB;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -27,6 +29,17 @@ class LegacyDatabaseTest {
 
     @TempDir
     Path directory;
+
+    @Test
+    void onlyItsOwnerCanReadTheDatabase() throws IOException {
+        Path file = Paths.get(LegacyDatabases.copyToDirectory("1.0.3", directory));
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"), "No POSIX file permissions");
+        Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-r--r--"));
+
+        HdlServer.openDatabase(file.toString()).close();
+
+        assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"1.0.0", "1.0.3"})

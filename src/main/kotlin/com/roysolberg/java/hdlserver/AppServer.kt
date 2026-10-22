@@ -3,6 +3,8 @@ package com.roysolberg.java.hdlserver
 import io.javalin.Javalin
 import org.apache.logging.log4j.LogManager
 import org.eclipse.jetty.http.HttpVersion
+import org.eclipse.jetty.io.Connection
+import org.eclipse.jetty.io.ssl.SslConnection
 import org.eclipse.jetty.server.HttpConfiguration
 import org.eclipse.jetty.server.HttpConnectionFactory
 import org.eclipse.jetty.server.NetworkConnectionLimit
@@ -11,8 +13,11 @@ import org.eclipse.jetty.server.ServerConnector
 import org.eclipse.jetty.server.SslConnectionFactory
 import org.eclipse.jetty.util.ssl.SslContextFactory
 import org.eclipse.jetty.util.thread.QueuedThreadPool
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The port the Android app talks to. It's HTTPS only, with Busbridge's own [AppCertificate], and has only the app's
@@ -44,6 +49,7 @@ class AppServer @JvmOverloads constructor(
             keyStore = certificate.keyStore(password.toCharArray())
             keyStorePassword = password
             setIncludeProtocols("TLSv1.3", "TLSv1.2")
+            addExcludeCipherSuites("^.*_CBC_.*$") // Only ciphers that also authenticate, which every Android version has
         }
         val app = Javalin.create { config ->
             config.startup.showJavalinBanner = false
@@ -66,6 +72,7 @@ class AppServer @JvmOverloads constructor(
                     this.port = port
                     idleTimeout = IDLE_TIMEOUT_MILLIS
                     server.addBean(NetworkConnectionLimit(MAX_CONNECTIONS, this))
+                    addBean(AddressLimit(isAllowedAddress))
                 }
             }
 
@@ -114,6 +121,48 @@ class AppServer @JvmOverloads constructor(
         javalin = null
     }
 
+    /**
+     * Closes a connection from an address that isn't allowed before anything is said on it, and keeps one address from
+     * taking all the connections the port has, e.g. by opening many and saying little on each.
+     */
+    private class AddressLimit(private val isAllowedAddress: (String) -> Boolean) : Connection.Listener {
+        private val connectionsPerAddress = ConcurrentHashMap<InetAddress, Int>()
+        /** Where each counted connection is from, since a closed one no longer knows. */
+        private val counted = ConcurrentHashMap<Connection, InetAddress>()
+
+        override fun onOpened(connection: Connection) {
+            // Each connection starts encrypted, and the HTTP connection inside it is told too: one per connection
+            if (connection !is SslConnection) return
+            val address = (connection.endPoint.remoteSocketAddress as? InetSocketAddress)?.address
+            if (address == null || !isAllowedAddress(address.hostAddress)) {
+                logger.info("Refused a connection to the app port from [{}].", address?.hostAddress)
+                connection.endPoint.close()
+                return
+            }
+            var isLetIn = false
+            connectionsPerAddress.compute(address) { _, count ->
+                val current = count ?: 0
+                if (current < MAX_CONNECTIONS_PER_ADDRESS) {
+                    isLetIn = true
+                    current + 1
+                } else {
+                    current
+                }
+            }
+            if (!isLetIn) {
+                logger.info("Refused more than {} connections to the app port from [{}].", MAX_CONNECTIONS_PER_ADDRESS, address.hostAddress)
+                connection.endPoint.close()
+                return
+            }
+            counted[connection] = address
+        }
+
+        override fun onClosed(connection: Connection) {
+            val address = counted.remove(connection) ?: return
+            connectionsPerAddress.computeIfPresent(address) { _, count -> (count - 1).takeIf { it > 0 } }
+        }
+    }
+
     companion object {
         const val DEFAULT_PORT = 4568
 
@@ -126,6 +175,7 @@ class AppServer @JvmOverloads constructor(
         private const val MAX_THREADS = 32
         private const val MIN_THREADS = 2
         private const val MAX_CONNECTIONS = 50
+        private const val MAX_CONNECTIONS_PER_ADDRESS = 8
         private val logger = LogManager.getLogger(AppServer::class.java)
     }
 }

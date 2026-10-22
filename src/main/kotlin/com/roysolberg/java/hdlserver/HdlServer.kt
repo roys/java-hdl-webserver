@@ -27,6 +27,9 @@ import java.net.URLEncoder
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentMap
@@ -617,8 +620,21 @@ class HdlServer(
             HdlServer(database, hdlService).start(port, appPort)
         }
 
+        /**
+         * Opens the database, which only its owner may read: it holds the API key and the app port's private key.
+         */
         @JvmStatic
-        fun openDatabase(file: String): DB = DBMaker.fileDB(file).fileMmapEnable().checksumHeaderBypass().make()
+        fun openDatabase(file: String): DB {
+            val database = DBMaker.fileDB(file).fileMmapEnable().checksumHeaderBypass().make()
+            try {
+                Files.setPosixFilePermissions(Path.of(file), PosixFilePermissions.fromString("rw-------"))
+            } catch (e: UnsupportedOperationException) {
+                logger.debug("{} has no POSIX file permissions to set.", file) // Windows, where the folder's are used
+            } catch (e: IOException) {
+                logger.warn("Couldn't make {} readable by its owner only.", file, e)
+            }
+            return database
+        }
 
         @JvmStatic
         fun isApiPath(path: String?): Boolean = path != null && path.startsWith("/api/")
@@ -659,7 +675,8 @@ class HdlServer(
                 // 100.64.0.0/10, where Tailscale gives out addresses. Packets claiming it from the Internet can't get answers back:
                 // Tailscale routes the range into the VPN, so a spoofed connection never gets established.
                 val isTailscale = bytes.size == 4 && bytes[0].toInt() == 100 && (bytes[1].toInt() and 0xC0) == 64
-                inetAddress.isSiteLocalAddress || isUniqueLocalIpv6 || isTailscale
+                // fe80::/10 and 169.254.0.0/16 only exist on the network they're on: routers don't pass them on
+                inetAddress.isSiteLocalAddress || inetAddress.isLinkLocalAddress || isUniqueLocalIpv6 || isTailscale
             } catch (e: UnknownHostException) {
                 logger.info("Got invalid IP address [{}].", address)
                 false

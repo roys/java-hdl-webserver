@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
@@ -60,7 +61,44 @@ class AppServerTest {
     void onlyTheLocalNetworkIsAnswered() throws Exception {
         AppServer server = start(address -> false);
 
-        assertEquals(403, connect(server, "/relay/info").getResponseCode());
+        assertThrows(IOException.class, () -> connect(server, "/relay/info").getResponseCode(), "Closed before the handshake");
+    }
+
+    @Test
+    void oneAddressCantTakeAllTheConnections() throws Exception {
+        AppServer server = start(address -> true);
+        List<Socket> sockets = new ArrayList<>();
+        try {
+            for (int i = 0; i < 8; i++) {
+                sockets.add(new Socket("127.0.0.1", server.port())); // Saying nothing
+            }
+            try (Socket ninth = new Socket("127.0.0.1", server.port())) {
+                ninth.setSoTimeout(5000);
+                assertEquals(-1, ninth.getInputStream().read(), "Closed by the server");
+            }
+            sockets.remove(0).close();
+            assertEquals(200, eventually(() -> connect(server, "/relay/info").getResponseCode()), "Room again");
+        } finally {
+            for (Socket socket : sockets) {
+                socket.close();
+            }
+        }
+    }
+
+    @Test
+    void onlyCiphersThatAuthenticateAreUsed() throws Exception {
+        AppServer server = start(address -> true);
+
+        try (SSLSocket socket = (SSLSocket) pinned().getSocketFactory().createSocket("127.0.0.1", server.port())) {
+            socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+            socket.setEnabledCipherSuites(new String[]{"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"});
+            assertThrows(IOException.class, socket::startHandshake);
+        }
+        try (SSLSocket socket = (SSLSocket) pinned().getSocketFactory().createSocket("127.0.0.1", server.port())) {
+            socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+            socket.setEnabledCipherSuites(new String[]{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"});
+            socket.startHandshake(); // What an older Android phone uses
+        }
     }
 
     @Test
@@ -109,6 +147,21 @@ class AppServerTest {
         HttpsURLConnection connection = (HttpsURLConnection) new URL("https://127.0.0.1:" + port + "/relay/info").openConnection();
         connection.setSSLSocketFactory(pinned().getSocketFactory());
         assertThrows(ConnectException.class, connection::getResponseCode);
+    }
+
+    /** Tries for a few seconds, for the server to notice a closed connection. */
+    private static int eventually(java.util.concurrent.Callable<Integer> request) throws Exception {
+        long giveUpAt = System.nanoTime() + 5_000_000_000L;
+        while (true) {
+            try {
+                return request.call();
+            } catch (IOException e) {
+                if (System.nanoTime() > giveUpAt) {
+                    throw e;
+                }
+                Thread.sleep(100);
+            }
+        }
     }
 
     private AppServer start(kotlin.jvm.functions.Function1<String, Boolean> isAllowedAddress) {
