@@ -1,5 +1,6 @@
 package com.roysolberg.java.hdlserver.service;
 
+import com.roysolberg.java.hdlserver.BusNetwork;
 import com.roysolberg.java.hdlserver.BusStats;
 import com.roysolberg.java.hdlserver.HdlFrame;
 import com.roysolberg.java.hdlserver.hdl.Action;
@@ -15,6 +16,7 @@ import org.mapdb.DB;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -69,6 +71,7 @@ public class HdlService {
     private static final int MAX_QUEUED_PACKETS = 500;
     /** The UDP header (16) and the longest frame its length byte can describe (255), plus room to notice longer ones. */
     private static final int MAX_PACKAGE_SIZE = 512;
+    private static final Duration BUS_NETWORK_MAX_AGE = Duration.ofMinutes(1);
     private static final int SEARCHES = 3;
     private static final long SECONDS_BETWEEN_SEARCHES = 4;
     private final ConcurrentMap<String, HdlComponent> components;
@@ -94,8 +97,9 @@ public class HdlService {
 
     protected boolean isRunning;
     protected DatagramSocket datagramSocket;
-    protected InetAddress localInetAddress;
-    protected InetAddress broadcastInetAddress;
+    private BusNetwork busNetwork;
+    /** When the bus network was last looked for, from System.nanoTime(), or null to look before the next package. */
+    private volatile Long busNetworkFoundAt;
 
     @SuppressWarnings("unchecked") // The database stores devices by their component id
     public HdlService(DB database) {
@@ -221,53 +225,31 @@ public class HdlService {
         return datagramSocket;
     }
 
+    /**
+     * @return this server's address on the bus network, which goes in every package it sends, or null without one
+     */
     public InetAddress getIpAddress() {
-        if (localInetAddress == null) {
-            // XXX: Remove this remote access:
-//            try {
-//                appInetAddress = InetAddress.getByName("176.11.85.125");
-//                logger.warn(appInetAddress.getHostAddress());
-//            } catch (UnknownHostException e) {
-//                e.printStackTrace();
-//            }
-//            if(true)
-//                return appInetAddress;
-//            try {
-//                for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-//                    NetworkInterface intf = en.nextElement();
-//                    for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-//                        InetAddress inetAddress = enumIpAddr.nextElement();
-//                        if (!inetAddress.isLoopbackAddress()) {
-//                            //return inetAddress.getHostAddress().toString();
-//                            appInetAddress = inetAddress;
-//                            logger.warn(appInetAddress.getHostAddress());
-//                            return appInetAddress;
-//                        }
-//                    }
-//                }
-//            } catch (SocketException ex) {
-//                Log.e("SALMAN", ex.toString());
-//            }
+        BusNetwork busNetwork = getBusNetwork();
+        return busNetwork != null ? busNetwork.getAddress() : null;
+    }
 
-            Socket socket = null;
-            try {
-                socket = new Socket("google.com", 80);
-                localInetAddress = socket.getLocalAddress();
-                logger.debug("Got local IP address [" + localInetAddress + "] from socket.");
-                return localInetAddress;
-            } catch (IOException e) {
-                logger.error("Got IOException while trying to find local address from socket.");
-            } finally {
-                if (socket != null && socket.isConnected()) {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                    /* no-op */
-                    }
-                }
+    /**
+     * Looks for the bus network again now and then, since the computer's address on it can change.
+     */
+    protected synchronized BusNetwork getBusNetwork() {
+        long now = System.nanoTime();
+        Long foundAt = busNetworkFoundAt;
+        if (foundAt == null || now - foundAt > BUS_NETWORK_MAX_AGE.toNanos()) {
+            BusNetwork found = BusNetwork.find();
+            if (found == null) {
+                logger.warn("Found no network with an IPv4 broadcast address to reach the bus on.");
+            } else if (!found.equals(busNetwork)) {
+                logger.info("The bus is reached on {}.", found);
             }
+            busNetwork = found;
+            busNetworkFoundAt = now;
         }
-        return localInetAddress;
+        return busNetwork;
     }
 
     protected static byte[] getDefaultPackage(InetAddress inetAddress) {
@@ -399,73 +381,17 @@ public class HdlService {
         }
     }
 
+    /**
+     * @return the address that reaches every device on the bus network, or, without one, every device on whichever network
+     * the computer picks
+     */
     public InetAddress getBroadcastAddress() {
-        //
-        // Already set address
-        //
-        if (broadcastInetAddress != null) {
-            return broadcastInetAddress;
-        }
-        //
-        // Default values
-        //
-        int netmask = 0;
-        int ipAddress = 0;
-        //
-        // IP from socket
-        //
-        Socket socket = null;
-        try {
-            socket = new Socket("google.com", 80);
-            InetAddress socketInetAddress = socket.getLocalAddress();
-            logger.debug("Got local IP address [" + socketInetAddress + "] from socket when trying to find broadcast address.");
-            byte[] bytes = socketInetAddress.getAddress();
-            ipAddress = (
-                    ((bytes[3] & 0xFF) << (3 * 8)) +
-                            ((bytes[2] & 0xFF) << (2 * 8)) +
-                            ((bytes[1] & 0xFF) << (1 * 8)) +
-                            ((bytes[0] & 0xFF) << (0 * 8))
-            );// & 0xffffffffL;
-        } catch (IOException e) {
-            logger.error("Got IOException while trying to find broadcast address from socket. Trying Wi-Fi manager.");
-        } finally {
-            if (socket != null && socket.isConnected()) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    /* no-op */
-                }
-            }
-        }
-        if (ipAddress == 0) {
-            try {
-                return broadcastInetAddress = InetAddress.getByName("239.255.255.250");
-            } catch (UnknownHostException e) {
-                logger.error("Got UnknownHostException while trying to resolve multicast address. Giving up finding broadcast address.");
-                return null;
-            }
-        }
-        if (netmask == 0) {
-            netmask = 16777215; // We take a wild guess at 255.255.255.0 (0.255.255.255)
-//            netmask = 65535; // We take a wild guess at 255.255.0.0 (0.0.255.255)
-        }
-        long broadcast = (ipAddress & netmask) | ~netmask;
-        byte[] quads = new byte[4];
-        for (int k = 0; k < 4; k++)
-            quads[k] = (byte) ((broadcast >> k * 8) & 0xFF);
-        try {
-            broadcastInetAddress = InetAddress.getByAddress(quads);
-            logger.debug("Using [" + broadcastInetAddress + "] as broadcast address.");
-            return broadcastInetAddress;
-        } catch (UnknownHostException e) {
-            logger.warn("Got UnknownHostException while trying to get broadcast address.", e);
-        }
-        return null;
+        BusNetwork busNetwork = getBusNetwork();
+        return busNetwork != null ? busNetwork.getBroadcast() : BusNetwork.LIMITED_BROADCAST;
     }
 
     protected void closeSocket() {
-        broadcastInetAddress = null; // Forces service to try to get fresh broadcast address
-        localInetAddress = null; // Forces service to try to get fresh local address
+        busNetworkFoundAt = null;
         if (datagramSocket != null) {
             if (!datagramSocket.isClosed()) {
                 datagramSocket.close();
