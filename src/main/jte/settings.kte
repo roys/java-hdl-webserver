@@ -1,11 +1,12 @@
 @import com.roysolberg.java.hdlserver.HdlServer
+@import com.roysolberg.java.hdlserver.HdlServer.AppPortProblem
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
 @param checkForUpdates: Boolean = false
 @param appPortOn: Boolean = false
 @param appPort: Int = 0
 @param appFingerprint: String? = null
-@param couldNotOpenAppPort: Boolean = false
+@param appPortProblem: AppPortProblem? = null
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -32,8 +33,12 @@
             </label>
             <p id="help_app_port" class="help">Opens port ${appPort} for Smart Home for HDL Buspro, the Android app, with HTTPS
                 and only from your home network or VPN.</p>
-            @if(couldNotOpenAppPort)
+            @if(appPortProblem == AppPortProblem.PORT_TAKEN)
                 <p class="help is-danger">Couldn't open port ${appPort}. Is something else using it? The log says more.</p>
+            @elseif(appPortProblem == AppPortProblem.DATABASE_NOT_PRIVATE)
+                <p class="help is-danger">Port ${appPort} stays closed: ${HdlServer.DATABASE_FILE} must be readable by its owner only,
+                    since the port's private key would be kept there. Busbridge can't make it so on Windows yet, or when
+                    another account owns the file.</p>
             @elseif(appFingerprint != null)
                 <p class="help">Port ${appPort} is open. Its certificate's fingerprint, which the app checks:
                     <code class="fingerprint">${appFingerprint}</code></p>

@@ -29,6 +29,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import java.time.Instant
 import java.util.UUID
@@ -38,10 +39,22 @@ import java.util.concurrent.RejectedExecutionException
 /**
  * The web server: the API that IFTTT applets call, and the web pages for the local network.
  */
-class HdlServer(
+class HdlServer @JvmOverloads constructor(
     private val database: DB,
     private val hdlService: HdlService?,
+    /** The database's file, which must be readable by its owner only before the app port's private key goes in it. */
+    private val databaseFile: Path? = null,
 ) {
+
+    /** Why the app port isn't open although Settings says it should be. */
+    enum class AppPortProblem {
+        /** Something else listens on the port. */
+        PORT_TAKEN,
+
+        /** Others than the database's owner can read it, or that can't be checked (on Windows). */
+        DATABASE_NOT_PRIVATE,
+    }
+
 
     @JvmField
     internal val configConcurrentMap: ConcurrentMap<String, String> = database.openMap("config")
@@ -71,7 +84,7 @@ class HdlServer(
     private var appCertificate: AppCertificate? = null
 
     @Volatile
-    private var couldNotOpenAppPort = false
+    private var appPortProblem: AppPortProblem? = null
 
     private val isCheckingForUpdates: Boolean
         get() = configConcurrentMap[CHECK_FOR_UPDATES_KEY].toBoolean()
@@ -156,7 +169,7 @@ class HdlServer(
                     "appPortOn" to isAppPortOn,
                     "appPort" to appPort,
                     "appFingerprint" to appCertificate?.takeIf { appServer != null }?.fingerprint,
-                    "couldNotOpenAppPort" to couldNotOpenAppPort,
+                    "appPortProblem" to appPortProblem,
                 )
             }
             config.routes.get("/") { ctx ->
@@ -277,10 +290,15 @@ class HdlServer(
         if (!isAppPortOn) {
             appServer?.close()
             appServer = null
-            couldNotOpenAppPort = false
+            appPortProblem = null
             return
         }
         if (appServer != null) {
+            return
+        }
+        if (databaseFile != null && !isOwnerOnly(databaseFile)) {
+            logger.error("The app port stays closed: {} must be readable by its owner only, since its private key would be kept there.", databaseFile)
+            appPortProblem = AppPortProblem.DATABASE_NOT_PRIVATE
             return
         }
         val certificate = appCertificate ?: AppCertificate.loadOrCreate(configConcurrentMap, database::commit).also { appCertificate = it }
@@ -294,7 +312,7 @@ class HdlServer(
             logger.error("Couldn't open the app port {}.", appPort, e)
             null
         }
-        couldNotOpenAppPort = appServer == null
+        appPortProblem = if (appServer == null) AppPortProblem.PORT_TAKEN else null
     }
 
     fun port(): Int = checkNotNull(javalin) { "The server isn't started" }.port()
@@ -617,7 +635,7 @@ class HdlServer(
             Runtime.getRuntime().addShutdownHook(Thread(database::close))
             val hdlService = HdlService(database)
             hdlService.start()
-            HdlServer(database, hdlService).start(port, appPort)
+            HdlServer(database, hdlService, Path.of(DATABASE_FILE)).start(port, appPort)
         }
 
         /**
@@ -681,6 +699,19 @@ class HdlServer(
                 logger.info("Got invalid IP address [{}].", address)
                 false
             }
+        }
+
+        /**
+         * Whether only the file's owner can read and write it. Never on Windows, which has no POSIX file permissions.
+         */
+        // TODO: Check Windows' access lists too (AclFileAttributeView), so the app port can open there
+        @JvmStatic
+        fun isOwnerOnly(file: Path): Boolean = try {
+            Files.getPosixFilePermissions(file).all { it == PosixFilePermission.OWNER_READ || it == PosixFilePermission.OWNER_WRITE }
+        } catch (e: UnsupportedOperationException) {
+            false
+        } catch (e: IOException) {
+            false
         }
 
         @JvmStatic
