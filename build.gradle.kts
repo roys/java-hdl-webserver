@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.log4j.core)
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.mapdb)
+    implementation(libs.bouncycastle.pkix) // Makes the app port's certificate
 
     testImplementation(launcher.output)
     testImplementation(platform(libs.junit.bom))
@@ -93,7 +94,7 @@ tasks.shadowJar {
         "Implementation-Version" to project.version,
         "Multi-Release" to "true",
     )
-    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class", "META-INF/versions/*/module-info.class")
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/*.EC", "module-info.class", "META-INF/versions/*/module-info.class")
 }
 
 tasks.assemble {

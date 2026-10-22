@@ -13,6 +13,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mapdb.DB;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManagerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +28,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Scanner;
@@ -52,7 +56,7 @@ class ApiContractTest {
     static void startServer() {
         database = HdlServer.openDatabase(LegacyDatabases.copyToDirectory("1.0.3", directory));
         hdlService = new RecordingHdlService(database);
-        application = new HdlServer(database, hdlService).start(0);
+        application = new HdlServer(database, hdlService).start(0, 0);
     }
 
     @AfterAll
@@ -178,6 +182,43 @@ class ApiContractTest {
                 assertTrue(data.contains(path.startsWith("/status") ? "HDL bus" : "Nothing yet") || data.contains("activity-table"), data);
             }
         }
+    }
+
+    /**
+     * Settings opens and closes the port the Android app connects to, which is off until then, and shows its
+     * certificate's fingerprint while it's open.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void settingsOpenAndCloseTheAppPort() throws Exception {
+        String lanAddress = siteLocalAddress();
+        assumeTrue(lanAddress != null, "No LAN address on this machine");
+        String origin = "http://" + lanAddress + ":" + application.port();
+        assertNull(application.appPort(), "Off until turned on");
+        try {
+            RawResponse on = postFormTo(lanAddress, "/update_settings", "authKey=" + LegacyDatabases.AUTH_TOKEN + "&appPortOn=on", origin);
+            assertTrue(on.text.contains("success="), on.statusLine);
+            Integer appPort = application.appPort();
+            assertNotNull(appPort);
+            AppCertificate stored = AppCertificate.loadOrCreate((Map<String, String>) (Map<?, ?>) database.hashMap("config").createOrOpen(), () -> {
+            });
+            assertTrue(sendTo(origin, "GET", "/settings").body.contains(stored.getFingerprint()));
+            KeyStore trusted = KeyStore.getInstance("PKCS12");
+            trusted.load(null, null);
+            trusted.setCertificateEntry("busbridge", stored.getCertificate());
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init(trusted);
+            SSLContext pinned = SSLContext.getInstance("TLS");
+            pinned.init(null, trustManagerFactory.getTrustManagers(), null);
+            try (SSLSocket socket = (SSLSocket) pinned.getSocketFactory().createSocket(lanAddress, appPort)) {
+                socket.startHandshake(); // Only succeeds with the stored certificate
+            }
+        } finally {
+            RawResponse off = postFormTo(lanAddress, "/update_settings", "authKey=" + LegacyDatabases.AUTH_TOKEN, origin);
+            assertTrue(off.text.contains("success="), off.statusLine);
+        }
+        assertNull(application.appPort());
+        assertFalse(sendTo(origin, "GET", "/settings").body.contains("fingerprint"));
     }
 
     @SuppressWarnings("unchecked")

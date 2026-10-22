@@ -2,6 +2,10 @@
 @import com.roysolberg.java.hdlserver.Page
 @param page: Page
 @param checkForUpdates: Boolean = false
+@param appPortOn: Boolean = false
+@param appPort: Int = 0
+@param appFingerprint: String? = null
+@param couldNotOpenAppPort: Boolean = false
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -20,6 +24,20 @@
             </label>
             <p id="help_updates" class="help">Once a day, asks GitHub for the latest version, and shows it on the Status page when there's a newer one.
                 GitHub sees this server's IP address when it does.</p>
+        </div>
+        <div class="field">
+            <label class="checkbox">
+                <input type="checkbox" name="appPortOn" aria-describedby="help_app_port" checked="${appPortOn}">
+                Let the Android app connect
+            </label>
+            <p id="help_app_port" class="help">Opens port ${appPort} for Smart Home for HDL Buspro, the Android app, with HTTPS
+                and only from your home network or VPN.</p>
+            @if(couldNotOpenAppPort)
+                <p class="help is-danger">Couldn't open port ${appPort}. Is something else using it? The log says more.</p>
+            @elseif(appFingerprint != null)
+                <p class="help">Port ${appPort} is open. Its certificate's fingerprint, which the app checks:
+                    <code class="fingerprint">${appFingerprint}</code></p>
+            @endif
         </div>
         <button type="submit" class="button is-primary">Save</button>
     </form>

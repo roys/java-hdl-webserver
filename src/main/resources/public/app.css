@@ -325,3 +325,8 @@ dialog::backdrop {
     border: 0;
     border-radius: var(--bulma-radius-large);
 }
+
+/* A certificate fingerprint is one long word, which would otherwise run off a phone's screen */
+.fingerprint {
+    overflow-wrap: anywhere;
+}

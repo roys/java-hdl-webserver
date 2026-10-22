@@ -28,6 +28,7 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.RejectedExecutionException
 
@@ -58,9 +59,22 @@ class HdlServer(
     private var javalin: Javalin? = null
     private var livePages: LivePages? = null
     private var updateCheck: UpdateCheck? = null
+    private var appPort = AppServer.DEFAULT_PORT
+    // Changed under the lock in updateAppPort(), and read by the Settings page
+    @Volatile
+    private var appServer: AppServer? = null
+
+    @Volatile
+    private var appCertificate: AppCertificate? = null
+
+    @Volatile
+    private var couldNotOpenAppPort = false
 
     private val isCheckingForUpdates: Boolean
         get() = configConcurrentMap[CHECK_FOR_UPDATES_KEY].toBoolean()
+
+    private val isAppPortOn: Boolean
+        get() = configConcurrentMap[APP_PORT_ON_KEY].toBoolean()
 
     @JvmField
     internal val activityLog = ActivityLog()
@@ -73,7 +87,12 @@ class HdlServer(
         }
     }
 
-    fun start(port: Int): HdlServer {
+    /**
+     * @param appPort the port the Android app connects to, when that's turned on in Settings
+     */
+    @JvmOverloads
+    fun start(port: Int, appPort: Int = AppServer.DEFAULT_PORT): HdlServer {
+        this.appPort = appPort
         val hdlService = checkNotNull(hdlService) { "The server can't start without an HdlService" }
         val livePages = LivePages { template -> renderLive(template, hdlService) }.also { livePages = it }
         val updateCheck = UpdateCheck(VERSION) { isCheckingForUpdates }.also { updateCheck = it }
@@ -127,7 +146,16 @@ class HdlServer(
             for (page in listOf("actions", "security", "demo")) {
                 config.routes.get("/$page") { ctx -> render(ctx, page) }
             }
-            config.routes.get("/settings") { ctx -> render(ctx, "settings", "checkForUpdates" to isCheckingForUpdates) }
+            config.routes.get("/settings") { ctx ->
+                render(
+                    ctx, "settings",
+                    "checkForUpdates" to isCheckingForUpdates,
+                    "appPortOn" to isAppPortOn,
+                    "appPort" to appPort,
+                    "appFingerprint" to appCertificate?.takeIf { appServer != null }?.fingerprint,
+                    "couldNotOpenAppPort" to couldNotOpenAppPort,
+                )
+            }
             config.routes.get("/") { ctx ->
                 val heard = hdlService.heardComponentIds
                 render(ctx, "index", "heard" to heard, "conflicts" to sharedAddresses(componentsConcurrentMap.values, heard))
@@ -224,22 +252,58 @@ class HdlServer(
                     configConcurrentMap[AUTH_TOKEN_KEY] = authKey
                     val checkForUpdates = ctx.formParam("checkForUpdates") != null
                     configConcurrentMap[CHECK_FOR_UPDATES_KEY] = checkForUpdates.toString()
+                    configConcurrentMap[APP_PORT_ON_KEY] = (ctx.formParam("appPortOn") != null).toString()
                     database.commit()
                     if (checkForUpdates) {
                         updateCheck.checkSoon()
                     }
+                    updateAppPort()
                     ctx.redirectWithMessage("/settings", "Settings successfully updated", null)
                 } else {
                     ctx.redirectWithMessage("/settings", null, "Authorization key must be at least $MIN_AUTH_TOKEN_LENGTH characters.")
                 }
             }
         }.start(port)
+        updateAppPort()
         return this
+    }
+
+    /** Opens or closes the port the Android app connects to, as Settings says. */
+    @Synchronized
+    private fun updateAppPort() {
+        if (!isAppPortOn) {
+            appServer?.close()
+            appServer = null
+            couldNotOpenAppPort = false
+            return
+        }
+        if (appServer != null) {
+            return
+        }
+        val certificate = appCertificate ?: AppCertificate.loadOrCreate(configConcurrentMap, database::commit).also { appCertificate = it }
+        val serverId = configConcurrentMap[SERVER_ID_KEY] ?: UUID.randomUUID().toString().also {
+            configConcurrentMap[SERVER_ID_KEY] = it
+            database.commit()
+        }
+        appServer = try {
+            AppServer(certificate, serverId, VERSION).start(appPort)
+        } catch (e: RuntimeException) {
+            logger.error("Couldn't open the app port {}.", appPort, e)
+            null
+        }
+        couldNotOpenAppPort = appServer == null
     }
 
     fun port(): Int = checkNotNull(javalin) { "The server isn't started" }.port()
 
+    /** The port the Android app connects to, or null when it's closed. */
+    @Synchronized
+    fun appPort(): Int? = appServer?.port()
+
+    @Synchronized
     fun stop() {
+        appServer?.close()
+        appServer = null
         livePages?.close()
         livePages = null
         updateCheck?.close()
@@ -501,6 +565,8 @@ class HdlServer(
         const val DATABASE_FILE = "hdlserver.db"
         const val AUTH_TOKEN_KEY = "authToken"
         const val CHECK_FOR_UPDATES_KEY = "checkForUpdates"
+        const val APP_PORT_ON_KEY = "appPortOn"
+        const val SERVER_ID_KEY = "serverId"
 
         /** The running version, e.g. "2.1.0"; null when not run from a built JAR. */
         private val VERSION: String? = HdlServer::class.java.`package`.implementationVersion
@@ -543,11 +609,12 @@ class HdlServer(
         fun main(args: Array<String>) {
             // Before anything is started, so a mistyped port stops the server instead of leaving it half running
             val port = parsePort(System.getProperty(PORT_PROPERTY))
+            val appPort = parsePort(System.getProperty(AppServer.PORT_PROPERTY), AppServer.PORT_PROPERTY, AppServer.DEFAULT_PORT)
             val database = openDatabase(DATABASE_FILE)
             Runtime.getRuntime().addShutdownHook(Thread(database::close))
             val hdlService = HdlService(database)
             hdlService.start()
-            HdlServer(database, hdlService).start(port)
+            HdlServer(database, hdlService).start(port, appPort)
         }
 
         @JvmStatic
@@ -617,12 +684,13 @@ class HdlServer(
          * A mistyped port stops the server with a clear message, rather than quietly listening somewhere IFTTT doesn't call.
          */
         @JvmStatic
-        fun parsePort(port: String?): Int {
+        @JvmOverloads
+        fun parsePort(port: String?, property: String = PORT_PROPERTY, defaultPort: Int = DEFAULT_PORT): Int {
             if (port.isNullOrBlank()) {
-                return DEFAULT_PORT
+                return defaultPort
             }
             return port.trim().toIntOrNull()?.takeIf { it in 1..65535 }
-                ?: throw IllegalArgumentException("-D$PORT_PROPERTY must be a port number from 1 to 65535, not \"$port\".")
+                ?: throw IllegalArgumentException("-D$property must be a port number from 1 to 65535, not \"$port\".")
         }
 
         /**
