@@ -288,6 +288,20 @@ class TemplatesTest {
         assertTrue(html.contains("&lt;script&gt;"));
     }
 
+    @Test
+    void pairedPhonesNamesAreOnlyText() {
+        Page page = new Page("settings", "TOKEN", Collections.emptyList(), Collections.emptyList(), "host", null, null);
+        Phones phones = new Phones(new HashMap<>(), () -> {
+        });
+        phones.add(QUOTE_BREAKOUT + SCRIPT, new byte[32], java.time.Instant.now());
+
+        String html = render("settings", page, "phones", phones.all());
+
+        assertTrue(html.contains("Paired phones"));
+        assertFalse(html.contains(SCRIPT));
+        assertFalse(html.contains(QUOTE_BREAKOUT));
+    }
+
     private String render(Page page) {
         StringOutput output = new StringOutput();
         templateEngine.render(page.getName() + ".kte", Collections.singletonMap("page", page), output);

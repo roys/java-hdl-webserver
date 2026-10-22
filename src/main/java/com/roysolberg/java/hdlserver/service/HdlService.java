@@ -36,6 +36,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class HdlService {
@@ -106,6 +107,7 @@ public class HdlService {
 
     protected boolean isRunning;
     protected DatagramSocket datagramSocket;
+    private volatile Consumer<byte[]> packageListener;
     private BusNetwork busNetwork;
     /** Where a device on the bus was last heard from, which tells which network the bus is on. */
     private InetAddress heardFrom;
@@ -225,6 +227,14 @@ public class HdlService {
     }
 
     /**
+     * @param listener gets every valid package heard, on the thread that handles them, e.g. to pass them on to phones
+     *                 through the relay; null for none
+     */
+    public void setPackageListener(Consumer<byte[]> listener) {
+        packageListener = listener;
+    }
+
+    /**
      * @param from where the package came from
      */
     protected void handlePackage(byte[] bytes, InetAddress from) {
@@ -234,6 +244,10 @@ public class HdlService {
             return;
         }
         busStats.record();
+        Consumer<byte[]> listener = packageListener;
+        if (listener != null) {
+            listener.accept(bytes);
+        }
         final boolean isSearchResponse = isOperationCode(bytes, OPERATE_CODE_SEARCH_RESPONSE);
         final HdlComponent hdlComponent = getComponentFromBytes(bytes, isSearchResponse, "ISO-8859-1");
         if (hdlComponent.getDeviceType() != SENDER_DEVICE_TYPE) {

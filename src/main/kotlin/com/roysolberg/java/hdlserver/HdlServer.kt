@@ -90,6 +90,12 @@ class HdlServer @JvmOverloads constructor(
     @Volatile
     private var pairing: Pairing? = null
 
+    /** Carries the bus to paired phones, while the app port is open. */
+    @Volatile
+    private var relay: Relay? = null
+
+    private val phones = Phones(database.openMap("phones"), database::commit)
+
     private val isCheckingForUpdates: Boolean
         get() = configConcurrentMap[CHECK_FOR_UPDATES_KEY].toBoolean()
 
@@ -175,6 +181,7 @@ class HdlServer @JvmOverloads constructor(
                     "appFingerprint" to appCertificate?.takeIf { appServer != null }?.fingerprint,
                     "appPortProblem" to appPortProblem,
                     "pairingWindow" to pairing?.window(),
+                    "phones" to phones.all(),
                 )
             }
             config.routes.get("/") { ctx ->
@@ -293,6 +300,16 @@ class HdlServer @JvmOverloads constructor(
                     Pairing.Typed.Closed -> ctx.redirectWithMessage("/settings", null, "Pairing isn't open. Press Connect a phone first.")
                 }
             }
+            config.routes.post("/remove_phone") { ctx ->
+                val phone = ctx.formParam("phoneId")?.let(phones::remove)
+                if (phone == null) {
+                    ctx.redirectWithMessage("/settings", null, "Unable to find the phone.")
+                } else {
+                    relay?.disconnect(phone.id)
+                    activityLog.record("Settings (${ctx.ip()})", "Remove phone \"${phone.name}\"", "Removed", succeeded = true)
+                    ctx.redirectWithMessage("/settings", "Removed ${phone.name}. It can't reach the bus through Busbridge any longer.", null)
+                }
+            }
             config.routes.post("/cancel_pairing") { ctx ->
                 pairing?.cancel()
                 ctx.redirectWithMessage("/settings", "Pairing is closed.", null)
@@ -323,9 +340,7 @@ class HdlServer @JvmOverloads constructor(
     @Synchronized
     private fun updateAppPort() {
         if (!isAppPortOn) {
-            appServer?.close()
-            appServer = null
-            pairing = null
+            closeAppPort()
             appPortProblem = null
             return
         }
@@ -342,15 +357,40 @@ class HdlServer @JvmOverloads constructor(
             configConcurrentMap[SERVER_ID_KEY] = it
             database.commit()
         }
+        val hdlService = checkNotNull(hdlService) { "The app port can't open without an HdlService" }
         val pairing = Pairing(certificate.certificate.encoded)
+        val bus = object : Relay.Bus {
+            override fun address(): InetAddress? = hdlService.ipAddress
+            override fun broadcast(packet: ByteArray) = hdlService.sendBroadcastMessage(packet)
+        }
+        val relay = Relay(serverId, VERSION, phones, pairing, bus, activityLog, { relayAddresses(hdlService) })
         appServer = try {
-            AppServer(certificate, serverId, VERSION, HdlServer::isLocalAddress, pairing).start(appPort).also { this.pairing = pairing }
+            AppServer(certificate, serverId, VERSION, pairing, relay).start(appPort)
         } catch (e: RuntimeException) {
             logger.error("Couldn't open the app port {}.", appPort, e)
+            relay.close()
             null
+        }
+        if (appServer != null) {
+            this.pairing = pairing
+            this.relay = relay
+            hdlService.setPackageListener(relay::forward)
         }
         appPortProblem = if (appServer == null) AppPortProblem.PORT_TAKEN else null
     }
+
+    private fun closeAppPort() {
+        hdlService?.setPackageListener(null)
+        appServer?.close()
+        appServer = null
+        relay?.close()
+        relay = null
+        pairing = null
+    }
+
+    /** Where a phone can reach this server: at home, and on the VPN from away. */
+    private fun relayAddresses(hdlService: HdlService): List<String> =
+        listOfNotNull(hdlService.ipAddress?.hostAddress) + BusNetwork.vpnAddresses().map { it.hostAddress }
 
     fun port(): Int = checkNotNull(javalin) { "The server isn't started" }.port()
 
@@ -360,9 +400,7 @@ class HdlServer @JvmOverloads constructor(
 
     @Synchronized
     fun stop() {
-        appServer?.close()
-        appServer = null
-        pairing = null
+        closeAppPort()
         livePages?.close()
         livePages = null
         updateCheck?.close()

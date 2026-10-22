@@ -239,6 +239,8 @@ class ApiContractTest {
             assertTrue(postFormTo(lanAddress, "/pair_phone", "code=12", origin).text.contains("error=Type+the+6+digits"));
             assertTrue(postFormTo(lanAddress, "/cancel_pairing", "", origin).text.contains("success="));
             assertFalse(sendTo(origin, "GET", "/settings").body.contains("Code shown in the app"));
+            assertEquals(403, postFormTo(lanAddress, "/remove_phone", "phoneId=x", null).status, "Only from the pages themselves");
+            assertTrue(postFormTo(lanAddress, "/remove_phone", "phoneId=x", origin).text.contains("error=Unable+to+find+the+phone"));
 
             postFormTo(lanAddress, "/open_pairing", "", origin);
             assertTrue(postFormTo(lanAddress, "/pair_phone", "code=123+456", origin).text.contains("pairing+is+closed"), "No phone has that code");

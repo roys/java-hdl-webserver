@@ -2,6 +2,7 @@
 @import com.roysolberg.java.hdlserver.HdlServer.AppPortProblem
 @import com.roysolberg.java.hdlserver.Page
 @import com.roysolberg.java.hdlserver.Pairing
+@import com.roysolberg.java.hdlserver.Phones
 @import com.roysolberg.java.hdlserver.Status
 @param page: Page
 @param checkForUpdates: Boolean = false
@@ -10,6 +11,7 @@
 @param appFingerprint: String? = null
 @param appPortProblem: AppPortProblem? = null
 @param pairingWindow: Pairing.Window? = null
+@param phones: List<Phones.Phone> = emptyList()
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -84,6 +86,39 @@
             <button type="submit" class="button">Cancel</button>
         </form>
     @endif
+</div>
+@endif
+@if(phones.isNotEmpty())
+<div class="box">
+    <h2 class="title is-5">Paired phones</h2>
+    <p class="block">These phones can reach the bus through Busbridge, also away from home over your VPN.</p>
+    <div class="table-container">
+        <table class="table is-fullwidth">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Paired</th>
+                <th>Last seen</th>
+                <th><span class="is-sr-only">Remove</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @for(phone in phones)
+                <tr>
+                    <td>${phone.name}</td>
+                    <td>${Status.formatTime(phone.pairedAt)}</td>
+                    <td>@if(phone.lastSeen != null)${Status.formatTime(phone.lastSeen)}@endif</td>
+                    <td>
+                        <form action="remove_phone" method="post">
+                            <input type="hidden" name="phoneId" value="${phone.id}"/>
+                            <button type="submit" class="button is-danger is-small">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            @endfor
+            </tbody>
+        </table>
+    </div>
 </div>
 @endif
 `)

@@ -255,6 +255,27 @@ class HdlServiceTest {
         assertFalse(described.contains("crc"), described);
     }
 
+    @Test
+    void onlyValidPackagesArePassedOn() {
+        try (DB database = DBMaker.memoryDB().make()) {
+            HdlService hdlService = new HdlService(database);
+            java.util.List<byte[]> passedOn = new java.util.ArrayList<>();
+            hdlService.setPackageListener(passedOn::add);
+            byte[] valid = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, 18, 1, null));
+            byte[] damaged = valid.clone();
+            damaged[25]++;
+
+            hdlService.handlePackage(valid, LOCAL_ADDRESS);
+            hdlService.handlePackage(damaged, LOCAL_ADDRESS);
+            hdlService.handlePackage(bigFrame(300), LOCAL_ADDRESS);
+            hdlService.setPackageListener(null);
+            hdlService.handlePackage(valid, LOCAL_ADDRESS);
+
+            assertEquals(2, passedOn.size());
+            assertSame(valid, passedOn.get(0));
+        }
+    }
+
     /** A big frame with the given length of content, 1, 2, 3 and so on. */
     private static byte[] bigFrame(int contentLength) {
         byte[] start = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, null, null, null));

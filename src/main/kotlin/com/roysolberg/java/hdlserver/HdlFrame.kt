@@ -50,6 +50,11 @@ object HdlFrame {
         return if (crcOf(bytes) == crc(bytes, LENGTH_POSITION, length - CRC_SIZE)) Validity.VALID else Validity.BAD_CRC
     }
 
+    /** How many bytes of a [Validity.VALID] packet are its header and frame, without anything after them. */
+    @JvmStatic
+    fun packetLength(bytes: ByteArray): Int =
+        if (isBig(bytes)) BIG_CONTENT_POSITION + contentLength(bytes) else LENGTH_POSITION + length(bytes)
+
     /** The frame's length byte. */
     @JvmStatic
     fun length(bytes: ByteArray): Int = bytes[LENGTH_POSITION].toInt() and 0xFF

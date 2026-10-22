@@ -238,6 +238,23 @@ class PairingTest {
     }
 
     @Test
+    void theFirstConnectionTakesTheKeyOnlyWhenThePhoneIsSaved() {
+        pairing.open();
+        Phone phone = ask("Pixel 9");
+        pairing.reveal(phone.requestId(), phone.nonce());
+        pairing.type(phone.code());
+        byte[] key = pairing.poll(phone.requestId(), phone.nonce()).getKey();
+
+        assertNull(pairing.complete(filled(0x09), name -> name), "Another key");
+        assertNull(pairing.complete(key, name -> null), "Couldn't be saved");
+        assertEquals(Pairing.Status.ALLOWED, pairing.poll(phone.requestId(), phone.nonce()).getStatus());
+
+        assertEquals("Pixel 9", pairing.complete(key, name -> name));
+        assertEquals(Pairing.Status.EXPIRED, pairing.poll(phone.requestId(), phone.nonce()).getStatus());
+        assertNull(pairing.complete(key, name -> name), "Only once");
+    }
+
+    @Test
     void openingAgainAndAgainKeepsLittle() {
         List<Phone> allowed = new java.util.ArrayList<>();
         for (int i = 0; i < 100; i++) {

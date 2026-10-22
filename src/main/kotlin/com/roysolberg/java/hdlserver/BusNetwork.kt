@@ -74,6 +74,19 @@ data class BusNetwork(val interfaceName: String, val address: Inet4Address, val 
             emptyList()
         }
 
+        /** This computer's VPN addresses, where a phone away from home can reach it. */
+        @JvmStatic
+        fun vpnAddresses(): List<Inet4Address> = try {
+            NetworkInterface.networkInterfaces().toList()
+                .filter { networkInterface -> runCatching { networkInterface.isUp }.getOrDefault(false) }
+                .flatMap { it.inetAddresses().toList() }
+                .filterIsInstance<Inet4Address>()
+                .filter(::isVpnAddress)
+        } catch (e: SocketException) {
+            logger.warn("Couldn't list the network interfaces.", e)
+            emptyList()
+        }
+
         /** VPN interfaces, like Tailscale's and WireGuard's, are point-to-point, so a broadcast on them reaches no bus. */
         private fun canReachTheBus(networkInterface: NetworkInterface): Boolean = try {
             networkInterface.isUp && !networkInterface.isLoopback && !networkInterface.isPointToPoint && !networkInterface.isVirtual

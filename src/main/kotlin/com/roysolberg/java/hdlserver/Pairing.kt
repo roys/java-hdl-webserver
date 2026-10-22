@@ -200,6 +200,21 @@ class Pairing @JvmOverloads constructor(
         return Polled(request.status, request.key?.copyOf())
     }
 
+    /**
+     * The phone allowed with this key connects for the first time, which completes its pairing: [add] saves the phone,
+     * and the key is no longer kept here, so polls get expired. If [add] can't, nothing changes.
+     *
+     * @return what [add] returned, or null if no phone waiting to connect has this key
+     */
+    @Synchronized
+    fun <T : Any> complete(key: ByteArray, add: (name: String) -> T?): T? {
+        expire()
+        val request = requests.values.firstOrNull { request ->
+            request.status == Status.ALLOWED && request.key?.let { MessageDigest.isEqual(it, key) } == true
+        } ?: return null
+        return add(request.name)?.also { requests.remove(request.id) }
+    }
+
     private fun closeWindow() {
         windowClosesAt = null
         val now = clock.instant()
@@ -247,7 +262,7 @@ class Pairing @JvmOverloads constructor(
         val ALLOWED_TIMEOUT: Duration = Duration.ofMinutes(10)
         /** How long a denied phone's polls are told so, before they get expired. */
         private val DENIED_KEPT_FOR = Duration.ofMinutes(2)
-        private const val KEY_BYTES = 32
+        const val KEY_BYTES = 32
         const val REQUEST_ID_BYTES = 16
         /** Phones allowed but not yet connected, which is normally one. */
         private const val MAX_ALLOWED_KEPT = 3

@@ -27,12 +27,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AppServerTest {
 
-    private static final AppCertificate CERTIFICATE = AppCertificate.create();
+    static final AppCertificate CERTIFICATE = AppCertificate.create();
     private final List<AppServer> servers = new ArrayList<>();
+    private final List<Relay> relays = new ArrayList<>();
 
     @AfterEach
     void closeServers() {
         servers.forEach(AppServer::close);
+        relays.forEach(Relay::close);
     }
 
     @Test
@@ -135,7 +137,8 @@ class AppServerTest {
     void aPortThatsTakenIsReportedAndLeavesNothingOpen() throws Exception {
         AppServer server = start(address -> true);
 
-        AppServer second = new AppServer(CERTIFICATE, "server-2", "2.2.0");
+        Pairing pairing = new Pairing(CERTIFICATE.getCertificate().getEncoded());
+        AppServer second = new AppServer(CERTIFICATE, "server-2", "2.2.0", pairing, relay(pairing));
         assertThrows(RuntimeException.class, () -> second.start(server.port()));
         assertEquals(200, connect(server, "/relay/info").getResponseCode(), "The first still answers");
     }
@@ -267,13 +270,29 @@ class AppServerTest {
     }
 
     private AppServer start(kotlin.jvm.functions.Function1<String, Boolean> isAllowedAddress, Pairing pairing) {
-        AppServer server = new AppServer(CERTIFICATE, "server-1", "2.2.0", isAllowedAddress, pairing).start(0);
+        AppServer server = new AppServer(CERTIFICATE, "server-1", "2.2.0", pairing, relay(pairing), isAllowedAddress).start(0);
         servers.add(server);
         return server;
     }
 
+    private Relay relay(Pairing pairing) {
+        Relay relay = new Relay("server-1", "2.2.0", new Phones(new java.util.HashMap<>(), () -> {
+        }), pairing, new Relay.Bus() {
+            @Override
+            public java.net.InetAddress address() {
+                return null;
+            }
+
+            @Override
+            public void broadcast(byte[] packet) {
+            }
+        }, new ActivityLog(), List::of);
+        relays.add(relay);
+        return relay;
+    }
+
     /** Trusts only the server's own certificate, as the app does once it's paired. */
-    private static SSLContext pinned() throws Exception {
+    static SSLContext pinned() throws Exception {
         KeyStore trusted = KeyStore.getInstance("PKCS12");
         trusted.load(null, null);
         trusted.setCertificateEntry("busbridge", CERTIFICATE.getCertificate());

@@ -20,6 +20,7 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
@@ -29,15 +30,17 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @param serverId stays the same for this server, so the app can tell it's the one it knows
  * @param version this server's version, or null for a development build
- * @param isAllowedAddress whether a connection from this address may be answered, the socket's own address
  * @param pairing where the app asks to pair, which the user allows on Settings
+ * @param relay carries the bus to paired phones
+ * @param isAllowedAddress whether a connection from this address may be answered, the socket's own address
  */
 class AppServer @JvmOverloads constructor(
     private val certificate: AppCertificate,
     private val serverId: String,
     private val version: String?,
+    private val pairing: Pairing,
+    private val relay: Relay,
     private val isAllowedAddress: (String) -> Boolean = HdlServer::isLocalAddress,
-    private val pairing: Pairing = Pairing(certificate.certificate.encoded),
 ) : AutoCloseable {
 
     private val objectMapper = ObjectMapper()
@@ -65,6 +68,11 @@ class AppServer @JvmOverloads constructor(
             config.contextResolver.ip = { ctx -> ctx.req().remoteAddr } // Never a header: there's no proxy in front of this
             // A few phones at home need little, and someone flooding the port can't take more from the computer
             config.jetty.threadPool = QueuedThreadPool(MAX_THREADS, MIN_THREADS).apply { name = "app-port" }
+            config.jetty.modifyWebSocketServletFactory { factory ->
+                factory.maxBinaryMessageSize = MAX_PACKET_BYTES
+                factory.maxTextMessageSize = MAX_REQUEST_BYTES
+                factory.idleTimeout = RELAY_IDLE_TIMEOUT // Kept alive by the pings
+            }
             config.jetty.addConnector { server, httpConfiguration ->
                 val httpsConfiguration = HttpConfiguration(httpConfiguration).apply {
                     sendServerVersion = false
@@ -91,15 +99,24 @@ class AppServer @JvmOverloads constructor(
                 ctx.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
                 ctx.header("Referrer-Policy", "no-referrer")
                 ctx.header("Cross-Origin-Resource-Policy", "same-origin")
-                if (!isAllowedAddress(ctx.ip())) {
-                    logger.info("Refused a request to the app port from [{}].", ctx.ip())
-                    throw HaltException(403, "Only for the local network.")
+                refuseOthers(ctx)
+            }
+            // The relay's key is checked before the upgrade, so a wrong one gets a plain 401
+            config.routes.wsBeforeUpgrade(RELAY_PATH) { ctx ->
+                refuseOthers(ctx)
+                val key = ctx.header("Authorization")?.takeIf { it.startsWith(BEARER) }?.let { Pairing.decode(it.removePrefix(BEARER), Pairing.KEY_BYTES) }
+                val phone = key?.let(relay::authenticate)
+                if (phone == null) {
+                    logger.info("Refused a relay connection without a paired phone's key, from [{}].", ctx.ip())
+                    ctx.header("WWW-Authenticate", "Bearer")
+                    throw HaltException(401, "Not a paired phone.")
                 }
-                // The app never sends one, while a browser does for a web page's requests to other sites
-                if (ctx.header("Origin") != null) {
-                    logger.info("Refused a request to the app port from a web page, from [{}].", ctx.ip())
-                    throw HaltException(403, "Not for web pages.")
-                }
+                ctx.attribute(PHONE_ATTRIBUTE, phone)
+            }
+            config.routes.ws(RELAY_PATH) { ws ->
+                ws.onConnect { ctx -> relay.connected(ctx, checkNotNull(ctx.attribute<Phones.Phone>(PHONE_ATTRIBUTE))) }
+                ws.onBinaryMessage(relay::received)
+                ws.onClose(relay::closed)
             }
             config.routes.get(INFO_PATH) { ctx ->
                 ctx.json(mapOf("name" to NAME, "version" to (version ?: "development"), "serverId" to serverId))
@@ -144,6 +161,19 @@ class AppServer @JvmOverloads constructor(
         javalin = app
         logger.info("The app port is open on {}, with the certificate {}.", app.port(), certificate.fingerprint)
         return this
+    }
+
+    /** Only phones at home or on the VPN, and never web pages. */
+    private fun refuseOthers(ctx: Context) {
+        if (!isAllowedAddress(ctx.ip())) {
+            logger.info("Refused a request to the app port from [{}].", ctx.ip())
+            throw HaltException(403, "Only for the local network.")
+        }
+        // The app never sends one, while a browser does for a web page's requests to other sites
+        if (ctx.header("Origin") != null) {
+            logger.info("Refused a request to the app port from a web page, from [{}].", ctx.ip())
+            throw HaltException(403, "Not for web pages.")
+        }
     }
 
     private fun readJson(ctx: Context): JsonNode {
@@ -236,6 +266,12 @@ class AppServer @JvmOverloads constructor(
         const val PAIR_PATH = "/relay/pair"
         const val PAIR_REVEAL_PATH = "/relay/pair/reveal"
         const val PAIR_POLL_PATH = "/relay/pair/poll"
+        const val RELAY_PATH = "/relay"
+        private const val BEARER = "Bearer "
+        private const val PHONE_ATTRIBUTE = "phone"
+        /** The largest UDP packet, as the bus code takes. */
+        private const val MAX_PACKET_BYTES = 65_535L
+        private val RELAY_IDLE_TIMEOUT = Duration.ofSeconds(75)
         const val NAME = "Busbridge"
         private const val MAX_REQUEST_BYTES = 16 * 1024L
         private const val IDLE_TIMEOUT_MILLIS = 30_000L
