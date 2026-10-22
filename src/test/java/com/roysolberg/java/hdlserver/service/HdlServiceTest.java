@@ -234,6 +234,41 @@ class HdlServiceTest {
     }
 
     @Test
+    void aBigFrameHasItsContentLengthAfterTheTargetAndNoCrc() {
+        byte[] bytes = bigFrame(300);
+
+        assertEquals(HdlFrame.Validity.VALID, HdlFrame.validate(bytes));
+        assertTrue(HdlFrame.isBig(bytes));
+        assertEquals(300, HdlFrame.contentLength(bytes));
+        assertEquals(27, HdlFrame.contentPosition(bytes));
+        assertNull(HdlFrame.crcOf(bytes));
+        assertEquals(HdlFrame.Validity.BAD_LENGTH, HdlFrame.validate(Arrays.copyOf(bytes, bytes.length - 1)), "Cut short");
+    }
+
+    @Test
+    void theBusLogShowsABigFramesContent() {
+        byte[] bytes = bigFrame(3);
+
+        String described = HdlUtil.getNicelyDescribedBytes(bytes, HdlService.getComponentFromBytes(bytes, false, null));
+
+        assertTrue(described.contains("big frame, content length: 3, content: [01 02 03]"), described);
+        assertFalse(described.contains("crc"), described);
+    }
+
+    /** A big frame with the given length of content, 1, 2, 3 and so on. */
+    private static byte[] bigFrame(int contentLength) {
+        byte[] start = HdlService.getCommandPackage(LOCAL_ADDRESS, new Action.Command(1, 81, 0xE3D8, null, null, null));
+        byte[] bytes = Arrays.copyOf(start, 27 + contentLength);
+        bytes[16] = (byte) 0xFF;
+        bytes[25] = (byte) (contentLength >> 8);
+        bytes[26] = (byte) contentLength;
+        for (int i = 0; i < contentLength; i++) {
+            bytes[27 + i] = (byte) (i + 1);
+        }
+        return bytes;
+    }
+
+    @Test
     void theServerTheAppAndTheSetupToolAreToldApart() {
         assertEquals("This server", HdlService.getComponent(11, 252, 0xFFFB, null).getDescription());
         assertEquals("Android/iOS app", HdlService.getComponent(11, 253, 0xFFFD, null).getDescription());

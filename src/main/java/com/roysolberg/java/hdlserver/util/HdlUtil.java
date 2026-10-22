@@ -230,17 +230,26 @@ public class HdlUtil {
         sb.append(HdlUtil.getNiceOperationCode(bytes));
         sb.append("), ");
         // Content
-        sb.append("content length: ");
-        sb.append(HdlFrame.length(bytes));
-        sb.append(", ");
         int contentLength = HdlFrame.contentLength(bytes);
+        if (HdlFrame.isBig(bytes)) {
+            sb.append("big frame, content length: ");
+            sb.append(contentLength);
+        } else {
+            sb.append("content length: ");
+            sb.append(HdlFrame.length(bytes));
+        }
+        sb.append(", ");
         if (contentLength > 0) {
+            int contentPosition = HdlFrame.contentPosition(bytes);
             sb.append("content: ");
-            sb.append(NetworkUtil.getNicelyFormattedBytes(Arrays.copyOfRange(bytes, HdlUtil.BYTE_POSITION_CONTENT, HdlUtil.BYTE_POSITION_CONTENT + contentLength)));
+            sb.append(NetworkUtil.getNicelyFormattedBytes(Arrays.copyOfRange(bytes, contentPosition, contentPosition + contentLength)));
             sb.append(", ");
         }
         // CRC
-        sb.append(String.format("crc: 0x%04X, ", HdlFrame.crcOf(bytes)));
+        Integer crc = HdlFrame.crcOf(bytes);
+        if (crc != null) {
+            sb.append(String.format("crc: 0x%04X, ", crc));
+        }
         // Target
         int targetDeviceId = bytes[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID] & 0xFF;
         sb.append("target: ");

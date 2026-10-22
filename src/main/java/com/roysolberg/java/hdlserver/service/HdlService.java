@@ -50,7 +50,6 @@ public class HdlService {
     protected final static int BYTE_POSITION_TARGET_SUBNET_ID = 23;
     protected final static int BYTE_POSITION_TARGET_DEVICE_ID = 24;
     protected final static int BYTE_POSITION_CONTENT = 25;
-    protected final static int BYTE_POSITION_REMARK = 25;
     private static final int REMARK_LENGTH = 20;
     protected final static int OPERATE_CODE_SEARCH_RESPONSE = 0x000F;
     protected static final int SINGLE_CHANNEL_CONTROL = 0x0031;
@@ -333,7 +332,7 @@ public class HdlService {
         String remark = null;
         if (includeRemark) {
             // The remark is the first 20 bytes of the content, or what there is of it
-            remark = getCleanRemark(bytes, BYTE_POSITION_REMARK, Math.min(REMARK_LENGTH, HdlFrame.contentLength(bytes)), charset);
+            remark = getCleanRemark(bytes, HdlFrame.contentPosition(bytes), Math.min(REMARK_LENGTH, HdlFrame.contentLength(bytes)), charset);
         }
         return getComponent(subnetId, deviceId, deviceType, remark);
     }
