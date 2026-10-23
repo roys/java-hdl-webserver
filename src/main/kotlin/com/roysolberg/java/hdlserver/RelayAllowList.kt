@@ -4,11 +4,13 @@ import com.roysolberg.java.hdlserver.util.HdlUtil
 
 /**
  * What a phone may send to the bus through the relay: what the Android app sends to control its devices, read them and
- * find them, and nothing that reprograms them. A phone's key in the wrong hands can then work the house, but not change
- * modules' addresses, names, logic or settings.
+ * find them, in the form the app sends it, and nothing else. A phone's key in the wrong hands can then work the house,
+ * but not change modules' addresses, names, logic or other settings. It can still write what the app writes: heating
+ * setpoints and a logic module's clock.
  *
  * Built from the app's own list of what it sends, so the two change together: a packet refused here is logged with
- * its operation code, which shows what's missing when the app sends something new.
+ * its operation code, which shows what's missing when the app sends something new. Whatever isn't known to be safe is
+ * refused.
  */
 internal object RelayAllowList {
 
@@ -25,36 +27,46 @@ internal object RelayAllowList {
         0xF00E, 0xF037, 0xF112,
     )
 
-    /** The device search, and setting a logic module's clock, which the app does after the user confirms. */
-    private val OTHERS = setOf(0x000E, 0xDA02)
+    private const val SEARCH = 0x000E
 
-    private val ALLOWED = CONTROLS + READS + OTHERS
+    /** Setting a logic module's clock, which the app does after the user confirms. */
+    private const val SET_CLOCK = 0xDA02
+
+    /** SMS modules' messages, the only big frames the app sends. */
+    private const val SMS_READ = 0xC100
+
+    @JvmField
+    internal val ALLOWED: Set<Int> = CONTROLS + READS + setOf(SEARCH, SET_CLOCK)
 
     /**
-     * On an IR emitter these send and read IR codes, but on a power meter the same codes clear and calibrate it. So never
-     * to a known power meter, or to every device at once.
+     * On an IR emitter these send and read IR codes, but on a power meter the same codes clear and calibrate it. So only
+     * to an address where every device Busbridge has found is an IR emitter.
      */
     private val IR_OR_POWER_METER = setOf(0xD912, 0xD914, 0xD916)
-    private val POWER_METER_TYPES = 0x037E..0x0384
-    private const val EVERY_DEVICE = 255
+    private val IR_EMITTER_TYPES = setOf(0x013F)
+    private const val EVERY = 255
 
     /**
-     * @param deviceType the type of the device with this address, if Busbridge has found it
+     * @param deviceTypes the types of the devices Busbridge has found with this address, normally one
      * @return why the packet may not be sent, or null if it may
      */
-    fun refusal(packet: ByteArray, deviceType: (subnet: Int, device: Int) -> Int?): String? {
+    fun refusal(packet: ByteArray, deviceTypes: (subnet: Int, device: Int) -> Collection<Int>): String? {
         val operationCode = operationCode(packet)
         if (operationCode !in ALLOWED) {
             return "not something the app sends"
         }
+        if (HdlFrame.isBig(packet) && operationCode != SMS_READ) {
+            return "a big frame, which the app only sends to read SMS messages"
+        }
+        val subnet = packet[HdlUtil.BYTE_POSITION_TARGET_SUBNET_ID].toInt() and 0xFF
+        val device = packet[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID].toInt() and 0xFF
+        if ((subnet == EVERY || device == EVERY) && operationCode != SEARCH) {
+            return "to many devices at once, which the app only does to search"
+        }
         if (operationCode in IR_OR_POWER_METER) {
-            val subnet = packet[HdlUtil.BYTE_POSITION_TARGET_SUBNET_ID].toInt() and 0xFF
-            val device = packet[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID].toInt() and 0xFF
-            if (subnet == EVERY_DEVICE || device == EVERY_DEVICE) {
-                return "an IR code to every device, which would also reach power meters"
-            }
-            if (deviceType(subnet, device) in POWER_METER_TYPES) {
-                return "to a power meter, which it would clear or calibrate"
+            val types = deviceTypes(subnet, device)
+            if (types.isEmpty() || !IR_EMITTER_TYPES.containsAll(types)) {
+                return "IR codes only go to a device Busbridge has found and knows is an IR emitter, as on a power meter they clear or calibrate it"
             }
         }
         return null

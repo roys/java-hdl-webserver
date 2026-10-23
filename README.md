@@ -324,7 +324,8 @@ today, your home network is the lock.
 - 🔗 **Each phone has its own key.** The pairing link works once, for 5 minutes. You see every paired phone on Settings,
   and *Remove* stops it at once.
 - 🧰 **A paired phone can control and read your devices, but not reprogram them.** Busbridge passes on only what the app
-  sends to switch, read and find devices, and refuses changing modules' addresses, names, logic or settings.
+  sends, in the form the app sends it, and refuses changing modules' addresses, names or logic. A phone can still set
+  what the app can: heating setpoints, and a logic module's clock.
 - 🗄️ **The database is readable only by the user Busbridge runs as**, since it holds the keys. Where Busbridge can't make
   it so, as on Windows, the app's port stays closed.
 

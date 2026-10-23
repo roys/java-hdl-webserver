@@ -357,7 +357,7 @@ class HdlServer @JvmOverloads constructor(
         val relay = Relay(
             serverId, VERSION, phones, pairing, bus, activityLog,
             addresses = { relayAddresses(hdlService) },
-            deviceType = { subnet, device -> componentsConcurrentMap.values.firstOrNull { it.subnet == subnet && it.deviceId == device }?.deviceType },
+            deviceTypes = { subnet, device -> componentsConcurrentMap.values.filter { it.subnet == subnet && it.deviceId == device }.map { it.deviceType } },
         )
         appServer = try {
             AppServer(certificate, serverId, VERSION, pairing, relay).start(appPort)

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong
  * HDL UDP packets, as the app sends and reads them at home.
  *
  * @param addresses where the app can reach Busbridge, sent to it on every connection
- * @param deviceType the type of the device with this address, if Busbridge has found it
+ * @param deviceTypes the types of the devices Busbridge has found with this address, normally one
  */
 class Relay @JvmOverloads constructor(
     private val serverId: String,
@@ -34,7 +34,7 @@ class Relay @JvmOverloads constructor(
     private val bus: Bus,
     private val activityLog: ActivityLog,
     private val addresses: () -> List<String>,
-    private val deviceType: (subnet: Int, device: Int) -> Int?,
+    private val deviceTypes: (subnet: Int, device: Int) -> Collection<Int>,
     private val clock: InstantSource = InstantSource.system(),
 ) : AutoCloseable {
 
@@ -52,7 +52,7 @@ class Relay @JvmOverloads constructor(
         /** Bytes waiting to go to the phone. */
         val toPhoneBytes = AtomicLong()
         val sentToBus = AtomicLong()
-        /** Operation codes refused, each logged the first time only. */
+        /** Operation codes refused and logged, each the first time only, and only so many. */
         val refused: MutableSet<Int> = ConcurrentHashMap.newKeySet()
         @Volatile
         var isDropping = false
@@ -112,15 +112,9 @@ class Relay @JvmOverloads constructor(
             logger.info("Dropped a packet ({}) from the phone calling itself [{}].", validity, connection.phone.name)
             return
         }
-        RelayAllowList.refusal(packet, deviceType)?.let { why ->
-            val operationCode = RelayAllowList.operationCode(packet)
-            if (connection.refused.add(operationCode)) {
-                logger.warn(
-                    "Refused packets with operation code {} from the phone calling itself [{}], to {}/{}: {}.", "0x%04X".format(operationCode),
-                    connection.phone.name, packet[HdlUtil.BYTE_POSITION_TARGET_SUBNET_ID].toInt() and 0xFF,
-                    packet[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID].toInt() and 0xFF, why,
-                )
-            }
+        val refusal = RelayAllowList.refusal(packet, deviceTypes)
+        if (refusal != null) {
+            logRefusal(connection, packet, refusal)
             return
         }
         // Always from the app, so the bus log shows it, and a phone can't pass itself off as a device on the bus
@@ -205,6 +199,23 @@ class Relay @JvmOverloads constructor(
         }
     }
 
+    /** Each operation code once, and only so many, so a phone sending all sorts can't fill the log. */
+    private fun logRefusal(connection: Connection, packet: ByteArray, why: String) {
+        val operationCode = RelayAllowList.operationCode(packet)
+        synchronized(connection.refused) {
+            if (connection.refused.size > MAX_REFUSALS_LOGGED || !connection.refused.add(operationCode)) return
+            if (connection.refused.size > MAX_REFUSALS_LOGGED) {
+                logger.warn("The phone calling itself [{}] sends more that isn't allowed. Not logged any more until it connects again.", connection.phone.name)
+                return
+            }
+        }
+        logger.warn(
+            "Refused packets with operation code {} from the phone calling itself [{}], to {}/{}: {}.", "0x%04X".format(operationCode),
+            connection.phone.name, packet[HdlUtil.BYTE_POSITION_TARGET_SUBNET_ID].toInt() and 0xFF,
+            packet[HdlUtil.BYTE_POSITION_TARGET_DEVICE_ID].toInt() and 0xFF, why,
+        )
+    }
+
     /** Javalin makes a new context for every event on a connection, so it's found by its session. */
     private fun connectionOf(ws: WsContext): Connection? = connections.values.firstOrNull { it.ws.session === ws.session }
 
@@ -220,6 +231,7 @@ class Relay @JvmOverloads constructor(
         private const val SEND_INTERVAL_MILLIS = 50L
         /** Busbridge's own address on the bus is 11/252; the app's is 11/253. */
         private const val APP_DEVICE_ID = 253
+        private const val MAX_REFUSALS_LOGGED = 20
         private const val MAX_BYTES_TO_PHONE = 1024 * 1024L
         private val logger = LogManager.getLogger(Relay::class.java)
     }

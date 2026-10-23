@@ -35,7 +35,7 @@ class RelayTest {
     private Pairing pairing;
     private final BlockingQueue<byte[]> sentToBus = new LinkedBlockingQueue<>();
     private final ActivityLog activityLog = new ActivityLog();
-    private final Map<String, Integer> deviceTypes = new ConcurrentHashMap<>();
+    private final Map<String, List<Integer>> deviceTypes = new ConcurrentHashMap<>();
     private Relay relay;
     private AppServer server;
 
@@ -54,7 +54,7 @@ class RelayTest {
             }
         };
         relay = new Relay("server-1", "2.2.0", phones, pairing, bus, activityLog, () -> List.of("192.0.2.10", "100.64.0.10"),
-                (subnet, device) -> deviceTypes.get(subnet + "/" + device));
+                (subnet, device) -> deviceTypes.getOrDefault(subnet + "/" + device, List.of()));
         server = new AppServer(AppServerTest.CERTIFICATE, "server-1", "2.2.0", pairing, relay, address -> true).start(0);
     }
 
@@ -235,20 +235,21 @@ class RelayTest {
     }
 
     @Test
-    void irCodesNeverReachAPowerMeter() throws Exception {
-        deviceTypes.put("1/50", 0x0380); // A power meter
-        deviceTypes.put("1/51", 0x013F); // An IR emitter
+    void irCodesOnlyReachAKnownIrEmitter() throws Exception {
+        deviceTypes.put("1/50", List.of(0x0380)); // A power meter
+        deviceTypes.put("1/51", List.of(0x013F)); // An IR emitter
+        deviceTypes.put("1/53", List.of(0x013F, 0x0380)); // An IR emitter and a power meter at the same address
         try (TestWebSocket phone = connect(pairedKey("Pixel 9"))) {
             phone.read(TestWebSocket.TEXT);
 
             phone.send(TestWebSocket.BINARY, packet(0xD912, 1, 50));
             phone.send(TestWebSocket.BINARY, packet(0xD914, 255, 255));
             phone.send(TestWebSocket.BINARY, packet(0xD916, 1, 255));
+            phone.send(TestWebSocket.BINARY, packet(0xD914, 1, 52)); // Not found, so it could be a power meter
+            phone.send(TestWebSocket.BINARY, packet(0xD912, 1, 53));
             phone.send(TestWebSocket.BINARY, packet(0xD912, 1, 51));
-            phone.send(TestWebSocket.BINARY, packet(0xD914, 1, 52)); // Not found yet
 
             assertArrayEquals(new byte[]{1, 51}, Arrays.copyOfRange(sentToBus.poll(5, TimeUnit.SECONDS), 23, 25));
-            assertArrayEquals(new byte[]{1, 52}, Arrays.copyOfRange(sentToBus.poll(5, TimeUnit.SECONDS), 23, 25));
             assertNull(sentToBus.poll(200, TimeUnit.MILLISECONDS));
         }
     }
@@ -414,9 +415,9 @@ class RelayTest {
         return TestWebSocket.connect(server.port(), List.of("Authorization: Bearer " + Pairing.base64(key)));
     }
 
-    /** A valid packet from the app, 11/253, to every device. */
+    /** A valid packet from the app, 11/253, to a device. */
     private static byte[] packet(int operationCode) {
-        return packet(operationCode, 255, 255);
+        return packet(operationCode, 1, 20);
     }
 
     /** A big frame, as an SMS module's: 255 in the length byte, the content's length after the header, and no CRC. */

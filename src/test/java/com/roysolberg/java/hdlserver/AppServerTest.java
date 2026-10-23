@@ -269,7 +269,7 @@ class AppServerTest {
             @Override
             public void broadcast(byte[] packet) {
             }
-        }, new ActivityLog(), List::of, (subnet, device) -> null);
+        }, new ActivityLog(), List::of, (subnet, device) -> List.of());
         relays.add(relay);
         return relay;
     }
