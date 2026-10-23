@@ -240,6 +240,35 @@ curl -X POST -H 'Content-Type: application/json' -d '{"auth":"<your key>","value
 
 ---
 
+## 📱 The Android app, away from home
+
+At home, [Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome&referrer=utm_source%3Dgithub%26utm_medium%3Dreferral%26utm_campaign%3Dbusbridge%26utm_content%3Dreadme_app)
+talks to HDL Buspro directly. Away from home it can't, since HDL Buspro's broadcasts don't cross a VPN. Paired with
+Busbridge, the app reaches the bus through it instead, over your VPN, e.g. [Tailscale](https://tailscale.com/) on the Pi
+and on the phone.
+
+1. On Busbridge's Settings page, tick **Let the Android app connect** and save. That opens port 4568, with HTTPS, for
+   your home network and VPN only, and shows a QR code.
+2. At home, open Busbridge in the app and scan the code. On the phone itself, tap **Open in the app** instead. The code
+   works once, for 5 minutes; **Connect a phone** makes a new one.
+3. That's it. Away from home, the app uses Busbridge by itself.
+
+Settings lists the paired phones. **Remove** one you've lost, and it can't connect again.
+
+**The app can't reach Busbridge?** Check that the firewall on Busbridge's computer lets in TCP port 4568 from your home
+network and VPN:
+
+| Firewall | Command |
+|---|---|
+| ufw (Raspberry Pi OS, Ubuntu) | `sudo ufw allow from 192.0.2.0/24 to any port 4568 proto tcp` and `sudo ufw allow in on tailscale0 to any port 4568 proto tcp`, with your home network's addresses instead of `192.0.2.0/24`, e.g. `192.168.0.0/24` |
+| firewalld (Fedora, RHEL) | `sudo firewall-cmd --permanent --add-port=4568/tcp && sudo firewall-cmd --reload` |
+| Windows | Allow Java when Windows asks the first time, or, as administrator: `netsh advfirewall firewall add rule name="Busbridge app port" dir=in action=allow protocol=TCP localport=4568 profile=private` |
+| macOS | Allow Java when macOS asks, or in System Settings → Network → Firewall → Options |
+
+Another port than 4568: start the server with `-Dhdlserver.appPort=<port>`.
+
+---
+
 ## 🔄 Updating the server
 
 Run this inside `~/java-hdl-webserver`:
@@ -265,6 +294,7 @@ and a restart):
 |---|---|
 | `-Dhdlserver.port=8080` | Listens on another port than 4567. Remember the port forwarding in your router, and your IFTTT applets' URLs. |
 | `-Dhdlserver.allowedHosts=hdl.example.com` | Lets you open the pages by a host name with dots in it. IP addresses and local names like `raspberrypi` or `raspberrypi.local` always work. |
+| `-Dhdlserver.appPort=4600` | Lets [the Android app](#-the-android-app-away-from-home) connect on another port than 4568. |
 | `-Dhdlserver.busPort=6001` | Uses another UDP port than 6000, where HDL devices are, so nothing reaches the bus. For testing. |
 
 ```sh

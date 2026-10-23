@@ -69,6 +69,10 @@ class Relay @JvmOverloads constructor(
     val isFull: Boolean
         get() = connections.size >= MAX_CONNECTIONS
 
+    /** The ids of the phones connected now. */
+    val connectedPhoneIds: Set<String>
+        get() = connections.keys.toSet()
+
     /** Whether a paired phone, or one allowed to pair, has this key. Checked before the upgrade. */
     fun knows(key: ByteArray): Boolean = phones.find(key) != null || pairing.isAllowed(key)
 

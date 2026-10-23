@@ -2,13 +2,49 @@
 @import com.roysolberg.java.hdlserver.Phones
 @import com.roysolberg.java.hdlserver.Status
 @param appPortOpen: Boolean = false
+@param port: Int = 0
 @param pairingOpen: Boolean = false
 @param pairingView: PairingView? = null
 @param connecting: List<String> = emptyList()
 @param phones: List<Phones.Phone> = emptyList()
+@param connected: Set<String> = emptySet()
+@if(phones.isNotEmpty())
+<div class="box">
+    <h2 class="title is-5">Paired phones</h2>
+    <p class="block">These phones can reach the bus through Busbridge, also away from home over your VPN. At home they
+        talk to the bus directly, so they connect to Busbridge only when they're away.</p>
+    <div class="table-container">
+        <table class="table is-fullwidth">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Paired</th>
+                <th>Last seen</th>
+                <th><span class="is-sr-only">Remove</span></th>
+            </tr>
+            </thead>
+            <tbody>
+            @for(phone in phones)
+                <tr>
+                    <td>${phone.name}</td>
+                    <td>${Status.formatTime(phone.pairedAt)}</td>
+                    <td>@if(phone.id in connected)<span class="tag is-success is-light">Connected now</span>@elseif(phone.lastSeen != null)${Status.formatTime(phone.lastSeen)}@endif</td>
+                    <td>
+                        <form action="remove_phone" method="post">
+                            <input type="hidden" name="phoneId" value="${phone.id}"/>
+                            <button type="submit" class="button is-danger is-small">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            @endfor
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
 @if(appPortOpen)
 <div class="box">
-    <h2 class="title is-5">Connect a phone</h2>
+    <h2 class="title is-5">@if(phones.isEmpty())Connect a phone@elseConnect another phone@endif</h2>
     @if(pairingView != null)
         <p class="block">In Smart Home for HDL Buspro, at home: open Busbridge and scan this code. On this phone, tap
             Open in the app instead. Works once, until ${Status.formatTime(pairingView.closesAt).substring(11)}.</p>
@@ -32,6 +68,9 @@
             <p class="help">Anyone with this link can pair a phone with Busbridge until it's used. Share it only with your
                 own phone.</p>
         </div>
+        <p class="help">If the app can't reach Busbridge, check that a firewall on this computer doesn't block port ${port}
+            from your home network and VPN. <a href="https://github.com/roys/java-hdl-webserver#-the-android-app-away-from-home"
+            target="_blank" rel="noopener noreferrer">How</a></p>
     @elseif(pairingOpen)
         <p class="block has-text-danger">Busbridge has no address on the home network yet, so there's no link to show.
             Check its network connection, and press Connect a phone again.</p>
@@ -39,44 +78,15 @@
         @if(connecting.isNotEmpty())
             <p class="block">Paired: ${connecting.joinToString(", ")}. Waiting for it to connect.</p>
         @endif
-        <p class="block">Pairs Smart Home for HDL Buspro with Busbridge, so it can reach the bus away from home too. Shows a
-            QR code to scan with the app, at home.</p>
+        @if(phones.isEmpty())
+            <p class="block">Pairs Smart Home for HDL Buspro with Busbridge, so it can reach the bus away from home too.
+                Shows a QR code to scan with the app, at home.</p>
+        @else
+            <p class="block">Only to pair one more phone. The phones above are paired already.</p>
+        @endif
         <form action="open_pairing" method="post">
-            <button type="submit" class="button is-primary">Connect a phone</button>
+            <button type="submit" class="button @if(phones.isEmpty())is-primary@endif">@if(phones.isEmpty())Connect a phone@elseConnect another phone@endif</button>
         </form>
     @endif
-</div>
-@endif
-@if(phones.isNotEmpty())
-<div class="box">
-    <h2 class="title is-5">Paired phones</h2>
-    <p class="block">These phones can reach the bus through Busbridge, also away from home over your VPN.</p>
-    <div class="table-container">
-        <table class="table is-fullwidth">
-            <thead>
-            <tr>
-                <th>Name</th>
-                <th>Paired</th>
-                <th>Last seen</th>
-                <th><span class="is-sr-only">Remove</span></th>
-            </tr>
-            </thead>
-            <tbody>
-            @for(phone in phones)
-                <tr>
-                    <td>${phone.name}</td>
-                    <td>${Status.formatTime(phone.pairedAt)}</td>
-                    <td>@if(phone.lastSeen != null)${Status.formatTime(phone.lastSeen)}@endif</td>
-                    <td>
-                        <form action="remove_phone" method="post">
-                            <input type="hidden" name="phoneId" value="${phone.id}"/>
-                            <button type="submit" class="button is-danger is-small">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-            @endfor
-            </tbody>
-        </table>
-    </div>
 </div>
 @endif

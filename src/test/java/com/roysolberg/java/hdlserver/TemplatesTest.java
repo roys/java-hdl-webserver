@@ -279,6 +279,7 @@ class TemplatesTest {
         params.put("page", page);
         params.put("appFingerprint", "AB:CD");
         params.put("pairingOpen", true);
+        params.put("appPort", 4568);
         params.put("pairingView", new PairingView(link, Pairing.intentLink("192.0.2.10", 4568, "x", "y"), java.time.Instant.now()));
         StringOutput output = new StringOutput();
         templateEngine.render("settings.kte", params, output);
@@ -287,6 +288,7 @@ class TemplatesTest {
         assertTrue(html.contains("<svg xmlns=\"http://www.w3.org/2000/svg\""), "The QR code");
         assertTrue(html.contains("value=\"" + link.replace("&", "&amp;") + "\""), "The link to copy");
         assertTrue(html.contains("href=\"intent://pair?v=1&amp;h=192.0.2.10"), "Open in the app");
+        assertTrue(html.contains("a firewall on this computer doesn't block port 4568"), "The firewall hint, worded as in the app");
     }
 
     @Test
@@ -312,9 +314,18 @@ class TemplatesTest {
         });
         phones.add(QUOTE_BREAKOUT + SCRIPT, new byte[32], java.time.Instant.now());
 
-        String html = render("settings", page, "phones", phones.all());
+        Map<String, Object> params = new HashMap<>();
+        params.put("page", page);
+        params.put("appFingerprint", "AB:CD");
+        params.put("phones", phones.all());
+        params.put("connected", java.util.Set.of(phones.all().get(0).getId()));
+        StringOutput output = new StringOutput();
+        templateEngine.render("settings.kte", params, output);
+        String html = output.toString();
 
         assertTrue(html.contains("Paired phones"));
+        assertTrue(html.contains("Connected now"));
+        assertTrue(html.indexOf("Paired phones") < html.indexOf("Connect another phone"), "The paired phones first");
         assertFalse(html.contains(SCRIPT));
         assertFalse(html.contains(QUOTE_BREAKOUT));
     }

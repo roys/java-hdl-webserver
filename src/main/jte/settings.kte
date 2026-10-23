@@ -13,6 +13,7 @@
 @param pairingView: PairingView? = null
 @param connecting: List<String> = emptyList()
 @param phones: List<Phones.Phone> = emptyList()
+@param connected: Set<String> = emptySet()
 @template.layout(page = page, content = @`
 <h1 class="title">Settings</h1>
 <div class="box">
@@ -54,6 +55,6 @@
     </form>
 </div>
 <div data-live="/settings/events">
-    @template.live.phones(appPortOpen = appFingerprint != null, pairingOpen = pairingOpen, pairingView = pairingView, connecting = connecting, phones = phones)
+    @template.live.phones(appPortOpen = appFingerprint != null, port = appPort, pairingOpen = pairingOpen, pairingView = pairingView, connecting = connecting, phones = phones, connected = connected)
 </div>
 `)

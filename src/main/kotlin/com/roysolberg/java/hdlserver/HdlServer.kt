@@ -404,6 +404,7 @@ class HdlServer @JvmOverloads constructor(
             "pairingView" to view,
             "connecting" to pairing?.connecting().orEmpty(),
             "phones" to phones.all(),
+            "connected" to relay?.connectedPhoneIds.orEmpty(),
         )
     }
 
@@ -552,7 +553,7 @@ class HdlServer @JvmOverloads constructor(
         val params = when (template) {
             "live/status" -> mapOf("status" to status(hdlService))
             "live/activity" -> mapOf("entries" to activityLog.entries())
-            "live/phones" -> phonesParams() + ("appPortOpen" to (appServer != null))
+            "live/phones" -> phonesParams() + ("appPortOpen" to (appServer != null)) + ("port" to appPort)
             else -> throw IllegalArgumentException("No live template $template")
         }
         val html = StringOutput()
