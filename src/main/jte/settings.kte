@@ -44,7 +44,7 @@
                 <p class="help is-danger">Couldn't open port ${appPort}. Is something else using it? The log says more.</p>
             @elseif(appPortProblem == AppPortProblem.DATABASE_NOT_PRIVATE)
                 <p class="help is-danger">Port ${appPort} stays closed: ${HdlServer.DATABASE_FILE} must be readable by its owner only,
-                    since the port's private key would be kept there. Busbridge can't make it so on Windows yet, or when
+                    since the port's private key would be kept there. Busbridge can't make it so on Windows, or when
                     another account owns the file.</p>
             @elseif(appFingerprint != null)
                 <p class="help">Port ${appPort} is open. Its certificate's fingerprint, which the app checks:

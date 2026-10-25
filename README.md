@@ -262,7 +262,6 @@ network and VPN:
 |---|---|
 | ufw (Raspberry Pi OS, Ubuntu) | `sudo ufw allow from 192.0.2.0/24 to any port 4568 proto tcp` and `sudo ufw allow in on tailscale0 to any port 4568 proto tcp`, with your home network's addresses instead of `192.0.2.0/24`, e.g. `192.168.0.0/24` |
 | firewalld (Fedora, RHEL) | `sudo firewall-cmd --permanent --add-port=4568/tcp && sudo firewall-cmd --reload` |
-| Windows | Allow Java when Windows asks the first time, or, as administrator: `netsh advfirewall firewall add rule name="Busbridge app port" dir=in action=allow protocol=TCP localport=4568 profile=private` |
 | macOS | Allow Java when macOS asks, or in System Settings → Network → Firewall → Options |
 
 Another port than 4568: start the server with `-Dhdlserver.appPort=<port>`.
@@ -381,8 +380,8 @@ today, your home network is the lock.
    version 1.0.3 or earlier? [Update](#-updating-the-server): those versions have known security vulnerabilities.
 
 **For the careful: put HDL on its own network.** With HDL's IP module on a network of its own, and Busbridge the only way
-in, Busbridge becomes the lock. That needs a login and HTTPS on the web pages, which are planned but not built yet.
-Until then, a separate network still keeps gadgets and visitors away from the bus.
+in, gadgets and visitors on your home network can't reach the bus directly. The web pages have no login, though, so
+anyone who can open them can still run your actions and pair a phone.
 
 **Found a vulnerability?** Please report it privately, as [SECURITY.md](SECURITY.md) describes.
 
