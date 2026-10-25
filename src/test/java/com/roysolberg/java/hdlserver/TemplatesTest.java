@@ -229,8 +229,8 @@ class TemplatesTest {
 
         String html = render("index", page, "heard", Collections.singleton("1-40-600"));
 
-        assertEquals(1, html.split("Not heard</span>").length - 1, "Only the one that hasn't been heard");
-        assertTrue(html.indexOf("Not heard</span>") > html.indexOf("Old dimmer"));
+        assertEquals(1, html.split("No answer</span>").length - 1, "Only the one that hasn't answered");
+        assertTrue(html.indexOf("No answer</span>") > html.indexOf("Old dimmer"));
         assertTrue(html.contains("data-open=\"removeComponent-1-41-600\""));
         assertTrue(html.contains("<input type=\"hidden\" name=\"componentId\" value=\"1-41-600\"/>"));
         assertTrue(html.contains("Remove Old dimmer (1/41)?"));

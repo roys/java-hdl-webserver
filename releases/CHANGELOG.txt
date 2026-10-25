@@ -12,6 +12,7 @@ Version 2.2.0
  * The server finds the bus network from its own network interfaces, so it keeps reaching the bus when a VPN like Tailscale carries the computer's Internet traffic, or when there's no Internet. It no longer contacts google.com.
  * The server reads the bus as fast as frames come, and skips frames that are cut short or damaged. The bus log shows each frame's real CRC, and big frames, like an SMS module's messages, are read whole.
  * The web pages also answer link-local addresses (169.254.x.x and fe80::), which routers don't pass on.
+ * On the Devices page, devices that haven't answered since the server started are marked "No answer", instead of "Not heard".
  * The README's Security section says plainly what Busbridge protects, what it doesn't, and what you can do. SECURITY.md says how to report a vulnerability privately.
  + -Dhdlserver.busPort=<port> uses another UDP port than 6000, to test without reaching a real bus.
 Version 2.1.0

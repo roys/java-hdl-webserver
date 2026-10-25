@@ -11,8 +11,8 @@
         <button type="submit" class="button is-primary is-light">@template.icon(icon = Icon.Search)<span>Search again</span></button>
     </form>
 </div>
-<p class="subtitle is-6 has-text-grey">${page.components.size} devices found on the HDL bus. The ones marked <i>Not heard</i> haven't said anything since
-    the server started, like devices that have been replaced or removed. Give it a few minutes after a restart.</p>
+<p class="subtitle is-6 has-text-grey">${page.components.size} devices found on the HDL bus. The ones marked <i>No answer</i> haven't answered since the
+    server started, like devices that have been replaced or removed. Give it a few minutes after a restart.</p>
 <div class="table-container">
     <table class="table is-fullwidth is-hoverable is-striped">
         <thead>
@@ -32,7 +32,7 @@
             <th>
                 ${component.remark}
                 @if(id !in heard)
-                <span class="tag is-warning is-light" title="Hasn't said anything on the bus since the server started">Not heard</span>
+                <span class="tag is-warning is-light" title="Hasn't answered or said anything on the bus since the server started">No answer</span>
                 @endif
                 @if("${component.subnet}/${component.deviceId}" in conflicts)
                 <span class="tag is-danger is-light" title="More than one device answers at this address. Give each its own in HDL's setup tool.">Address conflict</span>
