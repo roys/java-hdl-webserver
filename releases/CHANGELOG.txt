@@ -3,6 +3,17 @@ Changelog for Busbridge for HDL Buspro (until 2.1: HDL Buspro server)
 List of changes, newest changes first.
 ('+' = new feature, '-' = removed feature, '*' = changed feature)
 
+Version 2.2.0
+ + Smart Home for HDL Buspro, the Android app (version 1.4 or later), can reach the bus away from home through Busbridge, over your VPN. Turn on "Let the Android app connect" in Settings and scan the QR code with the app, at home. See "The Android app, away from home" in README.md.
+ + The app connects on a port of its own, 4568, with HTTPS and Busbridge's own certificate, and only from your home network or VPN. It's closed until you turn it on. Another port: -Dhdlserver.appPort=<port>.
+ + Settings lists the paired phones, shows which are connected now, and can remove one, which disconnects it at once. Activity shows phones pairing, connecting and disconnecting.
+ + A paired phone can control and read your devices through Busbridge, but not reprogram them.
+ * The database is readable only by the user Busbridge runs as, since it now also holds the app port's private key. Where that can't be done, as on Windows, the app port stays closed.
+ * The server finds the bus network from its own network interfaces, so it keeps reaching the bus when a VPN like Tailscale carries the computer's Internet traffic, or when there's no Internet. It no longer contacts google.com.
+ * The server reads the bus as fast as frames come, and skips frames that are cut short or damaged. The bus log shows each frame's real CRC, and big frames, like an SMS module's messages, are read whole.
+ * The web pages also answer link-local addresses (169.254.x.x and fe80::), which routers don't pass on.
+ * The README's Security section says plainly what Busbridge protects, what it doesn't, and what you can do. SECURITY.md says how to report a vulnerability privately.
+ + -Dhdlserver.busPort=<port> uses another UDP port than 6000, to test without reaching a real bus.
 Version 2.1.0
  + Every page mentions Smart Home for HDL Buspro, an Android app for controlling your HDL devices from your phone.
  * HDL Buspro server is now called Busbridge for HDL Buspro. How it's installed, run and updated stays the same.
