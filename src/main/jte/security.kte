@@ -11,6 +11,11 @@
         <a href="https://tailscale.com/" target="_blank" rel="noopener noreferrer">Tailscale</a> network, so you can use them away from home too.</p>
     <p><strong>The API and the commands</strong> are guarded by a random key, made the first time the server started.
         Requests without the right key aren't run.</p>
+    <p><strong>The Android app's port</strong> is closed until you turn on <a href="/settings">Let the Android app connect</a>.
+        It uses HTTPS with Busbridge's own certificate, which the app gets from the QR code it pairs with, and only answers
+        your local network or VPN. Each paired phone has its own key. It can control and read your devices, but not reprogram
+        them. Remove a lost phone on <a href="/settings">Settings</a>, and it can't connect again. Anyone who can open these
+        pages can pair a phone too, so keep them to your own network.</p>
     <div class="notification is-warning is-light">
         <strong>Use at your own risk.</strong> Busbridge is provided as is, without warranty of any kind (MIT license).
         You decide how it's reachable, and you're responsible for that. Like all software, it and the libraries it builds on will
