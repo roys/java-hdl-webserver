@@ -245,7 +245,7 @@ curl -X POST -H 'Content-Type: application/json' -d '{"auth":"<your key>","value
 At home, [Smart Home for HDL Buspro](https://play.google.com/store/apps/details?id=com.roysolberg.android.smarthome&referrer=utm_source%3Dgithub%26utm_medium%3Dreferral%26utm_campaign%3Dbusbridge%26utm_content%3Dreadme_app)
 talks to HDL Buspro directly. Away from home it can't, since HDL Buspro's broadcasts don't cross a VPN. Paired with
 Busbridge, the app reaches the bus through it instead, over your VPN, e.g. [Tailscale](https://tailscale.com/) on the Pi
-and on the phone.
+and on the phone. This needs version 1.4 or later of the app.
 
 1. On Busbridge's Settings page, tick **Let the Android app connect** and save. That opens port 4568, with HTTPS, for
    your home network and VPN only, and shows a QR code.

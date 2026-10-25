@@ -38,8 +38,8 @@
                 <input type="checkbox" name="appPortOn" aria-describedby="help_app_port" checked="${appPortOn}">
                 Let the Android app connect
             </label>
-            <p id="help_app_port" class="help">Opens port ${appPort} for Smart Home for HDL Buspro, the Android app, with HTTPS
-                and only from your home network or VPN.</p>
+            <p id="help_app_port" class="help">Opens port ${appPort} for Smart Home for HDL Buspro, the Android app (version 1.4 or
+                later), with HTTPS and only from your home network or VPN.</p>
             @if(appPortProblem == AppPortProblem.PORT_TAKEN)
                 <p class="help is-danger">Couldn't open port ${appPort}. Is something else using it? The log says more.</p>
             @elseif(appPortProblem == AppPortProblem.DATABASE_NOT_PRIVATE)
