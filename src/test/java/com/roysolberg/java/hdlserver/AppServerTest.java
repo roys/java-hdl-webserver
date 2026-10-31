@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
@@ -74,12 +75,17 @@ class AppServerTest {
         AppServer server = start(address -> true);
         List<Socket> sockets = new ArrayList<>();
         try {
-            for (int i = 0; i < 8; i++) {
-                sockets.add(new Socket("127.0.0.1", server.port())); // Saying nothing
+            for (int i = 0; i < 9; i++) {
+                Socket socket = new Socket("127.0.0.1", server.port()); // Saying nothing
+                socket.setSoTimeout(100);
+                sockets.add(socket);
             }
-            try (Socket ninth = new Socket("127.0.0.1", server.port())) {
-                ninth.setSoTimeout(5000);
-                assertEquals(-1, ninth.getInputStream().read(), "Closed by the server");
+            // The server may take them in another order than they were opened, so any one can be the one too many
+            Socket refused = closedByTheServer(sockets);
+            sockets.remove(refused);
+            refused.close();
+            for (Socket socket : sockets) {
+                assertThrows(SocketTimeoutException.class, () -> socket.getInputStream().read(), "Still open");
             }
             sockets.remove(0).close();
             assertEquals(200, eventually(() -> connect(server, "/relay/info").getResponseCode()), "Room again");
@@ -246,6 +252,23 @@ class AppServerTest {
                 Thread.sleep(100);
             }
         }
+    }
+
+    /** Waits a few seconds for the server to close one of the sockets, which each have a short read timeout. */
+    private static Socket closedByTheServer(List<Socket> sockets) throws IOException {
+        long giveUpAt = System.nanoTime() + 5_000_000_000L;
+        while (System.nanoTime() < giveUpAt) {
+            for (Socket socket : sockets) {
+                try {
+                    if (socket.getInputStream().read() == -1) {
+                        return socket;
+                    }
+                } catch (SocketTimeoutException e) {
+                    // Still open
+                }
+            }
+        }
+        return fail("None was closed by the server");
     }
 
     private AppServer start(kotlin.jvm.functions.Function1<String, Boolean> isAllowedAddress) throws Exception {
