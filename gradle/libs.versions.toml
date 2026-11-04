@@ -5,7 +5,7 @@ javalin = "7.2.3"
 # Javalin 7.2.3 is built on Jetty 12.1.12; use the latest 12.1 patch release.
 jetty = "12.1.14"
 jackson = "2.22.4"
-jte = "3.2.4"
+jte = "3.2.5"
 log4j = "2.26.1"
 # Existing hdlserver.db files were written with MapDB 3.0.2.
 mapdb = "3.0.2"
