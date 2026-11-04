@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.21"
 shadow = "9.6.1"
-javalin = "7.2.3"
+javalin = "7.2.4"
 # Javalin 7.2.3 is built on Jetty 12.1.12; use the latest 12.1 patch release.
 jetty = "12.1.14"
 jackson = "2.22.4"
